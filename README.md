@@ -32,6 +32,6 @@ This repository intentionally separates the studio into explicit boundaries.
 
 ## Current commit scope
 
-This commit only restores the foundation structure.
+This commit adds the first shared contract layer.
 
-It does not add Project Core, Pyxel, VOICEVOX, ffmpeg export, or production UI yet.
+It defines DTOs, schema placeholders, and boundary interfaces only. It does not add Project Core, Repository implementation, Pyxel, VOICEVOX, ffmpeg export, or production UI yet.

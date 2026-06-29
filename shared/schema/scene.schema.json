@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://retro-short-studio.local/schema/scene.schema.json",
+  "title": "SceneDto",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sceneId", "sceneName", "duration", "backgroundAssetId", "characterIds", "actions"],
+  "properties": {
+    "sceneId": { "type": "string" },
+    "sceneName": { "type": "string" },
+    "duration": { "type": "number" },
+    "backgroundAssetId": { "type": ["string", "null"] },
+    "characterIds": { "type": "array", "items": { "type": "string" } },
+    "actions": { "type": "array" }
+  }
+}
