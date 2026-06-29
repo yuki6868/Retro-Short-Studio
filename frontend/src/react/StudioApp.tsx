@@ -2,16 +2,22 @@ import { useMemo, useRef, useState, type ReactElement } from "react";
 
 import {
   AssetLibraryUseCase,
+  InspectorUseCase,
   SceneFlowUseCase,
   type AddAssetInput,
   type AddSceneInput,
   type AssetLibraryState,
   type MoveSceneInput,
   type SceneFlowState,
+  type InspectorState,
+  type RenameSceneInput,
+  type ChangeSceneDurationInput,
+  type RenameCharacterInput,
+  type ChangeActionTimeRangeInput,
 } from "../../../app/src";
 import type { PreviewState } from "../../../app/src";
 import { Project, type IdGenerator } from "../../../core/src";
-import { AssetBrowser, PreviewPanel, SceneFlow, StudioLayout, type StudioLayoutViewState } from "../index";
+import { AssetBrowser, Inspector, PreviewPanel, SceneFlow, StudioLayout, type StudioLayoutViewState } from "../index";
 import "./studio-app.css";
 
 export function StudioApp(): ReactElement {
@@ -19,6 +25,7 @@ export function StudioApp(): ReactElement {
   const projectRef = useRef<Project | null>(null);
   const assetLibraryRef = useRef<AssetLibraryUseCase | null>(null);
   const sceneFlowRef = useRef<SceneFlowUseCase | null>(null);
+  const inspectorRef = useRef<InspectorUseCase | null>(null);
 
   if (projectRef.current === null) {
     projectRef.current = Project.create({ projectId: "project-local-preview", projectName: "Local Preview" });
@@ -38,10 +45,18 @@ export function StudioApp(): ReactElement {
     });
   }
 
+  if (inspectorRef.current === null) {
+    inspectorRef.current = new InspectorUseCase({
+      project: projectRef.current,
+    });
+  }
+
   const assetLibrary = assetLibraryRef.current;
   const sceneFlow = sceneFlowRef.current;
+  const inspector = inspectorRef.current;
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
+  const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
 
   const previewUseCase = useMemo(
     () => ({
@@ -94,31 +109,87 @@ export function StudioApp(): ReactElement {
       addScene(input: AddSceneInput): SceneFlowState {
         const next = sceneFlow.addScene(input);
         setSceneState(next);
+        setInspectorState(inspector.selectScene(next.selectedSceneId ?? next.scenes[next.scenes.length - 1]?.sceneId ?? ""));
         return next;
       },
       deleteScene(sceneId: string): SceneFlowState {
         const next = sceneFlow.deleteScene(sceneId);
         setSceneState(next);
+        setInspectorState(next.selectedSceneId === null ? inspector.clearSelection() : inspector.selectScene(next.selectedSceneId));
         return next;
       },
       moveScene(input: MoveSceneInput): SceneFlowState {
         const next = sceneFlow.moveScene(input);
         setSceneState(next);
+        setInspectorState(inspector.selectScene(input.sceneId));
         return next;
       },
       selectScene(sceneId: string): SceneFlowState {
         const next = sceneFlow.selectScene(sceneId);
         setSceneState(next);
+        setInspectorState(inspector.selectScene(sceneId));
         return next;
       },
     }),
-    [sceneFlow, sceneState],
+    [inspector, sceneFlow, sceneState],
+  );
+
+  const inspectorUseCase = useMemo(
+    () => ({
+      get state() {
+        return inspectorState;
+      },
+      clearSelection(): InspectorState {
+        const next = inspector.clearSelection();
+        setInspectorState(next);
+        return next;
+      },
+      selectScene(sceneId: string): InspectorState {
+        const next = inspector.selectScene(sceneId);
+        setInspectorState(next);
+        return next;
+      },
+      selectCharacter(characterId: string): InspectorState {
+        const next = inspector.selectCharacter(characterId);
+        setInspectorState(next);
+        return next;
+      },
+      selectAction(sceneId: string, actionId: string): InspectorState {
+        const next = inspector.selectAction(sceneId, actionId);
+        setInspectorState(next);
+        return next;
+      },
+      renameSelectedScene(input: RenameSceneInput): InspectorState {
+        const next = inspector.renameSelectedScene(input);
+        setInspectorState(next);
+        setSceneState(sceneFlow.state);
+        return next;
+      },
+      changeSelectedSceneDuration(input: ChangeSceneDurationInput): InspectorState {
+        const next = inspector.changeSelectedSceneDuration(input);
+        setInspectorState(next);
+        setSceneState(sceneFlow.state);
+        return next;
+      },
+      renameSelectedCharacter(input: RenameCharacterInput): InspectorState {
+        const next = inspector.renameSelectedCharacter(input);
+        setInspectorState(next);
+        return next;
+      },
+      changeSelectedActionTimeRange(input: ChangeActionTimeRangeInput): InspectorState {
+        const next = inspector.changeSelectedActionTimeRange(input);
+        setInspectorState(next);
+        return next;
+      },
+    }),
+    [inspector, inspectorState, sceneFlow],
   );
 
   const layout = new StudioLayout({
     preview: new PreviewPanel({ duration: 12, preview: previewUseCase }).render(),
     assetBrowser: new AssetBrowser({ assets: assetBrowserUseCase }).render(),
     sceneFlow: new SceneFlow({ scenes: sceneFlowUseCase }).render(),
+    inspector: new Inspector({ inspector: inspectorUseCase }).render(),
   }).render();
 
   return (
@@ -133,6 +204,8 @@ export function StudioApp(): ReactElement {
       onSeek={previewUseCase.seek}
       onSelectAsset={assetBrowserUseCase.selectAsset}
       onSelectScene={sceneFlowUseCase.selectScene}
+      onEditSceneName={(sceneId, sceneName) => inspectorUseCase.renameSelectedScene({ sceneId, sceneName })}
+      onEditSceneDuration={(sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration })}
     />
   );
 }
@@ -148,6 +221,8 @@ type StudioWorkspaceProps = {
   onSeek(time: number): Promise<PreviewState>;
   onSelectAsset(assetId: string): AssetLibraryState;
   onSelectScene(sceneId: string): SceneFlowState;
+  onEditSceneName(sceneId: string, sceneName: string): InspectorState;
+  onEditSceneDuration(sceneId: string, duration: number): InspectorState;
 };
 
 export function StudioWorkspace({
@@ -161,11 +236,17 @@ export function StudioWorkspace({
   onSeek,
   onSelectAsset,
   onSelectScene,
+  onEditSceneName,
+  onEditSceneDuration,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const preview = view.layout.center.preview;
   const assetBrowser = view.layout.left[0].assetBrowser;
   const sceneFlow = view.layout.left[1].sceneFlow;
+  const inspectorPanel = view.layout.right.inspector;
+  const sceneInspector = inspectorPanel?.type === "scene" ? inspectorPanel : null;
+  const characterInspector = inspectorPanel?.type === "character" ? inspectorPanel : null;
+  const actionInspector = inspectorPanel?.type === "action" ? inspectorPanel : null;
 
   return (
     <main className="rss-studio" aria-label={view.title}>
@@ -301,8 +382,50 @@ export function StudioWorkspace({
         <aside className="rss-studio__right" aria-label={view.layout.right.title}>
           <section className="rss-panel">
             <h2>{view.layout.right.title}</h2>
-            <p>{view.layout.right.placeholderText}</p>
-            <p>{view.layout.right.selectedTargetLabel}</p>
+            {inspectorPanel === null || inspectorPanel.type === "empty" ? (
+              <>
+                <p>{view.layout.right.placeholderText}</p>
+                <p>{view.layout.right.selectedTargetLabel}</p>
+              </>
+            ) : null}
+            {sceneInspector !== null ? (
+              <div className="rss-inspector" aria-label="Scene Inspector">
+                <p>{sceneInspector.selectedTargetLabel}</p>
+                <label>
+                  Scene name
+                  <input
+                    aria-label="Scene name"
+                    defaultValue={sceneInspector.sceneName}
+                    onBlur={(event) => onEditSceneName(sceneInspector.sceneId, event.currentTarget.value)}
+                  />
+                </label>
+                <label>
+                  Duration
+                  <input
+                    aria-label="Scene duration"
+                    defaultValue={sceneInspector.duration}
+                    min={0.1}
+                    onBlur={(event) =>
+                      onEditSceneDuration(sceneInspector.sceneId, Number(event.currentTarget.value))
+                    }
+                    step={0.1}
+                    type="number"
+                  />
+                </label>
+              </div>
+            ) : null}
+            {characterInspector !== null ? (
+              <div className="rss-inspector" aria-label="Character Inspector">
+                <p>{characterInspector.selectedTargetLabel}</p>
+                <p>{characterInspector.characterName}</p>
+              </div>
+            ) : null}
+            {actionInspector !== null ? (
+              <div className="rss-inspector" aria-label="Action Inspector">
+                <p>{actionInspector.selectedTargetLabel}</p>
+                <p>{actionInspector.actionType}</p>
+              </div>
+            ) : null}
           </section>
         </aside>
       </section>

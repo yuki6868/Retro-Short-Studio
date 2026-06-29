@@ -1,6 +1,7 @@
 import type { AssetBrowserViewState } from "../asset";
 import type { PreviewPanelViewState } from "../preview";
 import type { SceneFlowViewState } from "../scene";
+import type { InspectorViewState } from "../inspector";
 
 export type StudioRegionId = "assetBrowser" | "sceneFlow" | "preview" | "inspector" | "timeline";
 
@@ -25,10 +26,11 @@ export type StudioSceneFlowState = StudioRegionState & {
   sceneFlow: SceneFlowViewState | null;
 };
 
-export type InspectorState = StudioRegionState & {
+export type InspectorRegionState = StudioRegionState & {
   id: "inspector";
   role: "inspect";
   selectedTargetLabel: string;
+  inspector: InspectorViewState | null;
 };
 
 export type TimelineState = StudioRegionState & {
@@ -48,7 +50,7 @@ export type StudioLayoutViewState = {
   layout: {
     left: [AssetBrowserState, StudioSceneFlowState];
     center: StudioPreviewRegionState;
-    right: InspectorState;
+    right: InspectorRegionState;
     bottom: TimelineState;
   };
   order: StudioRegionId[];
@@ -63,6 +65,7 @@ export type StudioLayoutProps = {
   sceneCount?: number;
   trackCount?: number;
   selectedTargetLabel?: string | null;
+  inspector?: InspectorViewState;
 };
 
 export class StudioLayout {
@@ -115,13 +118,18 @@ export class StudioLayout {
     };
   }
 
-  private createInspector(): InspectorState {
+  private createInspector(): InspectorRegionState {
+    const inspector = this.props.inspector ?? null;
+
     return {
       id: "inspector",
-      title: "Inspector",
+      title: inspector?.title ?? "Inspector",
       role: "inspect",
-      placeholderText: "Select a scene, character, or action to edit it.",
-      selectedTargetLabel: this.props.selectedTargetLabel ?? "Nothing selected",
+      placeholderText: inspector?.type === "empty" || inspector === null
+        ? "Select a scene, character, or action to edit it."
+        : "",
+      selectedTargetLabel: inspector?.selectedTargetLabel ?? this.props.selectedTargetLabel ?? "Nothing selected",
+      inspector,
     };
   }
 

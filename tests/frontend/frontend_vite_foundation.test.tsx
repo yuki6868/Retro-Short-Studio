@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { AddAssetInput, AddSceneInput, AssetLibraryState, MoveSceneInput, PreviewState, SceneFlowState } from "../../app/src";
+import type { AddAssetInput, AddSceneInput, AssetLibraryState, InspectorState, MoveSceneInput, PreviewState, SceneFlowState } from "../../app/src";
 import { PreviewPanel, StudioLayout } from "../../frontend/src";
 import { StudioWorkspace } from "../../frontend/src/react";
 
@@ -23,6 +23,8 @@ describe("Frontend Vite foundation", () => {
         onSeek={async () => createPreviewState()}
         onSelectAsset={selectAssetNoop}
         onSelectScene={selectSceneNoop}
+        onEditSceneName={editSceneNameNoop}
+        onEditSceneDuration={editSceneDurationNoop}
       />,
     );
 
@@ -54,6 +56,8 @@ describe("Frontend Vite foundation", () => {
         onSeek={async () => createPreviewState()}
         onSelectAsset={selectAssetNoop}
         onSelectScene={selectSceneNoop}
+        onEditSceneName={editSceneNameNoop}
+        onEditSceneDuration={editSceneDurationNoop}
       />,
     );
 
@@ -111,4 +115,24 @@ function moveSceneNoop(_input: MoveSceneInput): SceneFlowState {
 
 function selectSceneNoop(_sceneId: string): SceneFlowState {
   return { scenes: [], selectedSceneId: null };
+}
+
+function editSceneNameNoop(_sceneId: string, _sceneName: string): InspectorState {
+  return emptyInspectorState();
+}
+
+function editSceneDurationNoop(_sceneId: string, _duration: number): InspectorState {
+  return emptyInspectorState();
+}
+
+function emptyInspectorState(): InspectorState {
+  return {
+    selection: { type: "none" },
+    panel: {
+      type: "empty",
+      title: "Inspector",
+      message: "Select a scene, character, or action to edit it.",
+      selectedTargetLabel: "Nothing selected",
+    },
+  };
 }

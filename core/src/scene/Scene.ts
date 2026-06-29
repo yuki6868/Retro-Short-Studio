@@ -65,6 +65,16 @@ export class Scene {
     this.actions.push(Action.restore(action.toSnapshot()));
   }
 
+  updateAction(actionId: string, updater: (action: Action) => void): void {
+    const action = this.actions.find((currentAction) => currentAction.toSnapshot().actionId === actionId);
+
+    if (action === undefined) {
+      throw new Error(`Action does not exist in scene: ${actionId}.`);
+    }
+
+    updater(action);
+  }
+
   toSnapshot(): SceneSnapshot {
     return {
       sceneId: this.id.toString(),

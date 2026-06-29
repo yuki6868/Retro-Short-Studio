@@ -78,6 +78,30 @@ export class ProjectCollections {
     );
   }
 
+  updateScene(sceneId: string, updater: (scene: Scene) => void): ProjectCollections {
+    let sceneWasUpdated = false;
+    const nextScenes = this.scenes.map((scene) => {
+      const nextScene = Scene.restore(scene.toSnapshot());
+
+      if (nextScene.toSnapshot().sceneId === sceneId) {
+        updater(nextScene);
+        sceneWasUpdated = true;
+      }
+
+      return nextScene;
+    });
+
+    if (!sceneWasUpdated) {
+      throw new Error(`Scene does not exist: ${sceneId}.`);
+    }
+
+    return new ProjectCollections(
+      nextScenes,
+      this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+    );
+  }
+
   addAsset(asset: Asset): ProjectCollections {
     const assetId = asset.toSnapshot().assetId;
 
@@ -103,6 +127,30 @@ export class ProjectCollections {
       this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
       this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
       [...this.characters, CharacterModel.restore(character.toSnapshot())],
+    );
+  }
+
+  updateCharacterModel(characterId: string, updater: (character: CharacterModel) => void): ProjectCollections {
+    let characterWasUpdated = false;
+    const nextCharacters = this.characters.map((character) => {
+      const nextCharacter = CharacterModel.restore(character.toSnapshot());
+
+      if (nextCharacter.toSnapshot().characterId === characterId) {
+        updater(nextCharacter);
+        characterWasUpdated = true;
+      }
+
+      return nextCharacter;
+    });
+
+    if (!characterWasUpdated) {
+      throw new Error(`Character does not exist: ${characterId}.`);
+    }
+
+    return new ProjectCollections(
+      this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
+      this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
+      nextCharacters,
     );
   }
 

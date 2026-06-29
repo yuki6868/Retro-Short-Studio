@@ -66,12 +66,20 @@ export class Project {
     this.collections = this.collections.moveScene(sceneId, toIndex);
   }
 
+  updateScene(sceneId: string, updater: (scene: Scene) => void): void {
+    this.collections = this.collections.updateScene(sceneId, updater);
+  }
+
   addAsset(asset: Asset): void {
     this.collections = this.collections.addAsset(asset);
   }
 
   addCharacterModel(character: CharacterModel): void {
     this.collections = this.collections.addCharacterModel(character);
+  }
+
+  updateCharacterModel(characterId: string, updater: (character: CharacterModel) => void): void {
+    this.collections = this.collections.updateCharacterModel(characterId, updater);
   }
 
   toSnapshot(): ProjectSnapshot {
