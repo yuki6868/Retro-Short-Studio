@@ -188,19 +188,54 @@ input {
 
 .rss-timeline__item {
   display: grid;
-  justify-items: start;
-  min-width: 56px;
-  min-height: 28px;
-  padding: 4px 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  min-width: 96px;
+  min-height: 34px;
   border: 1px solid #7d5d48;
   border-radius: 8px;
   background: #3a2a22;
   color: #f4efe6;
   text-align: left;
   white-space: nowrap;
+  touch-action: none;
+  cursor: grab;
 }
 
-.rss-timeline__item span + span {
+.rss-timeline__item:active {
+  cursor: grabbing;
+}
+
+.rss-timeline__item-body {
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.rss-timeline__item-body span + span {
   color: #c7b8a6;
   font-size: 11px;
+}
+
+.rss-timeline__resize-handle {
+  width: 20px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: #5b3f32;
+  color: transparent;
+  cursor: ew-resize;
+}
+
+.rss-timeline__resize-handle--start {
+  border-radius: 7px 0 0 7px;
+}
+
+.rss-timeline__resize-handle--end {
+  border-radius: 0 7px 7px 0;
 }

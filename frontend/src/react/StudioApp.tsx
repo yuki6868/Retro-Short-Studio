@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactElement } from "react";
+import { useMemo, useRef, useState, type PointerEvent, type ReactElement } from "react";
 
 import {
   AssetLibraryUseCase,
@@ -22,7 +22,17 @@ import {
 } from "../../../app/src";
 import type { PreviewState } from "../../../app/src";
 import { Action, Project, Scene, type IdGenerator } from "../../../core/src";
-import { AssetBrowser, Inspector, PreviewPanel, SceneFlow, StudioLayout, Timeline, type StudioLayoutViewState } from "../index";
+import {
+  AssetBrowser,
+  Inspector,
+  PreviewPanel,
+  SceneFlow,
+  StudioLayout,
+  Timeline,
+  TimelineInteractionMapper,
+  type StudioLayoutViewState,
+  type TimelineItemViewState,
+} from "../index";
 import "./studio-app.css";
 
 export function StudioApp(): ReactElement {
@@ -287,6 +297,9 @@ export function StudioApp(): ReactElement {
       onEditSceneDuration={(sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration })}
       onSetTimelinePlayhead={(time) => timelineUseCase.setPlayhead({ time })}
       onSetTimelineScale={(timeScale) => timelineUseCase.setTimeScale({ timeScale })}
+      onMoveTimelineItem={timelineUseCase.moveItem}
+      onResizeTimelineItemStart={timelineUseCase.resizeItemStart}
+      onResizeTimelineItemEnd={timelineUseCase.resizeItemEnd}
       onSelectAction={(sceneId, actionId) => {
         const next = inspector.selectAction(sceneId, actionId);
         setInspectorState(next);
@@ -311,6 +324,9 @@ type StudioWorkspaceProps = {
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
   onSetTimelinePlayhead?: (time: number) => TimelineState;
   onSetTimelineScale?: (timeScale: number) => TimelineState;
+  onMoveTimelineItem?: (input: MoveTimelineItemInput) => TimelineState;
+  onResizeTimelineItemStart?: (input: ResizeTimelineItemStartInput) => TimelineState;
+  onResizeTimelineItemEnd?: (input: ResizeTimelineItemEndInput) => TimelineState;
   onSelectAction?: (sceneId: string, actionId: string) => InspectorState;
 };
 
@@ -329,6 +345,9 @@ export function StudioWorkspace({
   onEditSceneDuration,
   onSetTimelinePlayhead,
   onSetTimelineScale,
+  onMoveTimelineItem,
+  onResizeTimelineItemStart,
+  onResizeTimelineItemEnd,
   onSelectAction,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
@@ -340,6 +359,56 @@ export function StudioWorkspace({
   const characterInspector = inspectorPanel?.type === "character" ? inspectorPanel : null;
   const actionInspector = inspectorPanel?.type === "action" ? inspectorPanel : null;
   const timelineView = view.layout.bottom.timeline;
+  const [timelineInteraction, setTimelineInteraction] = useState<TimelinePointerInteraction | null>(null);
+
+  const startTimelineInteraction = (
+    mode: TimelinePointerInteraction["mode"],
+    item: TimelineItemViewState,
+    event: PointerEvent<HTMLElement>,
+  ): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    onSelectAction?.(item.sceneId, item.actionId);
+    setTimelineInteraction({
+      item,
+      mode,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+    });
+  };
+
+  const finishTimelineInteraction = (event: PointerEvent<HTMLElement>): void => {
+    if (timelineInteraction === null || timelineInteraction.pointerId !== event.pointerId || timelineView === null) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const deltaPixels = event.clientX - timelineInteraction.startClientX;
+    const mapper = new TimelineInteractionMapper({ timeScale: timelineView.timeScale });
+
+    if (timelineInteraction.mode === "move") {
+      onMoveTimelineItem?.(mapper.createMoveInput(timelineInteraction.item, deltaPixels));
+    }
+
+    if (timelineInteraction.mode === "resize-start") {
+      onResizeTimelineItemStart?.(mapper.createResizeStartInput(timelineInteraction.item, deltaPixels));
+    }
+
+    if (timelineInteraction.mode === "resize-end") {
+      onResizeTimelineItemEnd?.(mapper.createResizeEndInput(timelineInteraction.item, deltaPixels));
+    }
+
+    setTimelineInteraction(null);
+  };
+
+  const cancelTimelineInteraction = (event: PointerEvent<HTMLElement>): void => {
+    if (timelineInteraction !== null && timelineInteraction.pointerId === event.pointerId) {
+      setTimelineInteraction(null);
+    }
+  };
 
   return (
     <main className="rss-studio" aria-label={view.title}>
@@ -561,18 +630,46 @@ export function StudioWorkspace({
                   {track.items.length === 0 ? <p>{track.emptyText}</p> : null}
                   <div className="rss-timeline__lane" role="list">
                     {track.items.map((item) => (
-                      <button
+                      <div
                         aria-label={item.label}
                         className="rss-timeline__item"
                         key={item.itemId}
-                        onClick={() => onSelectAction?.(item.sceneId, item.actionId)}
+                        onPointerCancel={cancelTimelineInteraction}
+                        onPointerDown={(event) => startTimelineInteraction("move", item, event)}
+                        onPointerUp={finishTimelineInteraction}
                         role="listitem"
                         style={{ marginLeft: item.left, width: item.width }}
-                        type="button"
                       >
-                        <span>{item.label}</span>
-                        <span>{item.summary}</span>
-                      </button>
+                        <button
+                          aria-label={`Resize start ${item.label}`}
+                          className="rss-timeline__resize-handle rss-timeline__resize-handle--start"
+                          onPointerCancel={cancelTimelineInteraction}
+                          onPointerDown={(event) => startTimelineInteraction("resize-start", item, event)}
+                          onPointerUp={finishTimelineInteraction}
+                          type="button"
+                        >
+                          Start
+                        </button>
+                        <button
+                          aria-label={`Move ${item.label}`}
+                          className="rss-timeline__item-body"
+                          onClick={() => onSelectAction?.(item.sceneId, item.actionId)}
+                          type="button"
+                        >
+                          <span>{item.label}</span>
+                          <span>{item.summary}</span>
+                        </button>
+                        <button
+                          aria-label={`Resize end ${item.label}`}
+                          className="rss-timeline__resize-handle rss-timeline__resize-handle--end"
+                          onPointerCancel={cancelTimelineInteraction}
+                          onPointerDown={(event) => startTimelineInteraction("resize-end", item, event)}
+                          onPointerUp={finishTimelineInteraction}
+                          type="button"
+                        >
+                          End
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </section>
@@ -584,6 +681,13 @@ export function StudioWorkspace({
     </main>
   );
 }
+
+type TimelinePointerInteraction = {
+  mode: "move" | "resize-start" | "resize-end";
+  item: TimelineItemViewState;
+  pointerId: number;
+  startClientX: number;
+};
 
 function createInitialProject(): Project {
   const project = Project.create({ projectId: "project-local-preview", projectName: "Local Preview" });

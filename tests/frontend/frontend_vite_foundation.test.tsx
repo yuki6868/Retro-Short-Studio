@@ -80,6 +80,16 @@ describe("Frontend Vite foundation", () => {
     expect(html).not.toContain("Talk actions will appear here.");
   });
 
+  it("renders explicit timeline drag and resize handles for visible actions", () => {
+    const html = renderToStaticMarkup(<StudioApp />);
+
+    expect(html).toContain("Move Talk: Talk 0.5-2.5s");
+    expect(html).toContain("Resize start Talk: Talk 0.5-2.5s");
+    expect(html).toContain("Resize end Talk: Talk 0.5-2.5s");
+    expect(html).toContain("rss-timeline__resize-handle--start");
+    expect(html).toContain("rss-timeline__resize-handle--end");
+  });
+
 });
 
 function createPreviewUseCase(state: PreviewState = createPreviewState()) {
