@@ -229,3 +229,11 @@ pnpm-debug.log*
 
 # Patch
 *.patch
+
+# Sandbox
+sandbox/
+
+# Pyxel cache
+*.pyxres
+*.pyxpal
+__pycache__/
