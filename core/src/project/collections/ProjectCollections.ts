@@ -116,6 +116,30 @@ export class ProjectCollections {
     );
   }
 
+  updateAsset(assetId: string, updater: (asset: Asset) => void): ProjectCollections {
+    let assetWasUpdated = false;
+    const nextAssets = this.assets.map((asset) => {
+      const nextAsset = Asset.restore(asset.toSnapshot());
+
+      if (nextAsset.toSnapshot().assetId === assetId) {
+        updater(nextAsset);
+        assetWasUpdated = true;
+      }
+
+      return nextAsset;
+    });
+
+    if (!assetWasUpdated) {
+      throw new Error(`Asset does not exist: ${assetId}.`);
+    }
+
+    return new ProjectCollections(
+      this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
+      nextAssets,
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+    );
+  }
+
   addCharacterModel(character: CharacterModel): ProjectCollections {
     const characterId = character.toSnapshot().characterId;
 

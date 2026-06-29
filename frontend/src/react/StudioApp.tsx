@@ -8,6 +8,9 @@ import {
   TimelineUseCase,
   type AddAssetInput,
   type AddSceneInput,
+  type ChangeActionPayloadInput,
+  type ChangeActionTargetInput,
+  type ChangeSceneBackgroundInput,
   type AssetLibraryState,
   type CreateActionKind,
   type MoveSceneInput,
@@ -141,6 +144,11 @@ export function StudioApp(): ReactElement {
         setAssetState(next);
         return next;
       },
+      updateAsset(input: import("../../../app/src").UpdateAssetInput): AssetLibraryState {
+        const next = assetLibrary.updateAsset(input);
+        setAssetState(next);
+        return next;
+      },
       selectAsset(assetId: string): AssetLibraryState {
         const next = assetLibrary.selectAsset(assetId);
         setAssetState(next);
@@ -227,6 +235,11 @@ export function StudioApp(): ReactElement {
         setTimelineState(timeline.state);
         return next;
       },
+      changeSelectedSceneBackground(input: ChangeSceneBackgroundInput): InspectorState {
+        const next = inspector.changeSelectedSceneBackground(input);
+        setInspectorState(next);
+        return next;
+      },
       renameSelectedCharacter(input: RenameCharacterInput): InspectorState {
         const next = inspector.renameSelectedCharacter(input);
         setInspectorState(next);
@@ -234,6 +247,18 @@ export function StudioApp(): ReactElement {
       },
       changeSelectedActionTimeRange(input: ChangeActionTimeRangeInput): InspectorState {
         const next = inspector.changeSelectedActionTimeRange(input);
+        setInspectorState(next);
+        setTimelineState(timeline.state);
+        return next;
+      },
+      changeSelectedActionTarget(input: ChangeActionTargetInput): InspectorState {
+        const next = inspector.changeSelectedActionTarget(input);
+        setInspectorState(next);
+        setTimelineState(timeline.state);
+        return next;
+      },
+      changeSelectedActionPayload(input: ChangeActionPayloadInput): InspectorState {
+        const next = inspector.changeSelectedActionPayload(input);
         setInspectorState(next);
         setTimelineState(timeline.state);
         return next;
@@ -333,6 +358,15 @@ export function StudioApp(): ReactElement {
       onSelectScene={sceneFlowUseCase.selectScene}
       onEditSceneName={(sceneId, sceneName) => inspectorUseCase.renameSelectedScene({ sceneId, sceneName })}
       onEditSceneDuration={(sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration })}
+      onEditSceneBackground={(sceneId, backgroundAssetId) =>
+        inspectorUseCase.changeSelectedSceneBackground({ sceneId, backgroundAssetId })
+      }
+      onEditActionTarget={(sceneId, actionId, targetId) =>
+        inspectorUseCase.changeSelectedActionTarget({ sceneId, actionId, targetId })
+      }
+      onEditActionPayload={(sceneId, actionId, payload) =>
+        inspectorUseCase.changeSelectedActionPayload({ sceneId, actionId, payload })
+      }
       onSetTimelinePlayhead={(time) => timelineUseCase.setPlayhead({ time })}
       onSetTimelineScale={(timeScale) => timelineUseCase.setTimeScale({ timeScale })}
       onMoveTimelineItem={timelineUseCase.moveItem}
@@ -362,6 +396,9 @@ type StudioWorkspaceProps = {
   onSelectScene(sceneId: string): SceneFlowState;
   onEditSceneName(sceneId: string, sceneName: string): InspectorState;
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
+  onEditSceneBackground?: (sceneId: string, backgroundAssetId: string | null) => InspectorState;
+  onEditActionTarget?: (sceneId: string, actionId: string, targetId: string | null) => InspectorState;
+  onEditActionPayload?: (sceneId: string, actionId: string, payload: Record<string, string | number | boolean | null>) => InspectorState;
   onSetTimelinePlayhead?: (time: number) => TimelineState;
   onSetTimelineScale?: (timeScale: number) => TimelineState;
   onMoveTimelineItem?: (input: MoveTimelineItemInput) => TimelineState;
@@ -385,6 +422,9 @@ export function StudioWorkspace({
   onSelectScene,
   onEditSceneName,
   onEditSceneDuration,
+  onEditSceneBackground,
+  onEditActionTarget,
+  onEditActionPayload,
   onSetTimelinePlayhead,
   onSetTimelineScale,
   onMoveTimelineItem,
@@ -618,6 +658,26 @@ export function StudioWorkspace({
                     type="number"
                   />
                 </label>
+                <label>
+                  Background
+                  <select
+                    aria-label="Scene background"
+                    value={sceneInspector.backgroundAssetId ?? ""}
+                    onChange={(event) =>
+                      onEditSceneBackground?.(
+                        sceneInspector.sceneId,
+                        event.currentTarget.value.length === 0 ? null : event.currentTarget.value,
+                      )
+                    }
+                  >
+                    <option value="">No background</option>
+                    {sceneInspector.backgroundOptions.map((asset) => (
+                      <option key={asset.assetId} value={asset.assetId}>
+                        {asset.assetName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
             ) : null}
             {characterInspector !== null ? (
@@ -630,6 +690,31 @@ export function StudioWorkspace({
               <div className="rss-inspector" aria-label="Action Inspector">
                 <p>{actionInspector.selectedTargetLabel}</p>
                 <p>{actionInspector.actionType}</p>
+                <label>
+                  Target
+                  <input
+                    aria-label="Action target"
+                    defaultValue={actionInspector.targetId ?? ""}
+                    onBlur={(event) =>
+                      onEditActionTarget?.(
+                        actionInspector.sceneId,
+                        actionInspector.actionId,
+                        event.currentTarget.value.trim().length === 0 ? null : event.currentTarget.value,
+                      )
+                    }
+                  />
+                </label>
+                <label>
+                  Payload JSON
+                  <textarea
+                    aria-label="Action payload"
+                    defaultValue={actionInspector.payloadPreview}
+                    onBlur={(event) => {
+                      const parsed = JSON.parse(event.currentTarget.value) as Record<string, string | number | boolean | null>;
+                      onEditActionPayload?.(actionInspector.sceneId, actionInspector.actionId, parsed);
+                    }}
+                  />
+                </label>
                 <button
                   onClick={() => onDeleteAction?.(actionInspector.sceneId, actionInspector.actionId)}
                   type="button"

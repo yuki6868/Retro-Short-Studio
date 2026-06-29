@@ -1,9 +1,10 @@
-import type { AddAssetInput, AssetLibraryState, ProjectAssetType } from "../../../app/src";
+import type { AddAssetInput, AssetLibraryState, ProjectAssetType, UpdateAssetInput } from "../../../app/src";
 import type { AssetDto, AssetTypeDto } from "../../../shared";
 
 export type AssetBrowserUseCase = {
   readonly state: AssetLibraryState;
   addAsset(input: AddAssetInput): AssetLibraryState;
+  updateAsset(input: UpdateAssetInput): AssetLibraryState;
   selectAsset(assetId: string): AssetLibraryState;
 };
 
@@ -18,6 +19,7 @@ export type AssetBrowserItemViewState = {
   assetType: AssetTypeDto;
   assetPath: string;
   selected: boolean;
+  previewable: boolean;
 };
 
 export type AssetBrowserViewState = {
@@ -54,6 +56,11 @@ export class AssetBrowser {
     return this.render();
   }
 
+  editAsset(input: UpdateAssetInput): AssetBrowserViewState {
+    this.latestState = this.props.assets.updateAsset(input);
+    return this.render();
+  }
+
   private createViewState(state: AssetLibraryState): AssetBrowserViewState {
     return {
       title: this.props.title ?? "Asset Browser",
@@ -77,5 +84,6 @@ function toItemViewState(asset: AssetDto, selectedAssetId: string | null): Asset
     assetType: asset.assetType,
     assetPath: asset.assetPath,
     selected: asset.assetId === selectedAssetId,
+    previewable: asset.assetType === "background" || asset.assetType === "character_image",
   };
 }

@@ -1,5 +1,8 @@
 import type {
+  ChangeActionPayloadInput,
+  ChangeActionTargetInput,
   ChangeActionTimeRangeInput,
+  ChangeSceneBackgroundInput,
   ChangeSceneDurationInput,
   InspectorState,
   RenameCharacterInput,
@@ -14,8 +17,11 @@ export type InspectorUseCase = {
   selectAction(sceneId: string, actionId: string): InspectorState;
   renameSelectedScene(input: RenameSceneInput): InspectorState;
   changeSelectedSceneDuration(input: ChangeSceneDurationInput): InspectorState;
+  changeSelectedSceneBackground(input: ChangeSceneBackgroundInput): InspectorState;
   renameSelectedCharacter(input: RenameCharacterInput): InspectorState;
   changeSelectedActionTimeRange(input: ChangeActionTimeRangeInput): InspectorState;
+  changeSelectedActionTarget(input: ChangeActionTargetInput): InspectorState;
+  changeSelectedActionPayload(input: ChangeActionPayloadInput): InspectorState;
 };
 
 export type InspectorProps = {
@@ -38,6 +44,7 @@ export type SceneInspectorViewState = {
   sceneName: string;
   duration: number;
   backgroundAssetId: string | null;
+  backgroundOptions: { assetId: string; assetName: string; assetPath: string }[];
   fields: ["sceneName", "duration", "backgroundAssetId"];
 };
 
@@ -64,6 +71,7 @@ export type ActionInspectorViewState = {
   startTime: number;
   endTime: number;
   targetId: string | null;
+  payload: Record<string, unknown>;
   payloadPreview: string;
   fields: ["startTime", "endTime", "targetId", "payload"];
 };
@@ -93,6 +101,11 @@ export class Inspector {
         sceneName: panel.scene.sceneName,
         duration: panel.scene.duration,
         backgroundAssetId: panel.scene.backgroundAssetId,
+        backgroundOptions: panel.backgroundCandidates.map((asset) => ({
+          assetId: asset.assetId,
+          assetName: asset.assetName,
+          assetPath: asset.assetPath,
+        })),
         fields: panel.editableFields,
       };
     }
@@ -123,6 +136,7 @@ export class Inspector {
         startTime: panel.action.startTime,
         endTime: panel.action.endTime,
         targetId: panel.action.targetId,
+        payload: { ...panel.action.payload },
         payloadPreview: JSON.stringify(panel.action.payload),
         fields: panel.editableFields,
       };
@@ -146,6 +160,11 @@ export class Inspector {
     return this.render();
   }
 
+  editSceneBackground(sceneId: string, backgroundAssetId: string | null): InspectorViewState {
+    this.latestState = this.props.inspector.changeSelectedSceneBackground({ sceneId, backgroundAssetId });
+    return this.render();
+  }
+
   editCharacterName(characterId: string, characterName: string): InspectorViewState {
     this.latestState = this.props.inspector.renameSelectedCharacter({ characterId, characterName });
     return this.render();
@@ -153,6 +172,16 @@ export class Inspector {
 
   editActionTimeRange(input: ChangeActionTimeRangeInput): InspectorViewState {
     this.latestState = this.props.inspector.changeSelectedActionTimeRange(input);
+    return this.render();
+  }
+
+  editActionTarget(input: ChangeActionTargetInput): InspectorViewState {
+    this.latestState = this.props.inspector.changeSelectedActionTarget(input);
+    return this.render();
+  }
+
+  editActionPayload(input: ChangeActionPayloadInput): InspectorViewState {
+    this.latestState = this.props.inspector.changeSelectedActionPayload(input);
     return this.render();
   }
 

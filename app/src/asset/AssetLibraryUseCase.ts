@@ -10,6 +10,13 @@ export type AddAssetInput = {
   assetPath: string;
 };
 
+export type UpdateAssetInput = {
+  assetId: string;
+  assetName?: string;
+  assetType?: ProjectAssetType;
+  assetPath?: string;
+};
+
 export type AssetLibraryState = {
   assets: AssetDto[];
   selectedAssetId: string | null;
@@ -46,19 +53,40 @@ export class AssetLibraryUseCase {
     return this.createState();
   }
 
+  updateAsset(input: UpdateAssetInput): AssetLibraryState {
+    const assetId = normalizeAssetId(input.assetId);
+    this.ensureAssetExists(assetId);
+
+    this.config.project.updateAsset(assetId, (asset) => {
+      if (input.assetName !== undefined) {
+        asset.rename(input.assetName);
+      }
+
+      if (input.assetType !== undefined) {
+        asset.changeType(input.assetType);
+      }
+
+      if (input.assetPath !== undefined) {
+        asset.changePath(input.assetPath);
+      }
+    });
+
+    this.selectedAssetId = assetId;
+    return this.createState();
+  }
+
   selectAsset(assetId: string): AssetLibraryState {
-    const normalizedAssetId = assetId.trim();
-
-    if (normalizedAssetId.length === 0) {
-      throw new Error("Selected assetId is required.");
-    }
-
-    if (!this.createAssets().some((asset) => asset.assetId === normalizedAssetId)) {
-      throw new Error(`Asset does not exist: ${normalizedAssetId}.`);
-    }
+    const normalizedAssetId = normalizeAssetId(assetId);
+    this.ensureAssetExists(normalizedAssetId);
 
     this.selectedAssetId = normalizedAssetId;
     return this.createState();
+  }
+
+  private ensureAssetExists(assetId: string): void {
+    if (!this.createAssets().some((asset) => asset.assetId === assetId)) {
+      throw new Error(`Asset does not exist: ${assetId}.`);
+    }
   }
 
   private createState(): AssetLibraryState {
@@ -82,4 +110,14 @@ function toAssetDto(asset: AssetSnapshot): AssetDto {
     assetType: asset.assetType as AssetTypeDto,
     assetPath: asset.assetPath,
   };
+}
+
+function normalizeAssetId(assetId: string): string {
+  const normalizedAssetId = assetId.trim();
+
+  if (normalizedAssetId.length === 0) {
+    throw new Error("Selected assetId is required.");
+  }
+
+  return normalizedAssetId;
 }

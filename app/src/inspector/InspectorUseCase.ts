@@ -1,6 +1,6 @@
-import type { ActionSnapshot, Project, SceneSnapshot } from "../../../core/src";
+import type { ActionPayloadRecord, ActionSnapshot, AssetSnapshot, Project, SceneSnapshot } from "../../../core/src";
 import type { CharacterModelSnapshot } from "../../../core/src";
-import type { ActionDto, SceneDto } from "../../../shared";
+import type { ActionDto, AssetDto, SceneDto } from "../../../shared";
 import { SelectionState, type SelectionTarget } from "./SelectionState";
 
 export type InspectorPanelType = "empty" | "scene" | "character" | "action";
@@ -17,6 +17,7 @@ export type SceneInspectorPanelState = {
   title: "Scene Inspector";
   selectedTargetLabel: string;
   scene: SceneDto;
+  backgroundCandidates: AssetDto[];
   editableFields: ["sceneName", "duration", "backgroundAssetId"];
 };
 
@@ -59,6 +60,11 @@ export type ChangeSceneDurationInput = {
   duration: number;
 };
 
+export type ChangeSceneBackgroundInput = {
+  sceneId: string;
+  backgroundAssetId: string | null;
+};
+
 export type RenameCharacterInput = {
   characterId: string;
   characterName: string;
@@ -69,6 +75,18 @@ export type ChangeActionTimeRangeInput = {
   actionId: string;
   startTime: number;
   endTime: number;
+};
+
+export type ChangeActionTargetInput = {
+  sceneId: string;
+  actionId: string;
+  targetId: string | null;
+};
+
+export type ChangeActionPayloadInput = {
+  sceneId: string;
+  actionId: string;
+  payload: ActionPayloadRecord;
 };
 
 export type InspectorState = {
@@ -130,6 +148,23 @@ export class InspectorUseCase {
     return this.createState();
   }
 
+  changeSelectedSceneBackground(input: ChangeSceneBackgroundInput): InspectorState {
+    const sceneId = normalizeId(input.sceneId, "sceneId");
+    const backgroundAssetId = input.backgroundAssetId === null ? null : normalizeId(input.backgroundAssetId, "backgroundAssetId");
+
+    if (backgroundAssetId !== null) {
+      const backgroundAsset = this.findAssetOrThrow(backgroundAssetId);
+
+      if (backgroundAsset.assetType !== "background") {
+        throw new Error(`Scene background must reference a background asset: ${backgroundAssetId}.`);
+      }
+    }
+
+    this.config.project.updateScene(sceneId, (scene) => scene.changeBackground(backgroundAssetId));
+    this.selection = SelectionState.scene(sceneId);
+    return this.createState();
+  }
+
   renameSelectedCharacter(input: RenameCharacterInput): InspectorState {
     const characterId = normalizeId(input.characterId, "characterId");
     this.config.project.updateCharacterModel(characterId, (character) => character.rename(input.characterName));
@@ -142,6 +177,29 @@ export class InspectorUseCase {
     const actionId = normalizeId(input.actionId, "actionId");
     this.config.project.updateScene(sceneId, (scene) => {
       scene.updateAction(actionId, (action) => action.changeTimeRange(input.startTime, input.endTime));
+    });
+    this.selection = SelectionState.action(sceneId, actionId);
+    return this.createState();
+  }
+
+  changeSelectedActionTarget(input: ChangeActionTargetInput): InspectorState {
+    const sceneId = normalizeId(input.sceneId, "sceneId");
+    const actionId = normalizeId(input.actionId, "actionId");
+    const targetId = input.targetId === null ? null : normalizeId(input.targetId, "targetId");
+
+    this.config.project.updateScene(sceneId, (scene) => {
+      scene.updateAction(actionId, (action) => action.changeTarget(targetId));
+    });
+    this.selection = SelectionState.action(sceneId, actionId);
+    return this.createState();
+  }
+
+  changeSelectedActionPayload(input: ChangeActionPayloadInput): InspectorState {
+    const sceneId = normalizeId(input.sceneId, "sceneId");
+    const actionId = normalizeId(input.actionId, "actionId");
+
+    this.config.project.updateScene(sceneId, (scene) => {
+      scene.updateAction(actionId, (action) => action.replacePayload(input.payload));
     });
     this.selection = SelectionState.action(sceneId, actionId);
     return this.createState();
@@ -164,6 +222,7 @@ export class InspectorUseCase {
         title: "Scene Inspector",
         selectedTargetLabel: `Scene: ${scene.sceneName}`,
         scene: toSceneDto(scene),
+        backgroundCandidates: this.findAssetsByType("background").map(toAssetDto),
         editableFields: ["sceneName", "duration", "backgroundAssetId"],
       };
     }
@@ -227,6 +286,20 @@ export class InspectorUseCase {
     return character;
   }
 
+  private findAssetOrThrow(assetId: string): AssetSnapshot {
+    const asset = this.config.project.toSnapshot().assets.find((candidate) => candidate.assetId === assetId);
+
+    if (asset === undefined) {
+      throw new Error(`Asset does not exist: ${assetId}.`);
+    }
+
+    return asset;
+  }
+
+  private findAssetsByType(assetType: string): AssetSnapshot[] {
+    return this.config.project.toSnapshot().assets.filter((asset) => asset.assetType === assetType);
+  }
+
   private findActionOrThrow(sceneId: string, actionId: string): ActionSnapshot {
     const scene = this.findSceneOrThrow(sceneId);
     const action = scene.actions.find((candidate) => candidate.actionId === actionId);
@@ -247,6 +320,15 @@ function toSceneDto(scene: SceneSnapshot): SceneDto {
     backgroundAssetId: scene.backgroundAssetId,
     characterIds: scene.characters.map((character) => character.characterId),
     actions: scene.actions.map(toActionDto),
+  };
+}
+
+function toAssetDto(asset: AssetSnapshot): AssetDto {
+  return {
+    assetId: asset.assetId,
+    assetName: asset.assetName,
+    assetType: asset.assetType as AssetDto["assetType"],
+    assetPath: asset.assetPath,
   };
 }
 

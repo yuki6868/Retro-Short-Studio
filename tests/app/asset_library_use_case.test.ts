@@ -74,3 +74,27 @@ describe("AssetLibraryUseCase", () => {
     expect(() => useCase.selectAsset("missing-asset")).toThrow("Asset does not exist: missing-asset.");
   });
 });
+
+  it("updates asset metadata and keeps the asset selected", () => {
+    const { project, useCase } = createUseCase();
+    useCase.addAsset({ assetName: "Asset 1", assetPath: "assets/asset-1.png", assetType: "background" });
+
+    const state = useCase.updateAsset({
+      assetId: "asset-1",
+      assetName: "Room Background",
+      assetPath: "assets/backgrounds/room.png",
+      assetType: "background",
+    });
+
+    expect(state.selectedAssetId).toBe("asset-1");
+    expect(state.assets[0]).toEqual({
+      assetId: "asset-1",
+      assetName: "Room Background",
+      assetPath: "assets/backgrounds/room.png",
+      assetType: "background",
+    });
+    expect(project.toSnapshot().assets[0]).toMatchObject({
+      assetName: "Room Background",
+      assetPath: "assets/backgrounds/room.png",
+    });
+  });

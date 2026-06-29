@@ -67,6 +67,7 @@ describe("StudioLayout", () => {
           assetPath: "assets/room.png",
           assetType: "background" as const,
           selected: true,
+          previewable: true,
         },
       ],
       selectedAssetId: "asset-1",

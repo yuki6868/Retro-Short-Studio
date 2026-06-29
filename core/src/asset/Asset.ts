@@ -11,7 +11,7 @@ export class Asset {
   private constructor(
     private readonly id: AssetId,
     private name: AssetName,
-    private readonly type: AssetType,
+    private type: AssetType,
     private path: AssetPath,
   ) {}
 
@@ -35,6 +35,10 @@ export class Asset {
 
   rename(assetName: string): void {
     this.name = AssetName.create(assetName);
+  }
+
+  changeType(assetType: string): void {
+    this.type = AssetType.create(assetType);
   }
 
   changePath(assetPath: string): void {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { InspectorUseCase, SelectionState } from "../../app/src";
-import { Action, CharacterModel, Project, Scene } from "../../core/src";
+import { Action, Asset, CharacterModel, Project, Scene } from "../../core/src";
 
 function createProject(): Project {
   const project = Project.create({ projectId: "project-1", projectName: "Inspector Test" });
@@ -17,6 +17,22 @@ function createProject(): Project {
     }),
   );
   project.addScene(scene);
+  project.addAsset(
+    Asset.create({
+      assetId: "asset-bg-1",
+      assetName: "Room Background",
+      assetPath: "assets/backgrounds/room.png",
+      assetType: "background",
+    }),
+  );
+  project.addAsset(
+    Asset.create({
+      assetId: "asset-voice-1",
+      assetName: "Line Voice",
+      assetPath: "voices/line001.wav",
+      assetType: "voice",
+    }),
+  );
   project.addCharacterModel(CharacterModel.create({ characterId: "character-1", characterName: "Zundamon" }));
   return project;
 }
@@ -62,6 +78,9 @@ describe("InspectorUseCase", () => {
       editableFields: ["sceneName", "duration", "backgroundAssetId"],
     });
     expect(state.panel.type === "scene" ? state.panel.scene.sceneName : null).toBe("Opening");
+    expect(state.panel.type === "scene" ? state.panel.backgroundCandidates.map((asset) => asset.assetId) : []).toEqual([
+      "asset-bg-1",
+    ]);
   });
 
   it("edits the selected scene through the Project aggregate", () => {
@@ -75,6 +94,20 @@ describe("InspectorUseCase", () => {
     expect(renamed.panel.selectedTargetLabel).toBe("Scene: Hook");
     expect(durationChanged.panel.type === "scene" ? durationChanged.panel.scene.duration : null).toBe(9);
     expect(project.toSnapshot().scenes[0]).toMatchObject({ sceneName: "Hook", duration: 9 });
+  });
+
+  it("assigns a background asset to the selected scene without accepting non-background assets", () => {
+    const project = createProject();
+    const useCase = new InspectorUseCase({ project });
+
+    useCase.selectScene("scene-1");
+    const changed = useCase.changeSelectedSceneBackground({ sceneId: "scene-1", backgroundAssetId: "asset-bg-1" });
+
+    expect(changed.panel.type === "scene" ? changed.panel.scene.backgroundAssetId : null).toBe("asset-bg-1");
+    expect(project.toSnapshot().scenes[0].backgroundAssetId).toBe("asset-bg-1");
+    expect(() =>
+      useCase.changeSelectedSceneBackground({ sceneId: "scene-1", backgroundAssetId: "asset-voice-1" }),
+    ).toThrow("Scene background must reference a background asset: asset-voice-1.");
   });
 
   it("switches to CharacterInspector and edits the character through the Project aggregate", () => {
@@ -113,6 +146,35 @@ describe("InspectorUseCase", () => {
     });
     expect(changed.panel.type === "action" ? changed.panel.action.startTime : null).toBe(2);
     expect(project.toSnapshot().scenes[0].actions[0]).toMatchObject({ startTime: 2, endTime: 5 });
+  });
+
+  it("edits action target and payload through ActionInspector", () => {
+    const project = createProject();
+    const useCase = new InspectorUseCase({ project });
+
+    useCase.selectAction("scene-1", "action-1");
+    const targetChanged = useCase.changeSelectedActionTarget({
+      sceneId: "scene-1",
+      actionId: "action-1",
+      targetId: "character-1",
+    });
+    const payloadChanged = useCase.changeSelectedActionPayload({
+      sceneId: "scene-1",
+      actionId: "action-1",
+      payload: { text: "こんにちは", speakerCharacterId: "character-1", lipSyncEnabled: true },
+    });
+
+    expect(targetChanged.panel.type === "action" ? targetChanged.panel.action.targetId : null).toBe("character-1");
+    expect(payloadChanged.panel.type === "action" ? payloadChanged.panel.action.payload : null).toEqual({
+      text: "こんにちは",
+      speakerCharacterId: "character-1",
+      lipSyncEnabled: true,
+    });
+    expect(project.toSnapshot().scenes[0].actions[0].payload).toEqual({
+      text: "こんにちは",
+      speakerCharacterId: "character-1",
+      lipSyncEnabled: true,
+    });
   });
 
   it("rejects selection outside the project instead of creating phantom inspector panels", () => {

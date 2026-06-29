@@ -52,7 +52,46 @@ describe("AssetBrowser", () => {
     ]);
     expect(view.assetCount).toBe(1);
     expect(view.selectedAssetId).toBe("asset-1");
-    expect(view.assets[0]).toMatchObject({ assetName: "Room Background", selected: true });
+    expect(view.assets[0]).toMatchObject({ assetName: "Room Background", selected: true, previewable: true });
+  });
+
+  it("delegates asset metadata edits to the asset use case", () => {
+    const calls = [] as Parameters<AssetBrowserUseCase["updateAsset"]>[0][];
+    const browser = new AssetBrowser({
+      assets: createAssetUseCase(
+        {
+          assets: [{ assetId: "asset-1", assetName: "Asset 1", assetPath: "assets/asset-1.png", assetType: "background" }],
+          selectedAssetId: "asset-1",
+        },
+        {
+          updateAsset: (input) => {
+            calls.push(input);
+            return {
+              assets: [
+                {
+                  assetId: input.assetId,
+                  assetName: input.assetName ?? "Asset 1",
+                  assetPath: input.assetPath ?? "assets/asset-1.png",
+                  assetType: input.assetType ?? "background",
+                },
+              ],
+              selectedAssetId: input.assetId,
+            };
+          },
+        },
+      ),
+    });
+
+    const view = browser.editAsset({
+      assetId: "asset-1",
+      assetName: "Room Background",
+      assetPath: "assets/backgrounds/room.png",
+    });
+
+    expect(calls).toEqual([
+      { assetId: "asset-1", assetName: "Room Background", assetPath: "assets/backgrounds/room.png" },
+    ]);
+    expect(view.assets[0]).toMatchObject({ assetName: "Room Background", assetPath: "assets/backgrounds/room.png" });
   });
 
   it("delegates selection to the asset use case and reflects selected row state", () => {
@@ -116,13 +155,14 @@ function emptyState(): AssetLibraryState {
 
 function createAssetUseCase(
   state: AssetLibraryState,
-  overrides: Partial<Pick<AssetBrowserUseCase, "addAsset" | "selectAsset">> = {},
+  overrides: Partial<Pick<AssetBrowserUseCase, "addAsset" | "updateAsset" | "selectAsset">> = {},
 ): AssetBrowserUseCase {
   return {
     get state() {
       return state;
     },
     addAsset: overrides.addAsset ?? (() => state),
+    updateAsset: overrides.updateAsset ?? (() => state),
     selectAsset: overrides.selectAsset ?? (() => state),
   };
 }
