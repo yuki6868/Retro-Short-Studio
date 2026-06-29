@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import type { AddAssetInput, AddSceneInput, AssetLibraryState, InspectorState, MoveSceneInput, PreviewState, SceneFlowState } from "../../app/src";
 import { PreviewPanel, StudioLayout } from "../../frontend/src";
-import { StudioWorkspace } from "../../frontend/src/react";
+import { StudioApp, StudioWorkspace } from "../../frontend/src/react";
 
 describe("Frontend Vite foundation", () => {
   it("renders the studio layout as a browser entry component without engine access", () => {
@@ -67,6 +67,19 @@ describe("Frontend Vite foundation", () => {
     expect(html).toContain("type=\"range\"");
     expect(html).toContain("0.0s");
   });
+
+  it("renders visible timeline action bars in the browser shell", () => {
+    const html = renderToStaticMarkup(<StudioApp />);
+
+    expect(html).toContain("Scene: Opening");
+    expect(html).toContain("Talk: Talk 0.5-2.5s");
+    expect(html).toContain("Character: Move 2.5-4.0s");
+    expect(html).toContain("Effect: Flash 4.2-4.8s");
+    expect(html).toContain("Camera: Camera Zoom 5.0-7.0s");
+    expect(html).toContain('class="rss-timeline__item"');
+    expect(html).not.toContain("Talk actions will appear here.");
+  });
+
 });
 
 function createPreviewUseCase(state: PreviewState = createPreviewState()) {

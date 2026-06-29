@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { TimelineState } from "../../app/src";
-import { Timeline, type TimelineUseCase } from "../../frontend/src";
+import { Timeline, TimelineInteractionMapper, type TimelineUseCase } from "../../frontend/src";
 
 describe("Timeline", () => {
   it("renders empty timeline tracks before a scene is selected", () => {
@@ -54,6 +54,60 @@ describe("Timeline", () => {
     expect(timeline.setTimeScale(120)).toMatchObject({ timeScale: 120 });
     expect(calls).toEqual(["show:scene-2", "playhead:4", "scale:120"]);
   });
+
+  it("delegates drag and resize commands as action update operations", () => {
+    const calls: string[] = [];
+    const timeline = new Timeline({
+      timeline: createTimelineUseCase(sceneState(), {
+        moveItem: (input) => {
+          calls.push(`move:${input.sceneId}:${input.actionId}:${input.nextStartTime}`);
+          return sceneState();
+        },
+        resizeItemStart: (input) => {
+          calls.push(`resize-start:${input.sceneId}:${input.actionId}:${input.nextStartTime}`);
+          return sceneState();
+        },
+        resizeItemEnd: (input) => {
+          calls.push(`resize-end:${input.sceneId}:${input.actionId}:${input.nextEndTime}`);
+          return sceneState();
+        },
+      }),
+    });
+
+    timeline.moveItem({ sceneId: "scene-1", actionId: "action-1", nextStartTime: 2 });
+    timeline.resizeItemStart({ sceneId: "scene-1", actionId: "action-1", nextStartTime: 0.5 });
+    timeline.resizeItemEnd({ sceneId: "scene-1", actionId: "action-1", nextEndTime: 4 });
+
+    expect(calls).toEqual([
+      "move:scene-1:action-1:2",
+      "resize-start:scene-1:action-1:0.5",
+      "resize-end:scene-1:action-1:4",
+    ]);
+  });
+
+  it("keeps pointer coordinate conversion outside of the timeline component", () => {
+    const mapper = new TimelineInteractionMapper({ timeScale: 80, snapInterval: 0.25 });
+    const item = sceneState().tracks[0]?.items[0];
+
+    expect(item).toBeDefined();
+    expect(mapper.pixelsToSeconds(40)).toBe(0.5);
+    expect(mapper.secondsToPixels(1.25)).toBe(100);
+    expect(mapper.createMoveInput(item!, 70)).toEqual({
+      sceneId: "scene-1",
+      actionId: "action-1",
+      nextStartTime: 2,
+    });
+    expect(mapper.createResizeStartInput(item!, -40)).toEqual({
+      sceneId: "scene-1",
+      actionId: "action-1",
+      nextStartTime: 0.5,
+    });
+    expect(mapper.createResizeEndInput(item!, 45)).toEqual({
+      sceneId: "scene-1",
+      actionId: "action-1",
+      nextEndTime: 3.5,
+    });
+  });
 });
 
 function emptyState(): TimelineState {
@@ -89,6 +143,7 @@ function sceneState(overrides: Partial<TimelineState> = {}): TimelineState {
         items: [
           {
             itemId: "timeline-item-action-1",
+            sceneId: "scene-1",
             actionId: "action-1",
             actionType: "talk",
             targetId: "character-1",
@@ -111,7 +166,7 @@ function sceneState(overrides: Partial<TimelineState> = {}): TimelineState {
 
 function createTimelineUseCase(
   state: TimelineState,
-  overrides: Partial<Pick<TimelineUseCase, "showScene" | "setPlayhead" | "setTimeScale">> = {},
+  overrides: Partial<Pick<TimelineUseCase, "showScene" | "setPlayhead" | "setTimeScale" | "moveItem" | "resizeItemStart" | "resizeItemEnd">> = {},
 ): TimelineUseCase {
   return {
     get state() {
@@ -120,5 +175,8 @@ function createTimelineUseCase(
     showScene: overrides.showScene ?? (() => state),
     setPlayhead: overrides.setPlayhead ?? (() => state),
     setTimeScale: overrides.setTimeScale ?? (() => state),
+    moveItem: overrides.moveItem ?? (() => state),
+    resizeItemStart: overrides.resizeItemStart ?? (() => state),
+    resizeItemEnd: overrides.resizeItemEnd ?? (() => state),
   };
 }

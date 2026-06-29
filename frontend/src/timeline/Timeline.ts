@@ -1,4 +1,7 @@
 import type {
+  MoveTimelineItemInput,
+  ResizeTimelineItemEndInput,
+  ResizeTimelineItemStartInput,
   SetPlayheadInput,
   SetTimeScaleInput,
   TimelineState,
@@ -34,6 +37,9 @@ export type TimelineUseCase = {
   showScene(sceneId: string | null): TimelineState;
   setPlayhead(input: SetPlayheadInput): TimelineState;
   setTimeScale(input: SetTimeScaleInput): TimelineState;
+  moveItem(input: MoveTimelineItemInput): TimelineState;
+  resizeItemStart(input: ResizeTimelineItemStartInput): TimelineState;
+  resizeItemEnd(input: ResizeTimelineItemEndInput): TimelineState;
 };
 
 export type TimelineProps = {
@@ -57,6 +63,18 @@ export class Timeline {
 
   setTimeScale(timeScale: number): TimelineViewState {
     return toViewState(this.props.timeline.setTimeScale({ timeScale }));
+  }
+
+  moveItem(input: MoveTimelineItemInput): TimelineViewState {
+    return toViewState(this.props.timeline.moveItem(input));
+  }
+
+  resizeItemStart(input: ResizeTimelineItemStartInput): TimelineViewState {
+    return toViewState(this.props.timeline.resizeItemStart(input));
+  }
+
+  resizeItemEnd(input: ResizeTimelineItemEndInput): TimelineViewState {
+    return toViewState(this.props.timeline.resizeItemEnd(input));
   }
 }
 

@@ -153,3 +153,87 @@ describe("TimelineUseCase", () => {
     expect(() => useCase.setTimeScale({ timeScale: 0 })).toThrow("Timeline timeScale must be a positive number.");
   });
 });
+
+describe("TimelineUseCase drag and resize", () => {
+  it("moves an action by converting a timeline operation into an Action time range update", () => {
+    const project = createProjectWithScene();
+    const useCase = new TimelineUseCase({ project, initialTimeScale: 100 });
+
+    const state = useCase.moveItem({ sceneId: "scene-1", actionId: "action-talk-1", nextStartTime: 2.5 });
+
+    expect(state.tracks.find((track) => track.trackId === "talk")?.items[0]).toMatchObject({
+      actionId: "action-talk-1",
+      startTime: 2.5,
+      endTime: 4.5,
+      left: 250,
+      width: 200,
+    });
+    expect(project.toSnapshot().scenes[0]?.actions.find((action) => action.actionId === "action-talk-1")).toMatchObject({
+      startTime: 2.5,
+      endTime: 4.5,
+    });
+  });
+
+  it("resizes only the action start time through the timeline use case", () => {
+    const project = createProjectWithScene();
+    const useCase = new TimelineUseCase({ project, initialTimeScale: 100 });
+
+    const state = useCase.resizeItemStart({ sceneId: "scene-1", actionId: "action-move-1", nextStartTime: 3.25 });
+
+    expect(state.tracks.find((track) => track.trackId === "character")?.items[0]).toMatchObject({
+      actionId: "action-move-1",
+      startTime: 3.25,
+      endTime: 6,
+      duration: 2.75,
+      left: 325,
+      width: 275,
+    });
+  });
+
+  it("resizes only the action end time through the timeline use case", () => {
+    const project = createProjectWithScene();
+    const useCase = new TimelineUseCase({ project, initialTimeScale: 100 });
+
+    const state = useCase.resizeItemEnd({ sceneId: "scene-1", actionId: "action-camera-1", nextEndTime: 9.5 });
+
+    expect(state.tracks.find((track) => track.trackId === "camera")?.items[0]).toMatchObject({
+      actionId: "action-camera-1",
+      startTime: 6,
+      endTime: 9.5,
+      duration: 3.5,
+      left: 600,
+      width: 350,
+    });
+  });
+
+  it("rejects timeline edits that would make invalid action ranges", () => {
+    expect(() =>
+      new TimelineUseCase({ project: createProjectWithScene(), minActionDuration: 0.25 }).moveItem({
+        sceneId: "scene-1",
+        actionId: "action-talk-1",
+        nextStartTime: -0.1,
+      }),
+    ).toThrow("Timeline action cannot start before 0s: action-talk-1.");
+    expect(() =>
+      new TimelineUseCase({ project: createProjectWithScene(), minActionDuration: 0.25 }).moveItem({
+        sceneId: "scene-1",
+        actionId: "action-talk-1",
+        nextStartTime: 9,
+      }),
+    ).toThrow("Timeline action cannot end after the scene duration: action-talk-1.");
+    expect(() =>
+      new TimelineUseCase({ project: createProjectWithScene(), minActionDuration: 0.25 }).resizeItemStart({
+        sceneId: "scene-1",
+        actionId: "action-talk-1",
+        nextStartTime: 2.9,
+      }),
+    ).toThrow("Timeline action duration is too short: action-talk-1.");
+    expect(() =>
+      new TimelineUseCase({ project: createProjectWithScene(), minActionDuration: 0.25 }).resizeItemEnd({
+        sceneId: "scene-1",
+        actionId: "action-talk-1",
+        nextEndTime: 1.1,
+      }),
+    ).toThrow("Timeline action duration is too short: action-talk-1.");
+  });
+});

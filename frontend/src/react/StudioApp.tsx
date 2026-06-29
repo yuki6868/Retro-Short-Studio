@@ -16,9 +16,12 @@ import {
   type ChangeSceneDurationInput,
   type RenameCharacterInput,
   type ChangeActionTimeRangeInput,
+  type MoveTimelineItemInput,
+  type ResizeTimelineItemEndInput,
+  type ResizeTimelineItemStartInput,
 } from "../../../app/src";
 import type { PreviewState } from "../../../app/src";
-import { Project, type IdGenerator } from "../../../core/src";
+import { Action, Project, Scene, type IdGenerator } from "../../../core/src";
 import { AssetBrowser, Inspector, PreviewPanel, SceneFlow, StudioLayout, Timeline, type StudioLayoutViewState } from "../index";
 import "./studio-app.css";
 
@@ -29,9 +32,10 @@ export function StudioApp(): ReactElement {
   const sceneFlowRef = useRef<SceneFlowUseCase | null>(null);
   const inspectorRef = useRef<InspectorUseCase | null>(null);
   const timelineRef = useRef<TimelineUseCase | null>(null);
+  const bootstrappedRef = useRef(false);
 
   if (projectRef.current === null) {
-    projectRef.current = Project.create({ projectId: "project-local-preview", projectName: "Local Preview" });
+    projectRef.current = createInitialProject();
   }
 
   if (assetLibraryRef.current === null) {
@@ -64,6 +68,19 @@ export function StudioApp(): ReactElement {
   const sceneFlow = sceneFlowRef.current;
   const inspector = inspectorRef.current;
   const timeline = timelineRef.current;
+
+  if (!bootstrappedRef.current) {
+    const initialSceneId = projectRef.current.toSnapshot().scenes[0]?.sceneId ?? null;
+
+    if (initialSceneId !== null) {
+      sceneFlow.selectScene(initialSceneId);
+      inspector.selectScene(initialSceneId);
+      timeline.showScene(initialSceneId);
+    }
+
+    bootstrappedRef.current = true;
+  }
+
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
@@ -224,8 +241,26 @@ export function StudioApp(): ReactElement {
         setTimelineState(next);
         return next;
       },
+      moveItem(input: MoveTimelineItemInput): TimelineState {
+        const next = timeline.moveItem(input);
+        setTimelineState(next);
+        setInspectorState(inspector.selectAction(input.sceneId, input.actionId));
+        return next;
+      },
+      resizeItemStart(input: ResizeTimelineItemStartInput): TimelineState {
+        const next = timeline.resizeItemStart(input);
+        setTimelineState(next);
+        setInspectorState(inspector.selectAction(input.sceneId, input.actionId));
+        return next;
+      },
+      resizeItemEnd(input: ResizeTimelineItemEndInput): TimelineState {
+        const next = timeline.resizeItemEnd(input);
+        setTimelineState(next);
+        setInspectorState(inspector.selectAction(input.sceneId, input.actionId));
+        return next;
+      },
     }),
-    [timeline, timelineState],
+    [inspector, timeline, timelineState],
   );
 
   const layout = new StudioLayout({
@@ -252,6 +287,11 @@ export function StudioApp(): ReactElement {
       onEditSceneDuration={(sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration })}
       onSetTimelinePlayhead={(time) => timelineUseCase.setPlayhead({ time })}
       onSetTimelineScale={(timeScale) => timelineUseCase.setTimeScale({ timeScale })}
+      onSelectAction={(sceneId, actionId) => {
+        const next = inspector.selectAction(sceneId, actionId);
+        setInspectorState(next);
+        return next;
+      }}
     />
   );
 }
@@ -271,6 +311,7 @@ type StudioWorkspaceProps = {
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
   onSetTimelinePlayhead?: (time: number) => TimelineState;
   onSetTimelineScale?: (timeScale: number) => TimelineState;
+  onSelectAction?: (sceneId: string, actionId: string) => InspectorState;
 };
 
 export function StudioWorkspace({
@@ -288,6 +329,7 @@ export function StudioWorkspace({
   onEditSceneDuration,
   onSetTimelinePlayhead,
   onSetTimelineScale,
+  onSelectAction,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const preview = view.layout.center.preview;
@@ -517,17 +559,22 @@ export function StudioWorkspace({
                   <h3>{track.label}</h3>
                   <p>{track.purpose}</p>
                   {track.items.length === 0 ? <p>{track.emptyText}</p> : null}
-                  <ul>
+                  <div className="rss-timeline__lane" role="list">
                     {track.items.map((item) => (
-                      <li key={item.itemId}>
+                      <button
+                        aria-label={item.label}
+                        className="rss-timeline__item"
+                        key={item.itemId}
+                        onClick={() => onSelectAction?.(item.sceneId, item.actionId)}
+                        role="listitem"
+                        style={{ marginLeft: item.left, width: item.width }}
+                        type="button"
+                      >
                         <span>{item.label}</span>
                         <span>{item.summary}</span>
-                        <span>
-                          left {item.left.toFixed(0)}px / width {item.width.toFixed(0)}px
-                        </span>
-                      </li>
+                      </button>
                     ))}
-                  </ul>
+                  </div>
                 </section>
               ))}
             </div>
@@ -536,6 +583,54 @@ export function StudioWorkspace({
       </section>
     </main>
   );
+}
+
+function createInitialProject(): Project {
+  const project = Project.create({ projectId: "project-local-preview", projectName: "Local Preview" });
+
+  project.addScene(
+    Scene.create({
+      sceneId: "scene-opening",
+      sceneName: "Opening",
+      duration: 8,
+      actions: [
+        Action.create({
+          actionId: "action-talk-opening",
+          actionType: "talk",
+          startTime: 0.5,
+          endTime: 2.5,
+          targetId: "character-zundamon",
+          payload: { text: "今日のテーマを説明するのだ。" },
+        }).toSnapshot(),
+        Action.create({
+          actionId: "action-character-nod",
+          actionType: "move",
+          startTime: 2.5,
+          endTime: 4,
+          targetId: "character-zundamon",
+          payload: { x: 8, y: 0 },
+        }).toSnapshot(),
+        Action.create({
+          actionId: "action-flash-emphasis",
+          actionType: "flash",
+          startTime: 4.2,
+          endTime: 4.8,
+          targetId: null,
+          payload: { intensity: 0.7 },
+        }).toSnapshot(),
+        Action.create({
+          actionId: "action-camera-zoom",
+          actionType: "camera_zoom",
+          startTime: 5,
+          endTime: 7,
+          targetId: "camera-main",
+          payload: { zoom: 1.15 },
+        }).toSnapshot(),
+      ],
+    }),
+  );
+
+  return project;
 }
 
 function createInitialPreviewState(): PreviewState {
