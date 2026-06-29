@@ -27,6 +27,7 @@ describe("Character Model Core", () => {
       defaultEye: "open",
       defaultMouth: "closed",
       defaultMotion: "idle",
+      imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} },
     });
   });
 
@@ -42,6 +43,7 @@ describe("Character Model Core", () => {
       defaultEye: "wink",
       defaultMouth: "open",
       defaultMotion: "talking",
+      imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} },
     });
   });
 

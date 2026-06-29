@@ -1,9 +1,6 @@
+import { Action, type ActionSnapshot } from "../action";
 import { CharacterInstance, type CharacterInstanceSnapshot } from "../character";
 import { Background, Duration, SceneId, SceneName } from "./valueObjects";
-
-export type SceneActionRef = {
-  actionId: string;
-};
 
 export type SceneSnapshot = {
   sceneId: string;
@@ -11,7 +8,7 @@ export type SceneSnapshot = {
   duration: number;
   backgroundAssetId: string | null;
   characters: CharacterInstanceSnapshot[];
-  actions: SceneActionRef[];
+  actions: ActionSnapshot[];
 };
 
 export class Scene {
@@ -21,7 +18,7 @@ export class Scene {
     private duration: Duration,
     private background: Background,
     private readonly characters: CharacterInstance[],
-    private readonly actions: SceneActionRef[],
+    private readonly actions: Action[],
   ) {}
 
   static create(params: {
@@ -30,7 +27,7 @@ export class Scene {
     duration: number;
     backgroundAssetId?: string | null;
     characters?: CharacterInstanceSnapshot[];
-    actions?: SceneActionRef[];
+    actions?: ActionSnapshot[];
   }): Scene {
     return new Scene(
       SceneId.create(params.sceneId),
@@ -38,7 +35,7 @@ export class Scene {
       Duration.create(params.duration),
       Background.create(params.backgroundAssetId ?? null),
       copyCharacterInstances(params.characters ?? []),
-      copyActionRefs(params.actions ?? []),
+      copyActions(params.actions ?? []),
     );
   }
 
@@ -58,6 +55,16 @@ export class Scene {
     this.background = Background.create(backgroundAssetId);
   }
 
+  addAction(action: Action): void {
+    const actionId = action.toSnapshot().actionId;
+
+    if (this.actions.some((currentAction) => currentAction.toSnapshot().actionId === actionId)) {
+      throw new Error(`Action already exists in scene: ${actionId}.`);
+    }
+
+    this.actions.push(Action.restore(action.toSnapshot()));
+  }
+
   toSnapshot(): SceneSnapshot {
     return {
       sceneId: this.id.toString(),
@@ -65,7 +72,7 @@ export class Scene {
       duration: this.duration.toNumber(),
       ...this.background.toSnapshot(),
       characters: this.characters.map((character) => character.toSnapshot()),
-      actions: copyActionRefs(this.actions),
+      actions: this.actions.map((action) => action.toSnapshot()),
     };
   }
 }
@@ -74,16 +81,6 @@ function copyCharacterInstances(characters: CharacterInstanceSnapshot[]): Charac
   return characters.map((character) => CharacterInstance.restore(character));
 }
 
-function copyActionRefs(actions: SceneActionRef[]): SceneActionRef[] {
-  return actions.map((action) => ({ actionId: normalizeRefId(action.actionId, "Scene action id") }));
-}
-
-function normalizeRefId(value: string, label: string): string {
-  const normalizedValue = value.trim();
-
-  if (normalizedValue.length === 0) {
-    throw new Error(`${label} is required.`);
-  }
-
-  return normalizedValue;
+function copyActions(actions: ActionSnapshot[]): Action[] {
+  return actions.map((action) => Action.restore(action));
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Background, Duration, Scene, SceneId, SceneName } from "../../core/src";
+import { Action, Background, Duration, Scene, SceneId, SceneName } from "../../core/src";
 
 describe("Scene Core", () => {
   it("creates a scene snapshot with background, characters, and actions", () => {
@@ -10,7 +10,7 @@ describe("Scene Core", () => {
       duration: 5,
       backgroundAssetId: " bg-1 ",
       characters: [{ instanceId: " ci-1 ", characterId: " c-1 ", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }],
-      actions: [{ actionId: " a-1 " }],
+      actions: [{ actionId: " a-1 ", actionType: " talk ", startTime: 0, endTime: 1, targetId: " ci-1 ", payload: { text: "hi" } }],
     });
 
     expect(scene.toSnapshot()).toEqual({
@@ -19,7 +19,7 @@ describe("Scene Core", () => {
       duration: 5,
       backgroundAssetId: "bg-1",
       characters: [{ instanceId: "ci-1", characterId: "c-1", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }],
-      actions: [{ actionId: "a-1" }],
+      actions: [{ actionId: "a-1", actionType: "talk", startTime: 0, endTime: 1, targetId: "ci-1", payload: { text: "hi" } }],
     });
   });
 
@@ -43,7 +43,7 @@ describe("Scene Core", () => {
     expect(() => Duration.create(Number.POSITIVE_INFINITY)).toThrow("Duration must be a positive finite number.");
     expect(() => Background.create("   ")).toThrow("Background asset id must be a non-empty string or null.");
     expect(() => Scene.create({ sceneId: "s-1", sceneName: "Scene", duration: 1, characters: [{ instanceId: " ", characterId: "c-1", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }] })).toThrow("CharacterInstanceId is required.");
-    expect(() => Scene.create({ sceneId: "s-1", sceneName: "Scene", duration: 1, actions: [{ actionId: " " }] })).toThrow("Scene action id is required.");
+    expect(() => Scene.create({ sceneId: "s-1", sceneName: "Scene", duration: 1, actions: [{ actionId: " ", actionType: "talk", startTime: 0, endTime: 1, targetId: null, payload: {} }] })).toThrow("ActionId is required.");
   });
 
   it("renames, changes duration, and changes background through value object rules", () => {
@@ -63,6 +63,16 @@ describe("Scene Core", () => {
     expect(() => scene.changeDuration(-1)).toThrow("Duration must be a positive finite number.");
   });
 
+  it("can add actions while preventing duplicate action ids", () => {
+    const scene = Scene.create({ sceneId: "s-1", sceneName: "Scene", duration: 3 });
+    const action = Action.create({ actionId: "a-1", actionType: "talk", startTime: 0, endTime: 1, targetId: null, payload: { text: "hi" } });
+
+    scene.addAction(action);
+
+    expect(scene.toSnapshot().actions).toEqual([{ actionId: "a-1", actionType: "talk", startTime: 0, endTime: 1, targetId: null, payload: { text: "hi" } }]);
+    expect(() => scene.addAction(action)).toThrow("Action already exists in scene: a-1.");
+  });
+
   it("restores from snapshots without retaining external references", () => {
     const snapshot = {
       sceneId: "s-1",
@@ -70,7 +80,7 @@ describe("Scene Core", () => {
       duration: 4,
       backgroundAssetId: "bg-1",
       characters: [{ instanceId: "ci-1", characterId: "c-1", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }],
-      actions: [{ actionId: "a-1" }],
+      actions: [{ actionId: "a-1", actionType: "talk", startTime: 0, endTime: 1, targetId: "ci-1", payload: { text: "hi" } }],
     };
 
     const scene = Scene.restore(snapshot);
@@ -84,7 +94,7 @@ describe("Scene Core", () => {
       duration: 4,
       backgroundAssetId: "bg-1",
       characters: [{ instanceId: "ci-1", characterId: "c-1", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }],
-      actions: [{ actionId: "a-1" }],
+      actions: [{ actionId: "a-1", actionType: "talk", startTime: 0, endTime: 1, targetId: "ci-1", payload: { text: "hi" } }],
     });
   });
 });

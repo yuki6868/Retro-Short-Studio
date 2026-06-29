@@ -1,0 +1,144 @@
+import { AssetId } from "../asset";
+import { ExpressionState, EyeState, MotionState, MouthState } from "./valueObjects";
+
+export type CharacterImageMapSnapshot = {
+  expression: Record<string, string>;
+  eye: Record<string, string>;
+  mouth: Record<string, string>;
+  motion: Record<string, string>;
+};
+
+export type CharacterImageMapStateKind = keyof CharacterImageMapSnapshot;
+
+export type CharacterImageMapResolvedSnapshot = {
+  expressionAssetId: string | null;
+  eyeAssetId: string | null;
+  mouthAssetId: string | null;
+  motionAssetId: string | null;
+};
+
+export type CharacterImageMapStateValues = {
+  expression: string;
+  eye: string;
+  mouth: string;
+  motion: string;
+};
+
+export class CharacterImageMap {
+  private constructor(
+    private readonly expression: Map<string, AssetId>,
+    private readonly eye: Map<string, AssetId>,
+    private readonly mouth: Map<string, AssetId>,
+    private readonly motion: Map<string, AssetId>,
+  ) {}
+
+  static empty(): CharacterImageMap {
+    return new CharacterImageMap(new Map(), new Map(), new Map(), new Map());
+  }
+
+  static create(snapshot: Partial<CharacterImageMapSnapshot> = {}): CharacterImageMap {
+    return new CharacterImageMap(
+      restoreMap(snapshot.expression ?? {}, "expression"),
+      restoreMap(snapshot.eye ?? {}, "eye"),
+      restoreMap(snapshot.mouth ?? {}, "mouth"),
+      restoreMap(snapshot.motion ?? {}, "motion"),
+    );
+  }
+
+  static restore(snapshot: CharacterImageMapSnapshot): CharacterImageMap {
+    return CharacterImageMap.create(snapshot);
+  }
+
+  setExpressionImage(expression: string, assetId: string): CharacterImageMap {
+    return this.setImage("expression", expression, assetId);
+  }
+
+  setEyeImage(eye: string, assetId: string): CharacterImageMap {
+    return this.setImage("eye", eye, assetId);
+  }
+
+  setMouthImage(mouth: string, assetId: string): CharacterImageMap {
+    return this.setImage("mouth", mouth, assetId);
+  }
+
+  setMotionImage(motion: string, assetId: string): CharacterImageMap {
+    return this.setImage("motion", motion, assetId);
+  }
+
+  setImage(kind: CharacterImageMapStateKind, state: string, assetId: string): CharacterImageMap {
+    const normalizedState = normalizeState(kind, state);
+    const normalizedAssetId = AssetId.create(assetId);
+    const snapshot = this.toSnapshot();
+
+    snapshot[kind] = {
+      ...snapshot[kind],
+      [normalizedState]: normalizedAssetId.toString(),
+    };
+
+    return CharacterImageMap.create(snapshot);
+  }
+
+  getImage(kind: CharacterImageMapStateKind, state: string): string | null {
+    const normalizedState = normalizeState(kind, state);
+    return this.mapByKind(kind).get(normalizedState)?.toString() ?? null;
+  }
+
+  resolve(states: CharacterImageMapStateValues): CharacterImageMapResolvedSnapshot {
+    return {
+      expressionAssetId: this.getImage("expression", states.expression),
+      eyeAssetId: this.getImage("eye", states.eye),
+      mouthAssetId: this.getImage("mouth", states.mouth),
+      motionAssetId: this.getImage("motion", states.motion),
+    };
+  }
+
+  toSnapshot(): CharacterImageMapSnapshot {
+    return {
+      expression: mapToSnapshot(this.expression),
+      eye: mapToSnapshot(this.eye),
+      mouth: mapToSnapshot(this.mouth),
+      motion: mapToSnapshot(this.motion),
+    };
+  }
+
+  private mapByKind(kind: CharacterImageMapStateKind): Map<string, AssetId> {
+    switch (kind) {
+      case "expression":
+        return this.expression;
+      case "eye":
+        return this.eye;
+      case "mouth":
+        return this.mouth;
+      case "motion":
+        return this.motion;
+    }
+  }
+}
+
+function restoreMap(values: Record<string, string>, kind: CharacterImageMapStateKind): Map<string, AssetId> {
+  return new Map(
+    Object.entries(values).map(([state, assetId]) => [
+      normalizeState(kind, state),
+      AssetId.create(assetId),
+    ]),
+  );
+}
+
+function mapToSnapshot(values: Map<string, AssetId>): Record<string, string> {
+  return Object.fromEntries(
+    [...values.entries()].map(([state, assetId]) => [state, assetId.toString()]),
+  );
+}
+
+function normalizeState(kind: CharacterImageMapStateKind, state: string): string {
+  switch (kind) {
+    case "expression":
+      return ExpressionState.create(state).toString();
+    case "eye":
+      return EyeState.create(state).toString();
+    case "mouth":
+      return MouthState.create(state).toString();
+    case "motion":
+      return MotionState.create(state).toString();
+  }
+}

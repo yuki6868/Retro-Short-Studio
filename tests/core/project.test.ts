@@ -33,7 +33,7 @@ describe("Project", () => {
       settings: { width: 800, height: 600, fps: 24 },
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
     });
 
     expect(project.toSnapshot()).toEqual({
@@ -42,7 +42,7 @@ describe("Project", () => {
       settings: { width: 800, height: 600, fps: 24 },
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
     });
   });
 
@@ -53,7 +53,7 @@ describe("Project", () => {
       settings: { width: 800, height: 600, fps: 24 },
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
     };
 
     const project = Project.restore(snapshot);
@@ -112,7 +112,7 @@ describe("Project", () => {
     character.rename("Changed Outside");
 
     expect(project.toSnapshot().characters).toEqual([
-      { characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" },
+      { characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } },
     ]);
     expect(() => project.addCharacterModel(CharacterModel.create({ characterId: "c-1", characterName: "Duplicate" }))).toThrow(
       "Character already exists: c-1.",
@@ -146,7 +146,7 @@ describe("Project", () => {
       settings: { width: 800, height: 600, fps: 24 },
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
     });
 
     const snapshot = project.toSnapshot();
@@ -171,7 +171,7 @@ describe("ProjectCollections", () => {
     const input = {
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
     };
     const collections = ProjectCollections.fromSnapshot(input);
 
@@ -182,7 +182,7 @@ describe("ProjectCollections", () => {
     expect(collections.toSnapshot()).toEqual({
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
     });
   });
 });

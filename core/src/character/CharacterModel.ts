@@ -1,3 +1,4 @@
+import { CharacterImageMap, type CharacterImageMapSnapshot } from "./CharacterImageMap";
 import {
   CharacterId,
   CharacterName,
@@ -14,6 +15,7 @@ export type CharacterModelSnapshot = {
   defaultEye: string;
   defaultMouth: string;
   defaultMotion: string;
+  imageMap?: CharacterImageMapSnapshot;
 };
 
 export class CharacterModel {
@@ -24,6 +26,7 @@ export class CharacterModel {
     private defaultEye: EyeState,
     private defaultMouth: MouthState,
     private defaultMotion: MotionState,
+    private imageMap: CharacterImageMap,
   ) {}
 
   static create(params: {
@@ -33,6 +36,7 @@ export class CharacterModel {
     defaultEye?: string;
     defaultMouth?: string;
     defaultMotion?: string;
+    imageMap?: Partial<CharacterImageMapSnapshot>;
   }): CharacterModel {
     return new CharacterModel(
       CharacterId.create(params.characterId),
@@ -41,6 +45,7 @@ export class CharacterModel {
       EyeState.create(params.defaultEye),
       MouthState.create(params.defaultMouth),
       MotionState.create(params.defaultMotion),
+      CharacterImageMap.create(params.imageMap),
     );
   }
 
@@ -72,6 +77,37 @@ export class CharacterModel {
     }
   }
 
+
+  mapExpressionImage(expression: string, assetId: string): void {
+    this.imageMap = this.imageMap.setExpressionImage(expression, assetId);
+  }
+
+  mapEyeImage(eye: string, assetId: string): void {
+    this.imageMap = this.imageMap.setEyeImage(eye, assetId);
+  }
+
+  mapMouthImage(mouth: string, assetId: string): void {
+    this.imageMap = this.imageMap.setMouthImage(mouth, assetId);
+  }
+
+  mapMotionImage(motion: string, assetId: string): void {
+    this.imageMap = this.imageMap.setMotionImage(motion, assetId);
+  }
+
+  resolveDefaultImages(): {
+    expressionAssetId: string | null;
+    eyeAssetId: string | null;
+    mouthAssetId: string | null;
+    motionAssetId: string | null;
+  } {
+    return this.imageMap.resolve({
+      expression: this.defaultExpression.toString(),
+      eye: this.defaultEye.toString(),
+      mouth: this.defaultMouth.toString(),
+      motion: this.defaultMotion.toString(),
+    });
+  }
+
   toSnapshot(): CharacterModelSnapshot {
     return {
       characterId: this.id.toString(),
@@ -80,6 +116,7 @@ export class CharacterModel {
       defaultEye: this.defaultEye.toString(),
       defaultMouth: this.defaultMouth.toString(),
       defaultMotion: this.defaultMotion.toString(),
+      imageMap: this.imageMap.toSnapshot(),
     };
   }
 }
