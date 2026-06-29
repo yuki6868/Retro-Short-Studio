@@ -1,12 +1,21 @@
-export type EngineRequestTypeDto =
-  | "preview"
-  | "render"
-  | "voice"
-  | "export"
-  | "lip_sync";
+import type { EngineCommand } from "./EngineCommand";
+import type { ExportRequest } from "./ExportRequest";
+import type { PreviewRequest } from "./PreviewRequest";
+import type { RenderRequest } from "./RenderRequest";
+import type { VoiceRequest } from "./VoiceRequest";
 
-export type EngineRequestDto<TPayload = Record<string, unknown>> = {
+export type EngineRequestTypeDto = EngineCommand;
+
+export type EngineRequestPayload = PreviewRequest | RenderRequest | VoiceRequest | ExportRequest;
+
+export type EngineRequestDto<TPayload = EngineRequestPayload> = {
   requestId: string;
   requestType: EngineRequestTypeDto;
+  payload: TPayload;
+};
+
+export type EngineCommandRequest<TPayload = EngineRequestPayload> = {
+  commandId: string;
+  command: EngineCommand;
   payload: TPayload;
 };
