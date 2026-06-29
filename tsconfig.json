@@ -12,6 +12,7 @@
   "include": [
     "core/src/**/*.ts",
     "shared/**/*.ts",
+    "app/src/**/*.ts",
     "storage/src/**/*.ts",
     "tests/**/*.ts"
   ]
