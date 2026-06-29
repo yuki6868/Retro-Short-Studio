@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Asset, Project, ProjectCollections, Scene } from "../../core/src";
+import { Asset, CharacterModel, Project, ProjectCollections, Scene } from "../../core/src";
 
 describe("Project", () => {
   it("creates a project with default settings and empty collections", () => {
@@ -33,7 +33,7 @@ describe("Project", () => {
       settings: { width: 800, height: 600, fps: 24 },
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
     });
 
     expect(project.toSnapshot()).toEqual({
@@ -42,7 +42,7 @@ describe("Project", () => {
       settings: { width: 800, height: 600, fps: 24 },
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
     });
   });
 
@@ -53,7 +53,7 @@ describe("Project", () => {
       settings: { width: 800, height: 600, fps: 24 },
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
     };
 
     const project = Project.restore(snapshot);
@@ -103,6 +103,22 @@ describe("Project", () => {
     }))).toThrow("Asset already exists: a-1.");
   });
 
+
+  it("adds character models through Project without exposing collection mutation", () => {
+    const project = Project.create({ projectId: "p-1", projectName: "Sample" });
+    const character = CharacterModel.create({ characterId: "c-1", characterName: "ずんだもん" });
+
+    project.addCharacterModel(character);
+    character.rename("Changed Outside");
+
+    expect(project.toSnapshot().characters).toEqual([
+      { characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" },
+    ]);
+    expect(() => project.addCharacterModel(CharacterModel.create({ characterId: "c-1", characterName: "Duplicate" }))).toThrow(
+      "Character already exists: c-1.",
+    );
+  });
+
   it("renames through ProjectName rules", () => {
     const project = Project.create({ projectId: "p-1", projectName: "Old" });
 
@@ -130,7 +146,7 @@ describe("Project", () => {
       settings: { width: 800, height: 600, fps: 24 },
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
     });
 
     const snapshot = project.toSnapshot();
@@ -155,7 +171,7 @@ describe("ProjectCollections", () => {
     const input = {
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
     };
     const collections = ProjectCollections.fromSnapshot(input);
 
@@ -166,7 +182,7 @@ describe("ProjectCollections", () => {
     expect(collections.toSnapshot()).toEqual({
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
-      characters: [{ characterId: "c-1" }],
+      characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle" }],
     });
   });
 });

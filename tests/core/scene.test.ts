@@ -9,7 +9,7 @@ describe("Scene Core", () => {
       sceneName: " オープニング ",
       duration: 5,
       backgroundAssetId: " bg-1 ",
-      characters: [{ characterId: " c-1 " }],
+      characters: [{ instanceId: " ci-1 ", characterId: " c-1 ", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }],
       actions: [{ actionId: " a-1 " }],
     });
 
@@ -18,7 +18,7 @@ describe("Scene Core", () => {
       sceneName: "オープニング",
       duration: 5,
       backgroundAssetId: "bg-1",
-      characters: [{ characterId: "c-1" }],
+      characters: [{ instanceId: "ci-1", characterId: "c-1", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }],
       actions: [{ actionId: "a-1" }],
     });
   });
@@ -42,7 +42,7 @@ describe("Scene Core", () => {
     expect(() => Duration.create(0)).toThrow("Duration must be a positive finite number.");
     expect(() => Duration.create(Number.POSITIVE_INFINITY)).toThrow("Duration must be a positive finite number.");
     expect(() => Background.create("   ")).toThrow("Background asset id must be a non-empty string or null.");
-    expect(() => Scene.create({ sceneId: "s-1", sceneName: "Scene", duration: 1, characters: [{ characterId: " " }] })).toThrow("Scene character id is required.");
+    expect(() => Scene.create({ sceneId: "s-1", sceneName: "Scene", duration: 1, characters: [{ instanceId: " ", characterId: "c-1", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }] })).toThrow("CharacterInstanceId is required.");
     expect(() => Scene.create({ sceneId: "s-1", sceneName: "Scene", duration: 1, actions: [{ actionId: " " }] })).toThrow("Scene action id is required.");
   });
 
@@ -69,7 +69,7 @@ describe("Scene Core", () => {
       sceneName: "Restored",
       duration: 4,
       backgroundAssetId: "bg-1",
-      characters: [{ characterId: "c-1" }],
+      characters: [{ instanceId: "ci-1", characterId: "c-1", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }],
       actions: [{ actionId: "a-1" }],
     };
 
@@ -83,7 +83,7 @@ describe("Scene Core", () => {
       sceneName: "Restored",
       duration: 4,
       backgroundAssetId: "bg-1",
-      characters: [{ characterId: "c-1" }],
+      characters: [{ instanceId: "ci-1", characterId: "c-1", transform: { x: 0, y: 0, scale: 1, rotation: 0 }, expression: "neutral", eye: "open", mouth: "closed", motion: "idle" }],
       actions: [{ actionId: "a-1" }],
     });
   });

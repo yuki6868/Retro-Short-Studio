@@ -1,4 +1,5 @@
 import { Asset } from "../asset";
+import { CharacterModel } from "../character";
 import { Scene } from "../scene";
 import { ProjectCollections, type ProjectCollectionsSnapshot } from "./collections";
 import { ProjectId, ProjectName, ProjectSettings, type ProjectSettingsValues } from "./valueObjects";
@@ -59,6 +60,10 @@ export class Project {
 
   addAsset(asset: Asset): void {
     this.collections = this.collections.addAsset(asset);
+  }
+
+  addCharacterModel(character: CharacterModel): void {
+    this.collections = this.collections.addCharacterModel(character);
   }
 
   toSnapshot(): ProjectSnapshot {

@@ -1,8 +1,5 @@
+import { CharacterInstance, type CharacterInstanceSnapshot } from "../character";
 import { Background, Duration, SceneId, SceneName } from "./valueObjects";
-
-export type SceneCharacterRef = {
-  characterId: string;
-};
 
 export type SceneActionRef = {
   actionId: string;
@@ -13,7 +10,7 @@ export type SceneSnapshot = {
   sceneName: string;
   duration: number;
   backgroundAssetId: string | null;
-  characters: SceneCharacterRef[];
+  characters: CharacterInstanceSnapshot[];
   actions: SceneActionRef[];
 };
 
@@ -23,7 +20,7 @@ export class Scene {
     private name: SceneName,
     private duration: Duration,
     private background: Background,
-    private readonly characters: SceneCharacterRef[],
+    private readonly characters: CharacterInstance[],
     private readonly actions: SceneActionRef[],
   ) {}
 
@@ -32,7 +29,7 @@ export class Scene {
     sceneName: string;
     duration: number;
     backgroundAssetId?: string | null;
-    characters?: SceneCharacterRef[];
+    characters?: CharacterInstanceSnapshot[];
     actions?: SceneActionRef[];
   }): Scene {
     return new Scene(
@@ -40,7 +37,7 @@ export class Scene {
       SceneName.create(params.sceneName),
       Duration.create(params.duration),
       Background.create(params.backgroundAssetId ?? null),
-      copyCharacterRefs(params.characters ?? []),
+      copyCharacterInstances(params.characters ?? []),
       copyActionRefs(params.actions ?? []),
     );
   }
@@ -67,14 +64,14 @@ export class Scene {
       sceneName: this.name.toString(),
       duration: this.duration.toNumber(),
       ...this.background.toSnapshot(),
-      characters: copyCharacterRefs(this.characters),
+      characters: this.characters.map((character) => character.toSnapshot()),
       actions: copyActionRefs(this.actions),
     };
   }
 }
 
-function copyCharacterRefs(characters: SceneCharacterRef[]): SceneCharacterRef[] {
-  return characters.map((character) => ({ characterId: normalizeRefId(character.characterId, "Scene character id") }));
+function copyCharacterInstances(characters: CharacterInstanceSnapshot[]): CharacterInstance[] {
+  return characters.map((character) => CharacterInstance.restore(character));
 }
 
 function copyActionRefs(actions: SceneActionRef[]): SceneActionRef[] {

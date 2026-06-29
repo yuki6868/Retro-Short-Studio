@@ -1,21 +1,18 @@
 import { Asset, type AssetSnapshot } from "../../asset";
+import { CharacterModel, type CharacterModelSnapshot } from "../../character";
 import { Scene, type SceneSnapshot } from "../../scene";
-
-export type ProjectCharacterRef = {
-  characterId: string;
-};
 
 export type ProjectCollectionsSnapshot = {
   scenes: SceneSnapshot[];
   assets: AssetSnapshot[];
-  characters: ProjectCharacterRef[];
+  characters: CharacterModelSnapshot[];
 };
 
 export class ProjectCollections {
   private constructor(
     private readonly scenes: Scene[],
     private readonly assets: Asset[],
-    private readonly characters: ProjectCharacterRef[],
+    private readonly characters: CharacterModel[],
   ) {}
 
   static empty(): ProjectCollections {
@@ -26,7 +23,7 @@ export class ProjectCollections {
     return new ProjectCollections(
       snapshot.scenes.map((scene) => Scene.restore(scene)),
       snapshot.assets.map((asset) => Asset.restore(asset)),
-      snapshot.characters.map((character) => ({ ...character })),
+      snapshot.characters.map((character) => CharacterModel.restore(character)),
     );
   }
 
@@ -40,7 +37,7 @@ export class ProjectCollections {
     return new ProjectCollections(
       [...this.scenes, Scene.restore(scene.toSnapshot())],
       this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
-      this.characters.map((character) => ({ ...character })),
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
     );
   }
 
@@ -54,7 +51,21 @@ export class ProjectCollections {
     return new ProjectCollections(
       this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
       [...this.assets, Asset.restore(asset.toSnapshot())],
-      this.characters.map((character) => ({ ...character })),
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+    );
+  }
+
+  addCharacterModel(character: CharacterModel): ProjectCollections {
+    const characterId = character.toSnapshot().characterId;
+
+    if (this.characters.some((currentCharacter) => currentCharacter.toSnapshot().characterId === characterId)) {
+      throw new Error(`Character already exists: ${characterId}.`);
+    }
+
+    return new ProjectCollections(
+      this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
+      this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
+      [...this.characters, CharacterModel.restore(character.toSnapshot())],
     );
   }
 
@@ -62,7 +73,7 @@ export class ProjectCollections {
     return {
       scenes: this.scenes.map((scene) => scene.toSnapshot()),
       assets: this.assets.map((asset) => asset.toSnapshot()),
-      characters: this.characters.map((character) => ({ ...character })),
+      characters: this.characters.map((character) => character.toSnapshot()),
     };
   }
 }
