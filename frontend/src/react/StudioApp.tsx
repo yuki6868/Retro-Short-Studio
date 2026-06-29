@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type PointerEvent, type ReactElement } from "react";
 
 import {
+  ActionEditorUseCase,
   AssetLibraryUseCase,
   InspectorUseCase,
   SceneFlowUseCase,
@@ -8,6 +9,7 @@ import {
   type AddAssetInput,
   type AddSceneInput,
   type AssetLibraryState,
+  type CreateActionKind,
   type MoveSceneInput,
   type SceneFlowState,
   type InspectorState,
@@ -42,6 +44,7 @@ export function StudioApp(): ReactElement {
   const sceneFlowRef = useRef<SceneFlowUseCase | null>(null);
   const inspectorRef = useRef<InspectorUseCase | null>(null);
   const timelineRef = useRef<TimelineUseCase | null>(null);
+  const actionEditorRef = useRef<ActionEditorUseCase | null>(null);
   const bootstrappedRef = useRef(false);
 
   if (projectRef.current === null) {
@@ -74,10 +77,18 @@ export function StudioApp(): ReactElement {
     });
   }
 
+  if (actionEditorRef.current === null) {
+    actionEditorRef.current = new ActionEditorUseCase({
+      project: projectRef.current,
+      idGenerator: new BrowserActionIdGenerator(),
+    });
+  }
+
   const assetLibrary = assetLibraryRef.current;
   const sceneFlow = sceneFlowRef.current;
   const inspector = inspectorRef.current;
   const timeline = timelineRef.current;
+  const actionEditor = actionEditorRef.current;
 
   if (!bootstrappedRef.current) {
     const initialSceneId = projectRef.current.toSnapshot().scenes[0]?.sceneId ?? null;
@@ -273,6 +284,33 @@ export function StudioApp(): ReactElement {
     [inspector, timeline, timelineState],
   );
 
+
+  const createAction = (kind: CreateActionKind): TimelineState => {
+    const sceneId = timeline.state.sceneId;
+
+    if (sceneId === null) {
+      throw new Error("Select a scene before creating an action.");
+    }
+
+    const result = actionEditor.createAction({
+      sceneId,
+      kind,
+      startTime: timeline.state.playhead,
+    });
+    const nextTimeline = timeline.showScene(sceneId);
+    setTimelineState(nextTimeline);
+    setInspectorState(inspector.selectAction(result.sceneId, result.action.actionId));
+    return nextTimeline;
+  };
+
+  const deleteAction = (sceneId: string, actionId: string): TimelineState => {
+    actionEditor.deleteAction({ sceneId, actionId });
+    const nextTimeline = timeline.showScene(sceneId);
+    setTimelineState(nextTimeline);
+    setInspectorState(inspector.selectScene(sceneId));
+    return nextTimeline;
+  };
+
   const layout = new StudioLayout({
     preview: new PreviewPanel({ duration: 12, preview: previewUseCase }).render(),
     assetBrowser: new AssetBrowser({ assets: assetBrowserUseCase }).render(),
@@ -300,6 +338,8 @@ export function StudioApp(): ReactElement {
       onMoveTimelineItem={timelineUseCase.moveItem}
       onResizeTimelineItemStart={timelineUseCase.resizeItemStart}
       onResizeTimelineItemEnd={timelineUseCase.resizeItemEnd}
+      onCreateAction={createAction}
+      onDeleteAction={deleteAction}
       onSelectAction={(sceneId, actionId) => {
         const next = inspector.selectAction(sceneId, actionId);
         setInspectorState(next);
@@ -327,6 +367,8 @@ type StudioWorkspaceProps = {
   onMoveTimelineItem?: (input: MoveTimelineItemInput) => TimelineState;
   onResizeTimelineItemStart?: (input: ResizeTimelineItemStartInput) => TimelineState;
   onResizeTimelineItemEnd?: (input: ResizeTimelineItemEndInput) => TimelineState;
+  onCreateAction?: (kind: CreateActionKind) => TimelineState;
+  onDeleteAction?: (sceneId: string, actionId: string) => TimelineState;
   onSelectAction?: (sceneId: string, actionId: string) => InspectorState;
 };
 
@@ -348,6 +390,8 @@ export function StudioWorkspace({
   onMoveTimelineItem,
   onResizeTimelineItemStart,
   onResizeTimelineItemEnd,
+  onCreateAction,
+  onDeleteAction,
   onSelectAction,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
@@ -586,6 +630,12 @@ export function StudioWorkspace({
               <div className="rss-inspector" aria-label="Action Inspector">
                 <p>{actionInspector.selectedTargetLabel}</p>
                 <p>{actionInspector.actionType}</p>
+                <button
+                  onClick={() => onDeleteAction?.(actionInspector.sceneId, actionInspector.actionId)}
+                  type="button"
+                >
+                  Delete Action
+                </button>
               </div>
             ) : null}
           </section>
@@ -622,6 +672,20 @@ export function StudioWorkspace({
                 value={timelineView.timeScale}
               />
             </label>
+            <div className="rss-timeline__actions" aria-label="Action creation">
+              <button disabled={timelineView.sceneId === null} onClick={() => onCreateAction?.("talk")} type="button">
+                Add Talk
+              </button>
+              <button disabled={timelineView.sceneId === null} onClick={() => onCreateAction?.("character")} type="button">
+                Add Character
+              </button>
+              <button disabled={timelineView.sceneId === null} onClick={() => onCreateAction?.("effect")} type="button">
+                Add Effect
+              </button>
+              <button disabled={timelineView.sceneId === null} onClick={() => onCreateAction?.("camera")} type="button">
+                Add Camera
+              </button>
+            </div>
             <div aria-label="Timeline tracks">
               {timelineView.tracks.map((track) => (
                 <section className="rss-timeline__track" key={track.trackId} aria-label={`${track.label} track`}>
@@ -756,6 +820,12 @@ class BrowserAssetIdGenerator implements IdGenerator {
 }
 
 class BrowserSceneIdGenerator implements IdGenerator {
+  generate(prefix: string): string {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+}
+
+class BrowserActionIdGenerator implements IdGenerator {
   generate(prefix: string): string {
     return `${prefix}-${crypto.randomUUID()}`;
   }

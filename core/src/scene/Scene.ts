@@ -75,6 +75,16 @@ export class Scene {
     updater(action);
   }
 
+  removeAction(actionId: string): void {
+    const actionIndex = this.actions.findIndex((currentAction) => currentAction.toSnapshot().actionId === actionId);
+
+    if (actionIndex === -1) {
+      throw new Error(`Action does not exist in scene: ${actionId}.`);
+    }
+
+    this.actions.splice(actionIndex, 1);
+  }
+
   toSnapshot(): SceneSnapshot {
     return {
       sceneId: this.id.toString(),

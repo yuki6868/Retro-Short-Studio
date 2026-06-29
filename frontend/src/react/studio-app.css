@@ -239,3 +239,9 @@ input {
 .rss-timeline__resize-handle--end {
   border-radius: 0 7px 7px 0;
 }
+
+.rss-timeline__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}

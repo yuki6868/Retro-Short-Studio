@@ -90,6 +90,16 @@ describe("Frontend Vite foundation", () => {
     expect(html).toContain("rss-timeline__resize-handle--end");
   });
 
+  it("renders action creation controls after timeline drag and resize are available", () => {
+    const html = renderToStaticMarkup(<StudioApp />);
+
+    expect(html).toContain("Add Talk");
+    expect(html).toContain("Add Character");
+    expect(html).toContain("Add Effect");
+    expect(html).toContain("Add Camera");
+    expect(html).toContain('aria-label="Action creation"');
+  });
+
 });
 
 function createPreviewUseCase(state: PreviewState = createPreviewState()) {
