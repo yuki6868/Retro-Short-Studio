@@ -1,4 +1,5 @@
 import { Asset } from "../asset";
+import { Scene } from "../scene";
 import { ProjectCollections, type ProjectCollectionsSnapshot } from "./collections";
 import { ProjectId, ProjectName, ProjectSettings, type ProjectSettingsValues } from "./valueObjects";
 
@@ -50,6 +51,10 @@ export class Project {
 
   changeSettings(settings: ProjectSettingsValues): void {
     this.settings = ProjectSettings.create(settings);
+  }
+
+  addScene(scene: Scene): void {
+    this.collections = this.collections.addScene(scene);
   }
 
   addAsset(asset: Asset): void {

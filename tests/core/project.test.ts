@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Asset, Project, ProjectCollections } from "../../core/src";
+import { Asset, Project, ProjectCollections, Scene } from "../../core/src";
 
 describe("Project", () => {
   it("creates a project with default settings and empty collections", () => {
@@ -31,7 +31,7 @@ describe("Project", () => {
       projectId: "p-1",
       projectName: "Restored",
       settings: { width: 800, height: 600, fps: 24 },
-      scenes: [{ sceneId: "s-1" }],
+      scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1" }],
     });
@@ -40,7 +40,7 @@ describe("Project", () => {
       projectId: "p-1",
       projectName: "Restored",
       settings: { width: 800, height: 600, fps: 24 },
-      scenes: [{ sceneId: "s-1" }],
+      scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1" }],
     });
@@ -51,7 +51,7 @@ describe("Project", () => {
       projectId: "p-1",
       projectName: "Restored",
       settings: { width: 800, height: 600, fps: 24 },
-      scenes: [{ sceneId: "s-1" }],
+      scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1" }],
     };
@@ -61,8 +61,23 @@ describe("Project", () => {
     snapshot.scenes[0].sceneId = "mutated";
     snapshot.assets.push({ assetId: "a-2", assetName: "音声", assetType: "voice", assetPath: "voices/talk.wav" });
 
-    expect(project.toSnapshot().scenes).toEqual([{ sceneId: "s-1" }]);
+    expect(project.toSnapshot().scenes).toEqual([{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }]);
     expect(project.toSnapshot().assets).toEqual([{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }]);
+  });
+
+  it("adds scenes through Project without exposing collection mutation", () => {
+    const project = Project.create({ projectId: "p-1", projectName: "Sample" });
+    const scene = Scene.create({ sceneId: "s-1", sceneName: "Scene", duration: 3 });
+
+    project.addScene(scene);
+    scene.rename("Changed Outside");
+
+    expect(project.toSnapshot().scenes).toEqual([
+      { sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] },
+    ]);
+    expect(() => project.addScene(Scene.create({ sceneId: "s-1", sceneName: "Duplicate", duration: 2 }))).toThrow(
+      "Scene already exists: s-1.",
+    );
   });
 
   it("adds assets through Project without exposing collection mutation", () => {
@@ -113,7 +128,7 @@ describe("Project", () => {
       projectId: "p-1",
       projectName: "Sample",
       settings: { width: 800, height: 600, fps: 24 },
-      scenes: [{ sceneId: "s-1" }],
+      scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1" }],
     });
@@ -123,7 +138,7 @@ describe("Project", () => {
     snapshot.scenes[0].sceneId = "mutated";
 
     expect(project.toSnapshot().settings.width).toBe(800);
-    expect(project.toSnapshot().scenes).toEqual([{ sceneId: "s-1" }]);
+    expect(project.toSnapshot().scenes).toEqual([{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }]);
   });
 });
 
@@ -138,7 +153,7 @@ describe("ProjectCollections", () => {
 
   it("copies snapshot inputs and outputs", () => {
     const input = {
-      scenes: [{ sceneId: "s-1" }],
+      scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1" }],
     };
@@ -149,7 +164,7 @@ describe("ProjectCollections", () => {
     output.assets[0].assetId = "mutated";
 
     expect(collections.toSnapshot()).toEqual({
-      scenes: [{ sceneId: "s-1" }],
+      scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1" }],
     });

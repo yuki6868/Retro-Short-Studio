@@ -1,22 +1,19 @@
 import { Asset, type AssetSnapshot } from "../../asset";
-
-export type ProjectSceneRef = {
-  sceneId: string;
-};
+import { Scene, type SceneSnapshot } from "../../scene";
 
 export type ProjectCharacterRef = {
   characterId: string;
 };
 
 export type ProjectCollectionsSnapshot = {
-  scenes: ProjectSceneRef[];
+  scenes: SceneSnapshot[];
   assets: AssetSnapshot[];
   characters: ProjectCharacterRef[];
 };
 
 export class ProjectCollections {
   private constructor(
-    private readonly scenes: ProjectSceneRef[],
+    private readonly scenes: Scene[],
     private readonly assets: Asset[],
     private readonly characters: ProjectCharacterRef[],
   ) {}
@@ -27,9 +24,23 @@ export class ProjectCollections {
 
   static fromSnapshot(snapshot: ProjectCollectionsSnapshot): ProjectCollections {
     return new ProjectCollections(
-      snapshot.scenes.map((scene) => ({ ...scene })),
+      snapshot.scenes.map((scene) => Scene.restore(scene)),
       snapshot.assets.map((asset) => Asset.restore(asset)),
       snapshot.characters.map((character) => ({ ...character })),
+    );
+  }
+
+  addScene(scene: Scene): ProjectCollections {
+    const sceneId = scene.toSnapshot().sceneId;
+
+    if (this.scenes.some((currentScene) => currentScene.toSnapshot().sceneId === sceneId)) {
+      throw new Error(`Scene already exists: ${sceneId}.`);
+    }
+
+    return new ProjectCollections(
+      [...this.scenes, Scene.restore(scene.toSnapshot())],
+      this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
+      this.characters.map((character) => ({ ...character })),
     );
   }
 
@@ -41,7 +52,7 @@ export class ProjectCollections {
     }
 
     return new ProjectCollections(
-      this.scenes.map((scene) => ({ ...scene })),
+      this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
       [...this.assets, Asset.restore(asset.toSnapshot())],
       this.characters.map((character) => ({ ...character })),
     );
@@ -49,7 +60,7 @@ export class ProjectCollections {
 
   toSnapshot(): ProjectCollectionsSnapshot {
     return {
-      scenes: this.scenes.map((scene) => ({ ...scene })),
+      scenes: this.scenes.map((scene) => scene.toSnapshot()),
       assets: this.assets.map((asset) => asset.toSnapshot()),
       characters: this.characters.map((character) => ({ ...character })),
     };
