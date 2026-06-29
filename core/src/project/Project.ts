@@ -1,3 +1,4 @@
+import { Asset } from "../asset";
 import { ProjectCollections, type ProjectCollectionsSnapshot } from "./collections";
 import { ProjectId, ProjectName, ProjectSettings, type ProjectSettingsValues } from "./valueObjects";
 
@@ -12,7 +13,7 @@ export class Project {
     private readonly id: ProjectId,
     private name: ProjectName,
     private settings: ProjectSettings,
-    private readonly collections: ProjectCollections,
+    private collections: ProjectCollections,
   ) {}
 
   static create(params: {
@@ -49,6 +50,10 @@ export class Project {
 
   changeSettings(settings: ProjectSettingsValues): void {
     this.settings = ProjectSettings.create(settings);
+  }
+
+  addAsset(asset: Asset): void {
+    this.collections = this.collections.addAsset(asset);
   }
 
   toSnapshot(): ProjectSnapshot {
