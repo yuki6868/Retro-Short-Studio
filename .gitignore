@@ -147,6 +147,7 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+
 # Environments
 .env
 .envrc
@@ -216,6 +217,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node / TypeScript
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vitest/
+
 
 # Patch
 *.patch

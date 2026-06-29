@@ -1,13 +1,11 @@
-# Retro Short Studio pytest
+# Tests
 
-These tests are structural tests for the TypeScript source files created through Commit 4.
-
-Run them from the `Retro-Short-Studio` project root with the project virtual environment:
+TypeScript behavior is tested with Vitest.
 
 ```bash
-source .venv/bin/activate
-python -m pytest -q
+npm install
+npm run typecheck
+npm test
 ```
 
-VS Code should open the `Retro-Short-Studio` folder itself as the workspace root.
-The workspace settings point test discovery at `${workspaceFolder}/.venv/bin/python` and `${workspaceFolder}/tests`.
+`pytest` is not used for the TypeScript core/storage/shared layers. It will be reserved for the future Python engine layer.

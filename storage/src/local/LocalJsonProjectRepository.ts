@@ -37,7 +37,7 @@ export class LocalJsonProjectRepository implements ProjectRepository {
 
     const project: ProjectDto = {
       projectId: randomUUID(),
-      projectName,
+      projectName: projectName.trim(),
       settings: {
         ...DEFAULT_PROJECT_SETTINGS,
         ...options.settings,
@@ -78,8 +78,16 @@ function normalizeProjectName(projectName: string): string {
     throw new Error("Project name is required.");
   }
 
-  return trimmedProjectName
+  const normalizedProjectFolderName = trimmedProjectName
     .replace(/[\\/:*?\"<>|]/g, "-")
     .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
     .toLowerCase();
+
+  if (normalizedProjectFolderName.length === 0) {
+    throw new Error("Project folder name is required.");
+  }
+
+  return normalizedProjectFolderName;
 }
