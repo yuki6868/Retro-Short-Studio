@@ -56,6 +56,36 @@ describe("StudioLayout", () => {
     });
   });
 
+
+  it("passes AssetBrowser view state into the left asset region", () => {
+    const assetBrowser = {
+      title: "Asset Browser",
+      assets: [
+        {
+          assetId: "asset-1",
+          assetName: "Room",
+          assetPath: "assets/room.png",
+          assetType: "background" as const,
+          selected: true,
+        },
+      ],
+      selectedAssetId: "asset-1",
+      assetCount: 1,
+      emptyText: "",
+      addButton: { label: "Add Asset", disabled: false },
+      acceptedTypes: ["background" as const],
+    };
+
+    const view = new StudioLayout({
+      preview: new PreviewPanel({ duration: 8, preview: createPreviewUseCase() }).render(),
+      assetBrowser,
+    }).render();
+
+    expect(view.layout.left[0].assetCount).toBe(1);
+    expect(view.layout.left[0].assetBrowser?.assets[0].assetName).toBe("Room");
+    expect(view.layout.left[0].placeholderText).toBe("");
+  });
+
   it("passes preview panel state through without depending on engine or project internals", () => {
     const preview = new PreviewPanel({
       duration: 6,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { PreviewState } from "../../app/src";
+import type { AddAssetInput, AssetLibraryState, PreviewState } from "../../app/src";
 import { PreviewPanel, StudioLayout } from "../../frontend/src";
 import { StudioWorkspace } from "../../frontend/src/react";
 
@@ -12,7 +12,14 @@ describe("Frontend Vite foundation", () => {
     }).render();
 
     const html = renderToStaticMarkup(
-      <StudioWorkspace view={view} onPlay={async () => createPreviewState()} onPause={() => createPreviewState()} onSeek={async () => createPreviewState()} />,
+      <StudioWorkspace
+        view={view}
+        onAddAsset={addAssetNoop}
+        onPlay={async () => createPreviewState()}
+        onPause={() => createPreviewState()}
+        onSeek={async () => createPreviewState()}
+        onSelectAsset={selectAssetNoop}
+      />,
     );
 
     expect(html).toContain("Retro Short Studio");
@@ -32,7 +39,14 @@ describe("Frontend Vite foundation", () => {
     }).render();
 
     const html = renderToStaticMarkup(
-      <StudioWorkspace view={view} onPlay={async () => createPreviewState()} onPause={() => createPreviewState()} onSeek={async () => createPreviewState()} />,
+      <StudioWorkspace
+        view={view}
+        onAddAsset={addAssetNoop}
+        onPlay={async () => createPreviewState()}
+        onPause={() => createPreviewState()}
+        onSeek={async () => createPreviewState()}
+        onSelectAsset={selectAssetNoop}
+      />,
     );
 
     expect(html).toContain("Play");
@@ -64,4 +78,12 @@ function createPreviewState(): PreviewState {
     fps: 30,
     error: null,
   };
+}
+
+function addAssetNoop(_input: AddAssetInput): AssetLibraryState {
+  return { assets: [], selectedAssetId: null };
+}
+
+function selectAssetNoop(_assetId: string): AssetLibraryState {
+  return { assets: [], selectedAssetId: null };
 }

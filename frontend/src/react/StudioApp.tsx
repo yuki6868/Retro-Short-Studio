@@ -1,11 +1,24 @@
-import { useMemo, useState, type ReactElement } from "react";
+import { useMemo, useRef, useState, type ReactElement } from "react";
 
+import { AssetLibraryUseCase, type AddAssetInput, type AssetLibraryState } from "../../../app/src";
 import type { PreviewState } from "../../../app/src";
-import { PreviewPanel, StudioLayout, type StudioLayoutViewState } from "../index";
+import { Project, type IdGenerator } from "../../../core/src";
+import { AssetBrowser, PreviewPanel, StudioLayout, type StudioLayoutViewState } from "../index";
 import "./studio-app.css";
 
 export function StudioApp(): ReactElement {
   const [previewState, setPreviewState] = useState<PreviewState>(createInitialPreviewState);
+  const assetLibraryRef = useRef<AssetLibraryUseCase | null>(null);
+
+  if (assetLibraryRef.current === null) {
+    assetLibraryRef.current = new AssetLibraryUseCase({
+      project: Project.create({ projectId: "project-local-preview", projectName: "Local Preview" }),
+      idGenerator: new BrowserAssetIdGenerator(),
+    });
+  }
+
+  const assetLibrary = assetLibraryRef.current;
+  const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
 
   const previewUseCase = useMemo(
     () => ({
@@ -31,23 +44,55 @@ export function StudioApp(): ReactElement {
     [previewState],
   );
 
+  const assetBrowserUseCase = useMemo(
+    () => ({
+      get state() {
+        return assetState;
+      },
+      addAsset(input: AddAssetInput): AssetLibraryState {
+        const next = assetLibrary.addAsset(input);
+        setAssetState(next);
+        return next;
+      },
+      selectAsset(assetId: string): AssetLibraryState {
+        const next = assetLibrary.selectAsset(assetId);
+        setAssetState(next);
+        return next;
+      },
+    }),
+    [assetLibrary, assetState],
+  );
+
   const layout = new StudioLayout({
     preview: new PreviewPanel({ duration: 12, preview: previewUseCase }).render(),
+    assetBrowser: new AssetBrowser({ assets: assetBrowserUseCase }).render(),
   }).render();
 
-  return <StudioWorkspace view={layout} onPlay={previewUseCase.play} onPause={previewUseCase.pause} onSeek={previewUseCase.seek} />;
+  return (
+    <StudioWorkspace
+      view={layout}
+      onAddAsset={assetBrowserUseCase.addAsset}
+      onPlay={previewUseCase.play}
+      onPause={previewUseCase.pause}
+      onSeek={previewUseCase.seek}
+      onSelectAsset={assetBrowserUseCase.selectAsset}
+    />
+  );
 }
 
 type StudioWorkspaceProps = {
   view: StudioLayoutViewState;
+  onAddAsset(input: AddAssetInput): AssetLibraryState;
   onPlay(): Promise<PreviewState>;
   onPause(): PreviewState;
   onSeek(time: number): Promise<PreviewState>;
+  onSelectAsset(assetId: string): AssetLibraryState;
 };
 
-export function StudioWorkspace({ view, onPlay, onPause, onSeek }: StudioWorkspaceProps): ReactElement {
+export function StudioWorkspace({ view, onAddAsset, onPlay, onPause, onSeek, onSelectAsset }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const preview = view.layout.center.preview;
+  const assetBrowser = view.layout.left[0].assetBrowser;
 
   return (
     <main className="rss-studio" aria-label={view.title}>
@@ -57,12 +102,47 @@ export function StudioWorkspace({ view, onPlay, onPause, onSeek }: StudioWorkspa
 
       <section className="rss-studio__body" aria-label="Studio regions">
         <aside className="rss-studio__left" aria-label="Left studio panels">
-          {view.layout.left.map((region) => (
-            <section className="rss-panel" aria-label={region.title} key={region.id}>
-              <h2>{region.title}</h2>
-              <p>{region.placeholderText}</p>
-            </section>
-          ))}
+          <section className="rss-panel" aria-label={view.layout.left[0].title}>
+            <h2>{view.layout.left[0].title}</h2>
+            {assetBrowser === null ? (
+              <p>{view.layout.left[0].placeholderText}</p>
+            ) : (
+              <div className="rss-asset-browser">
+                <button
+                  disabled={assetBrowser.addButton.disabled}
+                  onClick={() =>
+                    onAddAsset({
+                      assetName: `Asset ${assetBrowser.assetCount + 1}`,
+                      assetPath: `assets/asset-${assetBrowser.assetCount + 1}.png`,
+                      assetType: "background",
+                    })
+                  }
+                  type="button"
+                >
+                  {assetBrowser.addButton.label}
+                </button>
+                {assetBrowser.assets.length === 0 ? <p>{assetBrowser.emptyText}</p> : null}
+                <ul aria-label="Asset list">
+                  {assetBrowser.assets.map((asset) => (
+                    <li key={asset.assetId}>
+                      <button
+                        aria-pressed={asset.selected}
+                        onClick={() => onSelectAsset(asset.assetId)}
+                        type="button"
+                      >
+                        {asset.assetName} / {asset.assetType}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          <section className="rss-panel" aria-label={view.layout.left[1].title}>
+            <h2>{view.layout.left[1].title}</h2>
+            <p>{view.layout.left[1].placeholderText}</p>
+          </section>
         </aside>
 
         <section className="rss-preview" aria-label={view.layout.center.title}>
@@ -124,4 +204,10 @@ function createInitialPreviewState(): PreviewState {
     fps: 30,
     error: null,
   };
+}
+
+class BrowserAssetIdGenerator implements IdGenerator {
+  generate(prefix: string): string {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
 }

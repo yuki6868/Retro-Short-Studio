@@ -1,3 +1,4 @@
+import type { AssetBrowserViewState } from "../asset";
 import type { PreviewPanelViewState } from "../preview";
 
 export type StudioRegionId = "assetBrowser" | "sceneFlow" | "preview" | "inspector" | "timeline";
@@ -13,6 +14,7 @@ export type AssetBrowserState = StudioRegionState & {
   id: "assetBrowser";
   role: "asset";
   assetCount: number;
+  assetBrowser: AssetBrowserViewState | null;
 };
 
 export type SceneFlowState = StudioRegionState & {
@@ -53,6 +55,7 @@ export type StudioLayoutViewState = {
 export type StudioLayoutProps = {
   title?: string;
   preview: PreviewPanelViewState;
+  assetBrowser?: AssetBrowserViewState;
   assetCount?: number;
   sceneCount?: number;
   trackCount?: number;
@@ -82,8 +85,9 @@ export class StudioLayout {
       id: "assetBrowser",
       title: "Asset Browser",
       role: "asset",
-      placeholderText: "Assets will be listed here.",
-      assetCount: this.props.assetCount ?? 0,
+      placeholderText: this.props.assetBrowser === undefined ? "Assets will be listed here." : this.props.assetBrowser.emptyText,
+      assetCount: this.props.assetBrowser?.assetCount ?? this.props.assetCount ?? 0,
+      assetBrowser: this.props.assetBrowser ?? null,
     };
   }
 
