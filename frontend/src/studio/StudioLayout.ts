@@ -2,6 +2,7 @@ import type { AssetBrowserViewState } from "../asset";
 import type { PreviewPanelViewState } from "../preview";
 import type { SceneFlowViewState } from "../scene";
 import type { InspectorViewState } from "../inspector";
+import type { TimelineViewState } from "../timeline";
 
 export type StudioRegionId = "assetBrowser" | "sceneFlow" | "preview" | "inspector" | "timeline";
 
@@ -33,10 +34,11 @@ export type InspectorRegionState = StudioRegionState & {
   inspector: InspectorViewState | null;
 };
 
-export type TimelineState = StudioRegionState & {
+export type StudioTimelineState = StudioRegionState & {
   id: "timeline";
   role: "timeline";
   trackCount: number;
+  timeline: TimelineViewState | null;
 };
 
 export type StudioPreviewRegionState = StudioRegionState & {
@@ -51,7 +53,7 @@ export type StudioLayoutViewState = {
     left: [AssetBrowserState, StudioSceneFlowState];
     center: StudioPreviewRegionState;
     right: InspectorRegionState;
-    bottom: TimelineState;
+    bottom: StudioTimelineState;
   };
   order: StudioRegionId[];
 };
@@ -66,6 +68,7 @@ export type StudioLayoutProps = {
   trackCount?: number;
   selectedTargetLabel?: string | null;
   inspector?: InspectorViewState;
+  timeline?: TimelineViewState;
 };
 
 export class StudioLayout {
@@ -133,13 +136,16 @@ export class StudioLayout {
     };
   }
 
-  private createTimeline(): TimelineState {
+  private createTimeline(): StudioTimelineState {
+    const timeline = this.props.timeline ?? null;
+
     return {
       id: "timeline",
       title: "Timeline",
       role: "timeline",
-      placeholderText: "Actions will be shown on timeline tracks.",
-      trackCount: this.props.trackCount ?? 0,
+      placeholderText: timeline === null ? "Actions will be shown on timeline tracks." : timeline.emptyText,
+      trackCount: timeline?.trackCount ?? this.props.trackCount ?? 0,
+      timeline,
     };
   }
 }

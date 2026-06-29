@@ -4,12 +4,14 @@ import {
   AssetLibraryUseCase,
   InspectorUseCase,
   SceneFlowUseCase,
+  TimelineUseCase,
   type AddAssetInput,
   type AddSceneInput,
   type AssetLibraryState,
   type MoveSceneInput,
   type SceneFlowState,
   type InspectorState,
+  type TimelineState,
   type RenameSceneInput,
   type ChangeSceneDurationInput,
   type RenameCharacterInput,
@@ -17,7 +19,7 @@ import {
 } from "../../../app/src";
 import type { PreviewState } from "../../../app/src";
 import { Project, type IdGenerator } from "../../../core/src";
-import { AssetBrowser, Inspector, PreviewPanel, SceneFlow, StudioLayout, type StudioLayoutViewState } from "../index";
+import { AssetBrowser, Inspector, PreviewPanel, SceneFlow, StudioLayout, Timeline, type StudioLayoutViewState } from "../index";
 import "./studio-app.css";
 
 export function StudioApp(): ReactElement {
@@ -26,6 +28,7 @@ export function StudioApp(): ReactElement {
   const assetLibraryRef = useRef<AssetLibraryUseCase | null>(null);
   const sceneFlowRef = useRef<SceneFlowUseCase | null>(null);
   const inspectorRef = useRef<InspectorUseCase | null>(null);
+  const timelineRef = useRef<TimelineUseCase | null>(null);
 
   if (projectRef.current === null) {
     projectRef.current = Project.create({ projectId: "project-local-preview", projectName: "Local Preview" });
@@ -51,12 +54,20 @@ export function StudioApp(): ReactElement {
     });
   }
 
+  if (timelineRef.current === null) {
+    timelineRef.current = new TimelineUseCase({
+      project: projectRef.current,
+    });
+  }
+
   const assetLibrary = assetLibraryRef.current;
   const sceneFlow = sceneFlowRef.current;
   const inspector = inspectorRef.current;
+  const timeline = timelineRef.current;
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
+  const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
 
   const previewUseCase = useMemo(
     () => ({
@@ -109,29 +120,34 @@ export function StudioApp(): ReactElement {
       addScene(input: AddSceneInput): SceneFlowState {
         const next = sceneFlow.addScene(input);
         setSceneState(next);
-        setInspectorState(inspector.selectScene(next.selectedSceneId ?? next.scenes[next.scenes.length - 1]?.sceneId ?? ""));
+        const selectedSceneId = next.selectedSceneId ?? next.scenes[next.scenes.length - 1]?.sceneId ?? null;
+        setInspectorState(selectedSceneId === null ? inspector.clearSelection() : inspector.selectScene(selectedSceneId));
+        setTimelineState(timeline.showScene(selectedSceneId));
         return next;
       },
       deleteScene(sceneId: string): SceneFlowState {
         const next = sceneFlow.deleteScene(sceneId);
         setSceneState(next);
         setInspectorState(next.selectedSceneId === null ? inspector.clearSelection() : inspector.selectScene(next.selectedSceneId));
+        setTimelineState(timeline.showScene(next.selectedSceneId));
         return next;
       },
       moveScene(input: MoveSceneInput): SceneFlowState {
         const next = sceneFlow.moveScene(input);
         setSceneState(next);
         setInspectorState(inspector.selectScene(input.sceneId));
+        setTimelineState(timeline.showScene(input.sceneId));
         return next;
       },
       selectScene(sceneId: string): SceneFlowState {
         const next = sceneFlow.selectScene(sceneId);
         setSceneState(next);
         setInspectorState(inspector.selectScene(sceneId));
+        setTimelineState(timeline.showScene(sceneId));
         return next;
       },
     }),
-    [inspector, sceneFlow, sceneState],
+    [inspector, sceneFlow, sceneState, timeline],
   );
 
   const inspectorUseCase = useMemo(
@@ -163,12 +179,14 @@ export function StudioApp(): ReactElement {
         const next = inspector.renameSelectedScene(input);
         setInspectorState(next);
         setSceneState(sceneFlow.state);
+        setTimelineState(timeline.state);
         return next;
       },
       changeSelectedSceneDuration(input: ChangeSceneDurationInput): InspectorState {
         const next = inspector.changeSelectedSceneDuration(input);
         setInspectorState(next);
         setSceneState(sceneFlow.state);
+        setTimelineState(timeline.state);
         return next;
       },
       renameSelectedCharacter(input: RenameCharacterInput): InspectorState {
@@ -179,10 +197,35 @@ export function StudioApp(): ReactElement {
       changeSelectedActionTimeRange(input: ChangeActionTimeRangeInput): InspectorState {
         const next = inspector.changeSelectedActionTimeRange(input);
         setInspectorState(next);
+        setTimelineState(timeline.state);
         return next;
       },
     }),
-    [inspector, inspectorState, sceneFlow],
+    [inspector, inspectorState, sceneFlow, timeline],
+  );
+
+  const timelineUseCase = useMemo(
+    () => ({
+      get state() {
+        return timelineState;
+      },
+      showScene(sceneId: string | null): TimelineState {
+        const next = timeline.showScene(sceneId);
+        setTimelineState(next);
+        return next;
+      },
+      setPlayhead(input: { time: number }): TimelineState {
+        const next = timeline.setPlayhead(input);
+        setTimelineState(next);
+        return next;
+      },
+      setTimeScale(input: { timeScale: number }): TimelineState {
+        const next = timeline.setTimeScale(input);
+        setTimelineState(next);
+        return next;
+      },
+    }),
+    [timeline, timelineState],
   );
 
   const layout = new StudioLayout({
@@ -190,6 +233,7 @@ export function StudioApp(): ReactElement {
     assetBrowser: new AssetBrowser({ assets: assetBrowserUseCase }).render(),
     sceneFlow: new SceneFlow({ scenes: sceneFlowUseCase }).render(),
     inspector: new Inspector({ inspector: inspectorUseCase }).render(),
+    timeline: new Timeline({ timeline: timelineUseCase }).render(),
   }).render();
 
   return (
@@ -206,6 +250,8 @@ export function StudioApp(): ReactElement {
       onSelectScene={sceneFlowUseCase.selectScene}
       onEditSceneName={(sceneId, sceneName) => inspectorUseCase.renameSelectedScene({ sceneId, sceneName })}
       onEditSceneDuration={(sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration })}
+      onSetTimelinePlayhead={(time) => timelineUseCase.setPlayhead({ time })}
+      onSetTimelineScale={(timeScale) => timelineUseCase.setTimeScale({ timeScale })}
     />
   );
 }
@@ -223,6 +269,8 @@ type StudioWorkspaceProps = {
   onSelectScene(sceneId: string): SceneFlowState;
   onEditSceneName(sceneId: string, sceneName: string): InspectorState;
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
+  onSetTimelinePlayhead?: (time: number) => TimelineState;
+  onSetTimelineScale?: (timeScale: number) => TimelineState;
 };
 
 export function StudioWorkspace({
@@ -238,6 +286,8 @@ export function StudioWorkspace({
   onSelectScene,
   onEditSceneName,
   onEditSceneDuration,
+  onSetTimelinePlayhead,
+  onSetTimelineScale,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const preview = view.layout.center.preview;
@@ -247,6 +297,7 @@ export function StudioWorkspace({
   const sceneInspector = inspectorPanel?.type === "scene" ? inspectorPanel : null;
   const characterInspector = inspectorPanel?.type === "character" ? inspectorPanel : null;
   const actionInspector = inspectorPanel?.type === "action" ? inspectorPanel : null;
+  const timelineView = view.layout.bottom.timeline;
 
   return (
     <main className="rss-studio" aria-label={view.title}>
@@ -432,7 +483,51 @@ export function StudioWorkspace({
 
       <section className="rss-studio__bottom" aria-label={view.layout.bottom.title}>
         <h2>{view.layout.bottom.title}</h2>
-        <p>{view.layout.bottom.placeholderText}</p>
+        {timelineView === null ? (
+          <p>{view.layout.bottom.placeholderText}</p>
+        ) : (
+          <div className="rss-timeline">
+            <p>{timelineView.sceneName === null ? timelineView.emptyText : `Scene: ${timelineView.sceneName}`}</p>
+            <label>
+              Playhead
+              <input
+                aria-label="Timeline playhead"
+                max={timelineView.duration}
+                min={0}
+                onChange={(event) => onSetTimelinePlayhead?.(Number(event.currentTarget.value))}
+                step={0.1}
+                type="range"
+                value={timelineView.playhead}
+              />
+            </label>
+            <label>
+              Time scale
+              <input
+                aria-label="Timeline time scale"
+                min={10}
+                onChange={(event) => onSetTimelineScale?.(Number(event.currentTarget.value))}
+                step={10}
+                type="number"
+                value={timelineView.timeScale}
+              />
+            </label>
+            <div aria-label="Timeline tracks">
+              {timelineView.tracks.map((track) => (
+                <section className="rss-timeline__track" key={track.trackId} aria-label={`${track.label} track`}>
+                  <h3>{track.label}</h3>
+                  {track.items.length === 0 ? <p>No items</p> : null}
+                  <ul>
+                    {track.items.map((item) => (
+                      <li key={item.itemId}>
+                        {item.label} / left {item.left.toFixed(0)}px / width {item.width.toFixed(0)}px
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );
