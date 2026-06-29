@@ -32,6 +32,6 @@ This repository intentionally separates the studio into explicit boundaries.
 
 ## Current commit scope
 
-This commit adds the first shared contract layer.
+This commit adds the project repository boundary and the first local JSON project-folder implementation.
 
-It defines DTOs, schema placeholders, and boundary interfaces only. It does not add Project Core, Repository implementation, Pyxel, VOICEVOX, ffmpeg export, or production UI yet.
+It does not add Project Core, UseCases, Pyxel, VOICEVOX, ffmpeg export, SQLite, Cloud storage, or production UI yet.
