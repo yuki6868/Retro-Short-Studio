@@ -11,6 +11,7 @@ describe("Timeline", () => {
 
     expect(view.emptyText).toBe("Select a scene to show its actions on the timeline.");
     expect(view.tracks.map((track) => track.label)).toEqual(["Talk", "Character", "Effect", "Camera"]);
+    expect(view.tracks.map((track) => track.purpose)).toEqual(["Talk purpose", "Character purpose", "Effect purpose", "Camera purpose"]);
     expect(Object.keys(view)).not.toContain("project");
   });
 
@@ -22,7 +23,8 @@ describe("Timeline", () => {
     expect(view.sceneName).toBe("Opening");
     expect(view.playheadLeft).toBe(160);
     expect(view.tracks[0]?.items[0]).toMatchObject({
-      label: "talk 1.0-3.0s",
+      label: "Talk: Talk 1.0-3.0s",
+      summary: "Talk track item for character-1",
       left: 80,
       width: 160,
     });
@@ -62,10 +64,10 @@ function emptyState(): TimelineState {
     timeScale: 80,
     playhead: 0,
     tracks: [
-      { trackId: "talk", label: "Talk", items: [] },
-      { trackId: "character", label: "Character", items: [] },
-      { trackId: "effect", label: "Effect", items: [] },
-      { trackId: "camera", label: "Camera", items: [] },
+      { trackId: "talk", label: "Talk", purpose: "Talk purpose", acceptedActionTypes: ["talk"], items: [] },
+      { trackId: "character", label: "Character", purpose: "Character purpose", acceptedActionTypes: ["move"], items: [] },
+      { trackId: "effect", label: "Effect", purpose: "Effect purpose", acceptedActionTypes: ["fade"], items: [] },
+      { trackId: "camera", label: "Camera", purpose: "Camera purpose", acceptedActionTypes: ["camera_zoom"], items: [] },
     ],
   };
 }
@@ -82,6 +84,8 @@ function sceneState(overrides: Partial<TimelineState> = {}): TimelineState {
       {
         trackId: "talk",
         label: "Talk",
+        purpose: "Talk purpose",
+        acceptedActionTypes: ["talk"],
         items: [
           {
             itemId: "timeline-item-action-1",
@@ -97,9 +101,9 @@ function sceneState(overrides: Partial<TimelineState> = {}): TimelineState {
           },
         ],
       },
-      { trackId: "character", label: "Character", items: [] },
-      { trackId: "effect", label: "Effect", items: [] },
-      { trackId: "camera", label: "Camera", items: [] },
+      { trackId: "character", label: "Character", purpose: "Character purpose", acceptedActionTypes: ["move"], items: [] },
+      { trackId: "effect", label: "Effect", purpose: "Effect purpose", acceptedActionTypes: ["fade"], items: [] },
+      { trackId: "camera", label: "Camera", purpose: "Camera purpose", acceptedActionTypes: ["camera_zoom"], items: [] },
     ],
     ...overrides,
   };

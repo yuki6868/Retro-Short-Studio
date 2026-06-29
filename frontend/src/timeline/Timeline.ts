@@ -8,10 +8,12 @@ import type {
 
 export type TimelineTrackViewState = TimelineTrack & {
   itemCount: number;
+  emptyText: string;
 };
 
 export type TimelineItemViewState = TimelineItem & {
   label: string;
+  summary: string;
 };
 
 export type TimelineViewState = {
@@ -77,14 +79,31 @@ function toTrackViewState(track: TimelineTrack): TimelineViewState["tracks"][num
   return {
     trackId: track.trackId,
     label: track.label,
+    purpose: track.purpose,
+    acceptedActionTypes: track.acceptedActionTypes,
     itemCount: track.items.length,
-    items: track.items.map(toItemViewState),
+    emptyText: `${track.label} actions will appear here.`,
+    items: track.items.map((item) => toItemViewState(track, item)),
   };
 }
 
-function toItemViewState(item: TimelineItem): TimelineItemViewState {
+function toItemViewState(track: TimelineTrack, item: TimelineItem): TimelineItemViewState {
   return {
     ...item,
-    label: `${item.actionType} ${item.startTime.toFixed(1)}-${item.endTime.toFixed(1)}s`,
+    label: `${track.label}: ${formatActionType(item.actionType)} ${item.startTime.toFixed(1)}-${item.endTime.toFixed(1)}s`,
+    summary: createItemSummary(track, item),
   };
+}
+
+function createItemSummary(track: TimelineTrack, item: TimelineItem): string {
+  const targetLabel = item.targetId === null ? "no target" : item.targetId;
+  return `${track.label} track item for ${targetLabel}`;
+}
+
+function formatActionType(actionType: string): string {
+  return actionType
+    .split("_")
+    .filter((part) => part.length > 0)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
 }

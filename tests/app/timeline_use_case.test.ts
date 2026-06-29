@@ -27,6 +27,22 @@ function createProjectWithScene(): Project {
           targetId: "character-instance-1",
           payload: { x: 120 },
         }).toSnapshot(),
+        Action.create({
+          actionId: "action-fade-1",
+          actionType: "fade",
+          startTime: 0,
+          endTime: 1,
+          targetId: null,
+          payload: { alpha: 0.8 },
+        }).toSnapshot(),
+        Action.create({
+          actionId: "action-camera-1",
+          actionType: "camera_zoom",
+          startTime: 6,
+          endTime: 8,
+          targetId: "camera-main",
+          payload: { zoom: 1.2 },
+        }).toSnapshot(),
       ],
     }),
   );
@@ -42,6 +58,12 @@ describe("TimelineUseCase", () => {
 
     expect(state.sceneId).toBeNull();
     expect(state.tracks.map((track) => track.trackId)).toEqual(["talk", "character", "effect", "camera"]);
+    expect(state.tracks.map((track) => track.purpose)).toEqual([
+      "Talk actions that drive voice, subtitles, and lip-sync timing.",
+      "Character actions such as movement, pose, expression, and simple motion.",
+      "Scene effects such as fade, flash, emphasis, and screen effects.",
+      "Camera actions such as zoom, pan, and camera movement.",
+    ]);
     expect(Object.keys(state)).not.toContain("project");
     expect(Object.keys(state)).not.toContain("actions");
   });
@@ -71,6 +93,33 @@ describe("TimelineUseCase", () => {
         width: 200,
       },
     ]);
+    expect(state.tracks.find((track) => track.trackId === "effect")?.items).toMatchObject([
+      {
+        actionId: "action-fade-1",
+        actionType: "fade",
+        left: 0,
+        width: 100,
+      },
+    ]);
+    expect(state.tracks.find((track) => track.trackId === "camera")?.items).toMatchObject([
+      {
+        actionId: "action-camera-1",
+        actionType: "camera_zoom",
+        left: 600,
+        width: 200,
+      },
+    ]);
+  });
+
+  it("keeps dedicated track definitions even when actions are empty", () => {
+    const useCase = new TimelineUseCase({ project: createProjectWithScene() });
+
+    const state = useCase.showScene("scene-1");
+
+    expect(state.tracks.find((track) => track.trackId === "talk")?.acceptedActionTypes).toContain("talk");
+    expect(state.tracks.find((track) => track.trackId === "character")?.acceptedActionTypes).toContain("move");
+    expect(state.tracks.find((track) => track.trackId === "effect")?.acceptedActionTypes).toContain("flash");
+    expect(state.tracks.find((track) => track.trackId === "camera")?.acceptedActionTypes).toContain("camera_zoom");
   });
 
   it("keeps playhead as view state and clamps it to the selected scene duration", () => {

@@ -515,11 +515,16 @@ export function StudioWorkspace({
               {timelineView.tracks.map((track) => (
                 <section className="rss-timeline__track" key={track.trackId} aria-label={`${track.label} track`}>
                   <h3>{track.label}</h3>
-                  {track.items.length === 0 ? <p>No items</p> : null}
+                  <p>{track.purpose}</p>
+                  {track.items.length === 0 ? <p>{track.emptyText}</p> : null}
                   <ul>
                     {track.items.map((item) => (
                       <li key={item.itemId}>
-                        {item.label} / left {item.left.toFixed(0)}px / width {item.width.toFixed(0)}px
+                        <span>{item.label}</span>
+                        <span>{item.summary}</span>
+                        <span>
+                          left {item.left.toFixed(0)}px / width {item.width.toFixed(0)}px
+                        </span>
                       </li>
                     ))}
                   </ul>

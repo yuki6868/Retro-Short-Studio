@@ -3,9 +3,14 @@ import type { ActionDto } from "../../../shared";
 
 export type TimelineTrackId = "talk" | "character" | "effect" | "camera";
 
-export type TimelineTrack = {
+export type TimelineTrackDefinition = {
   trackId: TimelineTrackId;
   label: string;
+  purpose: string;
+  acceptedActionTypes: string[];
+};
+
+export type TimelineTrack = TimelineTrackDefinition & {
   items: TimelineItem[];
 };
 
@@ -46,6 +51,33 @@ export type SetTimeScaleInput = {
 };
 
 const DEFAULT_TIME_SCALE = 80;
+
+const ACTION_TIMELINE_TRACKS: readonly TimelineTrackDefinition[] = [
+  {
+    trackId: "talk",
+    label: "Talk",
+    purpose: "Talk actions that drive voice, subtitles, and lip-sync timing.",
+    acceptedActionTypes: ["talk"],
+  },
+  {
+    trackId: "character",
+    label: "Character",
+    purpose: "Character actions such as movement, pose, expression, and simple motion.",
+    acceptedActionTypes: ["move", "character_move", "character_pose", "character_expression", "expression", "motion"],
+  },
+  {
+    trackId: "effect",
+    label: "Effect",
+    purpose: "Scene effects such as fade, flash, emphasis, and screen effects.",
+    acceptedActionTypes: ["fade", "fade_in", "fade_out", "flash", "effect"],
+  },
+  {
+    trackId: "camera",
+    label: "Camera",
+    purpose: "Camera actions such as zoom, pan, and camera movement.",
+    acceptedActionTypes: ["camera_move", "camera_zoom", "camera_pan", "camera_shake"],
+  },
+] as const;
 
 export class TimelineUseCase {
   private selectedSceneId: string | null;
@@ -130,12 +162,11 @@ export class TimelineUseCase {
 }
 
 function createEmptyTracks(): TimelineTrack[] {
-  return [
-    { trackId: "talk", label: "Talk", items: [] },
-    { trackId: "character", label: "Character", items: [] },
-    { trackId: "effect", label: "Effect", items: [] },
-    { trackId: "camera", label: "Camera", items: [] },
-  ];
+  return ACTION_TIMELINE_TRACKS.map((track) => ({
+    ...track,
+    acceptedActionTypes: [...track.acceptedActionTypes],
+    items: [],
+  }));
 }
 
 function createTracks(actions: ActionSnapshot[], timeScale: number): TimelineTrack[] {
@@ -176,15 +207,23 @@ function toTimelineItem(action: ActionSnapshot, timeScale: number): TimelineItem
 }
 
 function resolveTrackId(actionType: string): TimelineTrackId {
-  if (actionType === "talk") {
+  const normalizedActionType = actionType.trim().toLowerCase();
+
+  if (normalizedActionType === "talk") {
     return "talk";
   }
 
-  if (actionType.startsWith("camera")) {
+  if (normalizedActionType.startsWith("camera_")) {
     return "camera";
   }
 
-  if (actionType.includes("fade") || actionType.includes("flash") || actionType.includes("effect")) {
+  if (
+    normalizedActionType === "fade" ||
+    normalizedActionType.startsWith("fade_") ||
+    normalizedActionType === "flash" ||
+    normalizedActionType.startsWith("effect_") ||
+    normalizedActionType.includes("effect")
+  ) {
     return "effect";
   }
 
