@@ -7,13 +7,20 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["node", "vitest/globals"]
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
+    "jsx": "react-jsx"
   },
   "include": [
     "core/src/**/*.ts",
     "shared/**/*.ts",
     "app/src/**/*.ts",
     "storage/src/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "frontend/src/**/*.ts",
+    "frontend/src/**/*.tsx",
+    "tests/**/*.tsx"
   ]
 }
