@@ -1,0 +1,62 @@
+import { ProjectCollections, type ProjectCollectionsSnapshot } from "./collections";
+import { ProjectId, ProjectName, ProjectSettings, type ProjectSettingsValues } from "./valueObjects";
+
+export type ProjectSnapshot = {
+  projectId: string;
+  projectName: string;
+  settings: ProjectSettingsValues;
+} & ProjectCollectionsSnapshot;
+
+export class Project {
+  private constructor(
+    private readonly id: ProjectId,
+    private name: ProjectName,
+    private settings: ProjectSettings,
+    private readonly collections: ProjectCollections,
+  ) {}
+
+  static create(params: {
+    projectId: string;
+    projectName: string;
+    settings?: ProjectSettingsValues;
+  }): Project {
+    return new Project(
+      ProjectId.create(params.projectId),
+      ProjectName.create(params.projectName),
+      params.settings
+        ? ProjectSettings.create(params.settings)
+        : ProjectSettings.defaultVerticalShort(),
+      ProjectCollections.empty(),
+    );
+  }
+
+  static restore(snapshot: ProjectSnapshot): Project {
+    return new Project(
+      ProjectId.create(snapshot.projectId),
+      ProjectName.create(snapshot.projectName),
+      ProjectSettings.create(snapshot.settings),
+      ProjectCollections.fromSnapshot({
+        scenes: snapshot.scenes,
+        assets: snapshot.assets,
+        characters: snapshot.characters,
+      }),
+    );
+  }
+
+  rename(projectName: string): void {
+    this.name = ProjectName.create(projectName);
+  }
+
+  changeSettings(settings: ProjectSettingsValues): void {
+    this.settings = ProjectSettings.create(settings);
+  }
+
+  toSnapshot(): ProjectSnapshot {
+    return {
+      projectId: this.id.toString(),
+      projectName: this.name.toString(),
+      settings: this.settings.toValues(),
+      ...this.collections.toSnapshot(),
+    };
+  }
+}

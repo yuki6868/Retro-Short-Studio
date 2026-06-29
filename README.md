@@ -32,6 +32,6 @@ This repository intentionally separates the studio into explicit boundaries.
 
 ## Current commit scope
 
-This commit adds the project repository boundary and the first local JSON project-folder implementation.
+This commit adds Project Core as the pure project world root.
 
-It does not add Project Core, UseCases, Pyxel, VOICEVOX, ffmpeg export, SQLite, Cloud storage, or production UI yet.
+It does not add Asset Core, Scene Core, Character Core, UseCases, Pyxel, VOICEVOX, ffmpeg export, SQLite, Cloud storage, or production UI yet.
