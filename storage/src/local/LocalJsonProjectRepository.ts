@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { IProjectSerializer, ProjectDto, ProjectSettingsDto } from "../../../shared";
+import { CURRENT_PROJECT_SCHEMA_VERSION, type IProjectSerializer, type ProjectDto, type ProjectSettingsDto } from "../../../shared";
 import type {
   CreateProjectOptions,
   CreatedProject,
@@ -36,6 +36,7 @@ export class LocalJsonProjectRepository implements ProjectRepository {
     await ensureProjectFolder(projectPath);
 
     const project: ProjectDto = {
+      schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
       projectId: randomUUID(),
       projectName: projectName.trim(),
       settings: {

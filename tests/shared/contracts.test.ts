@@ -79,6 +79,7 @@ describe("IProjectSerializer", () => {
     }
 
     const project: ProjectDto = {
+      schemaVersion: 1,
       projectId: "p-1",
       projectName: "Sample",
       settings: { width: 1080, height: 1920, fps: 30 },

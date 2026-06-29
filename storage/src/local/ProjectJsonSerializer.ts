@@ -1,4 +1,4 @@
-import type { IProjectSerializer, ProjectDto } from "../../../shared";
+import { CURRENT_PROJECT_SCHEMA_VERSION, type IProjectSerializer, type ProjectDto } from "../../../shared";
 
 export class ProjectJsonSerializer implements IProjectSerializer {
   serialize(project: ProjectDto): string {
@@ -15,6 +15,10 @@ export class ProjectJsonSerializer implements IProjectSerializer {
 
 function assertProjectDto(value: unknown): asserts value is ProjectDto {
   assertPlainObject(value, "ProjectDto");
+
+  if (value.schemaVersion !== CURRENT_PROJECT_SCHEMA_VERSION) {
+    throw new Error(`ProjectDto.schemaVersion must be ${CURRENT_PROJECT_SCHEMA_VERSION}.`);
+  }
 
   assertNonEmptyString(value.projectId, "ProjectDto.projectId");
   assertNonEmptyString(value.projectName, "ProjectDto.projectName");

@@ -4,22 +4,53 @@
   "title": "ProjectDto",
   "type": "object",
   "additionalProperties": false,
-  "required": ["projectId", "projectName", "settings", "assets", "characters", "scenes"],
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "projectName",
+    "settings",
+    "assets",
+    "characters",
+    "scenes"
+  ],
   "properties": {
-    "projectId": { "type": "string" },
-    "projectName": { "type": "string" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "projectId": {
+      "type": "string"
+    },
+    "projectName": {
+      "type": "string"
+    },
     "settings": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["width", "height", "fps"],
+      "required": [
+        "width",
+        "height",
+        "fps"
+      ],
       "properties": {
-        "width": { "type": "number" },
-        "height": { "type": "number" },
-        "fps": { "type": "number" }
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "fps": {
+          "type": "number"
+        }
       }
     },
-    "assets": { "type": "array" },
-    "characters": { "type": "array" },
-    "scenes": { "type": "array" }
+    "assets": {
+      "type": "array"
+    },
+    "characters": {
+      "type": "array"
+    },
+    "scenes": {
+      "type": "array"
+    }
   }
 }

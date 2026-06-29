@@ -71,6 +71,7 @@ describe("LocalJsonProjectRepository", () => {
     const repository = new LocalJsonProjectRepository();
     const projectPath = path.join(tempRoot, "sample");
     const project: ProjectDto = {
+      schemaVersion: 1,
       projectId: "p-1",
       projectName: "Sample",
       settings: { width: 100, height: 200, fps: 30 },
@@ -102,13 +103,14 @@ describe("LocalJsonProjectRepository", () => {
       "utf-8",
     );
 
-    await expect(repository.load(projectPath)).rejects.toThrow("ProjectDto.projectName");
+    await expect(repository.load(projectPath)).rejects.toThrow("ProjectDto.schemaVersion");
   });
 
   it("save overwrites project.rss.json", async () => {
     const repository = new LocalJsonProjectRepository();
     const projectPath = path.join(tempRoot, "sample");
     const project: ProjectDto = {
+      schemaVersion: 1,
       projectId: "p-1",
       projectName: "Before",
       settings: { width: 100, height: 200, fps: 30 },
@@ -130,6 +132,7 @@ describe("LocalJsonProjectRepository", () => {
     const projectPath = path.join(tempRoot, "missing");
 
     await repository.save(projectPath, {
+      schemaVersion: 1,
       projectId: "p-1",
       projectName: "Sample",
       settings: { width: 100, height: 200, fps: 30 },
