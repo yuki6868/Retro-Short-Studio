@@ -41,6 +41,43 @@ export class ProjectCollections {
     );
   }
 
+
+  removeScene(sceneId: string): ProjectCollections {
+    if (!this.scenes.some((scene) => scene.toSnapshot().sceneId === sceneId)) {
+      throw new Error(`Scene does not exist: ${sceneId}.`);
+    }
+
+    return new ProjectCollections(
+      this.scenes
+        .filter((scene) => scene.toSnapshot().sceneId !== sceneId)
+        .map((scene) => Scene.restore(scene.toSnapshot())),
+      this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+    );
+  }
+
+  moveScene(sceneId: string, toIndex: number): ProjectCollections {
+    if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= this.scenes.length) {
+      throw new Error(`Scene move target index is out of range: ${toIndex}.`);
+    }
+
+    const currentIndex = this.scenes.findIndex((scene) => scene.toSnapshot().sceneId === sceneId);
+
+    if (currentIndex === -1) {
+      throw new Error(`Scene does not exist: ${sceneId}.`);
+    }
+
+    const nextScenes = this.scenes.map((scene) => Scene.restore(scene.toSnapshot()));
+    const [movedScene] = nextScenes.splice(currentIndex, 1);
+    nextScenes.splice(toIndex, 0, movedScene);
+
+    return new ProjectCollections(
+      nextScenes,
+      this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+    );
+  }
+
   addAsset(asset: Asset): ProjectCollections {
     const assetId = asset.toSnapshot().assetId;
 

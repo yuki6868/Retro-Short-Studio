@@ -1,5 +1,6 @@
 import type { AssetBrowserViewState } from "../asset";
 import type { PreviewPanelViewState } from "../preview";
+import type { SceneFlowViewState } from "../scene";
 
 export type StudioRegionId = "assetBrowser" | "sceneFlow" | "preview" | "inspector" | "timeline";
 
@@ -17,10 +18,11 @@ export type AssetBrowserState = StudioRegionState & {
   assetBrowser: AssetBrowserViewState | null;
 };
 
-export type SceneFlowState = StudioRegionState & {
+export type StudioSceneFlowState = StudioRegionState & {
   id: "sceneFlow";
   role: "scene";
   sceneCount: number;
+  sceneFlow: SceneFlowViewState | null;
 };
 
 export type InspectorState = StudioRegionState & {
@@ -44,7 +46,7 @@ export type StudioPreviewRegionState = StudioRegionState & {
 export type StudioLayoutViewState = {
   title: string;
   layout: {
-    left: [AssetBrowserState, SceneFlowState];
+    left: [AssetBrowserState, StudioSceneFlowState];
     center: StudioPreviewRegionState;
     right: InspectorState;
     bottom: TimelineState;
@@ -56,6 +58,7 @@ export type StudioLayoutProps = {
   title?: string;
   preview: PreviewPanelViewState;
   assetBrowser?: AssetBrowserViewState;
+  sceneFlow?: SceneFlowViewState;
   assetCount?: number;
   sceneCount?: number;
   trackCount?: number;
@@ -91,13 +94,14 @@ export class StudioLayout {
     };
   }
 
-  private createSceneFlow(): SceneFlowState {
+  private createSceneFlow(): StudioSceneFlowState {
     return {
       id: "sceneFlow",
       title: "Scene Flow",
       role: "scene",
-      placeholderText: "Scenes will be arranged here.",
-      sceneCount: this.props.sceneCount ?? 0,
+      placeholderText: this.props.sceneFlow === undefined ? "Scenes will be arranged here." : this.props.sceneFlow.emptyText,
+      sceneCount: this.props.sceneFlow?.sceneCount ?? this.props.sceneCount ?? 0,
+      sceneFlow: this.props.sceneFlow ?? null,
     };
   }
 

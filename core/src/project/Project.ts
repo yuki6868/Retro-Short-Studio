@@ -58,6 +58,14 @@ export class Project {
     this.collections = this.collections.addScene(scene);
   }
 
+  removeScene(sceneId: string): void {
+    this.collections = this.collections.removeScene(sceneId);
+  }
+
+  moveScene(sceneId: string, toIndex: number): void {
+    this.collections = this.collections.moveScene(sceneId, toIndex);
+  }
+
   addAsset(asset: Asset): void {
     this.collections = this.collections.addAsset(asset);
   }

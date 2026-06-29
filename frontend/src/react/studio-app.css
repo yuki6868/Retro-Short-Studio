@@ -123,3 +123,27 @@ input {
 .rss-asset-browser button[aria-pressed="true"] {
   font-weight: 700;
 }
+
+.rss-scene-flow {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.rss-scene-flow ol {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rss-scene-flow li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.rss-scene-flow button[aria-pressed="true"] {
+  font-weight: 700;
+}

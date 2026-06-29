@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { AddAssetInput, AssetLibraryState, PreviewState } from "../../app/src";
+import type { AddAssetInput, AddSceneInput, AssetLibraryState, MoveSceneInput, PreviewState, SceneFlowState } from "../../app/src";
 import { PreviewPanel, StudioLayout } from "../../frontend/src";
 import { StudioWorkspace } from "../../frontend/src/react";
 
@@ -15,10 +15,14 @@ describe("Frontend Vite foundation", () => {
       <StudioWorkspace
         view={view}
         onAddAsset={addAssetNoop}
+        onAddScene={addSceneNoop}
+        onDeleteScene={deleteSceneNoop}
+        onMoveScene={moveSceneNoop}
         onPlay={async () => createPreviewState()}
         onPause={() => createPreviewState()}
         onSeek={async () => createPreviewState()}
         onSelectAsset={selectAssetNoop}
+        onSelectScene={selectSceneNoop}
       />,
     );
 
@@ -42,10 +46,14 @@ describe("Frontend Vite foundation", () => {
       <StudioWorkspace
         view={view}
         onAddAsset={addAssetNoop}
+        onAddScene={addSceneNoop}
+        onDeleteScene={deleteSceneNoop}
+        onMoveScene={moveSceneNoop}
         onPlay={async () => createPreviewState()}
         onPause={() => createPreviewState()}
         onSeek={async () => createPreviewState()}
         onSelectAsset={selectAssetNoop}
+        onSelectScene={selectSceneNoop}
       />,
     );
 
@@ -86,4 +94,21 @@ function addAssetNoop(_input: AddAssetInput): AssetLibraryState {
 
 function selectAssetNoop(_assetId: string): AssetLibraryState {
   return { assets: [], selectedAssetId: null };
+}
+
+
+function addSceneNoop(_input: AddSceneInput): SceneFlowState {
+  return { scenes: [], selectedSceneId: null };
+}
+
+function deleteSceneNoop(_sceneId: string): SceneFlowState {
+  return { scenes: [], selectedSceneId: null };
+}
+
+function moveSceneNoop(_input: MoveSceneInput): SceneFlowState {
+  return { scenes: [], selectedSceneId: null };
+}
+
+function selectSceneNoop(_sceneId: string): SceneFlowState {
+  return { scenes: [], selectedSceneId: null };
 }

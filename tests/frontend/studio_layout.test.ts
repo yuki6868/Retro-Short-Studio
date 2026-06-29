@@ -86,6 +86,37 @@ describe("StudioLayout", () => {
     expect(view.layout.left[0].placeholderText).toBe("");
   });
 
+
+
+  it("passes SceneFlow view state into the left scene region", () => {
+    const sceneFlow = {
+      title: "Scene Flow",
+      scenes: [
+        {
+          sceneId: "scene-1",
+          sceneName: "Opening",
+          duration: 6,
+          selected: true,
+          orderLabel: "01",
+        },
+      ],
+      selectedSceneId: "scene-1",
+      sceneCount: 1,
+      emptyText: "",
+      addButton: { label: "Add Scene", disabled: false },
+      canReorder: false,
+    };
+
+    const view = new StudioLayout({
+      preview: new PreviewPanel({ duration: 8, preview: createPreviewUseCase() }).render(),
+      sceneFlow,
+    }).render();
+
+    expect(view.layout.left[1].sceneCount).toBe(1);
+    expect(view.layout.left[1].sceneFlow?.scenes[0].sceneName).toBe("Opening");
+    expect(view.layout.left[1].placeholderText).toBe("");
+  });
+
   it("passes preview panel state through without depending on engine or project internals", () => {
     const preview = new PreviewPanel({
       duration: 6,

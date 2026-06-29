@@ -1,24 +1,47 @@
 import { useMemo, useRef, useState, type ReactElement } from "react";
 
-import { AssetLibraryUseCase, type AddAssetInput, type AssetLibraryState } from "../../../app/src";
+import {
+  AssetLibraryUseCase,
+  SceneFlowUseCase,
+  type AddAssetInput,
+  type AddSceneInput,
+  type AssetLibraryState,
+  type MoveSceneInput,
+  type SceneFlowState,
+} from "../../../app/src";
 import type { PreviewState } from "../../../app/src";
 import { Project, type IdGenerator } from "../../../core/src";
-import { AssetBrowser, PreviewPanel, StudioLayout, type StudioLayoutViewState } from "../index";
+import { AssetBrowser, PreviewPanel, SceneFlow, StudioLayout, type StudioLayoutViewState } from "../index";
 import "./studio-app.css";
 
 export function StudioApp(): ReactElement {
   const [previewState, setPreviewState] = useState<PreviewState>(createInitialPreviewState);
+  const projectRef = useRef<Project | null>(null);
   const assetLibraryRef = useRef<AssetLibraryUseCase | null>(null);
+  const sceneFlowRef = useRef<SceneFlowUseCase | null>(null);
+
+  if (projectRef.current === null) {
+    projectRef.current = Project.create({ projectId: "project-local-preview", projectName: "Local Preview" });
+  }
 
   if (assetLibraryRef.current === null) {
     assetLibraryRef.current = new AssetLibraryUseCase({
-      project: Project.create({ projectId: "project-local-preview", projectName: "Local Preview" }),
+      project: projectRef.current,
       idGenerator: new BrowserAssetIdGenerator(),
     });
   }
 
+  if (sceneFlowRef.current === null) {
+    sceneFlowRef.current = new SceneFlowUseCase({
+      project: projectRef.current,
+      idGenerator: new BrowserSceneIdGenerator(),
+    });
+  }
+
   const assetLibrary = assetLibraryRef.current;
+  const sceneFlow = sceneFlowRef.current;
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
+  const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
 
   const previewUseCase = useMemo(
     () => ({
@@ -63,19 +86,53 @@ export function StudioApp(): ReactElement {
     [assetLibrary, assetState],
   );
 
+  const sceneFlowUseCase = useMemo(
+    () => ({
+      get state() {
+        return sceneState;
+      },
+      addScene(input: AddSceneInput): SceneFlowState {
+        const next = sceneFlow.addScene(input);
+        setSceneState(next);
+        return next;
+      },
+      deleteScene(sceneId: string): SceneFlowState {
+        const next = sceneFlow.deleteScene(sceneId);
+        setSceneState(next);
+        return next;
+      },
+      moveScene(input: MoveSceneInput): SceneFlowState {
+        const next = sceneFlow.moveScene(input);
+        setSceneState(next);
+        return next;
+      },
+      selectScene(sceneId: string): SceneFlowState {
+        const next = sceneFlow.selectScene(sceneId);
+        setSceneState(next);
+        return next;
+      },
+    }),
+    [sceneFlow, sceneState],
+  );
+
   const layout = new StudioLayout({
     preview: new PreviewPanel({ duration: 12, preview: previewUseCase }).render(),
     assetBrowser: new AssetBrowser({ assets: assetBrowserUseCase }).render(),
+    sceneFlow: new SceneFlow({ scenes: sceneFlowUseCase }).render(),
   }).render();
 
   return (
     <StudioWorkspace
       view={layout}
       onAddAsset={assetBrowserUseCase.addAsset}
+      onAddScene={sceneFlowUseCase.addScene}
+      onDeleteScene={sceneFlowUseCase.deleteScene}
+      onMoveScene={sceneFlowUseCase.moveScene}
       onPlay={previewUseCase.play}
       onPause={previewUseCase.pause}
       onSeek={previewUseCase.seek}
       onSelectAsset={assetBrowserUseCase.selectAsset}
+      onSelectScene={sceneFlowUseCase.selectScene}
     />
   );
 }
@@ -83,16 +140,32 @@ export function StudioApp(): ReactElement {
 type StudioWorkspaceProps = {
   view: StudioLayoutViewState;
   onAddAsset(input: AddAssetInput): AssetLibraryState;
+  onAddScene(input: AddSceneInput): SceneFlowState;
+  onDeleteScene(sceneId: string): SceneFlowState;
+  onMoveScene(input: MoveSceneInput): SceneFlowState;
   onPlay(): Promise<PreviewState>;
   onPause(): PreviewState;
   onSeek(time: number): Promise<PreviewState>;
   onSelectAsset(assetId: string): AssetLibraryState;
+  onSelectScene(sceneId: string): SceneFlowState;
 };
 
-export function StudioWorkspace({ view, onAddAsset, onPlay, onPause, onSeek, onSelectAsset }: StudioWorkspaceProps): ReactElement {
+export function StudioWorkspace({
+  view,
+  onAddAsset,
+  onAddScene,
+  onDeleteScene,
+  onMoveScene,
+  onPlay,
+  onPause,
+  onSeek,
+  onSelectAsset,
+  onSelectScene,
+}: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const preview = view.layout.center.preview;
   const assetBrowser = view.layout.left[0].assetBrowser;
+  const sceneFlow = view.layout.left[1].sceneFlow;
 
   return (
     <main className="rss-studio" aria-label={view.title}>
@@ -141,7 +214,55 @@ export function StudioWorkspace({ view, onAddAsset, onPlay, onPause, onSeek, onS
 
           <section className="rss-panel" aria-label={view.layout.left[1].title}>
             <h2>{view.layout.left[1].title}</h2>
-            <p>{view.layout.left[1].placeholderText}</p>
+            {sceneFlow === null ? (
+              <p>{view.layout.left[1].placeholderText}</p>
+            ) : (
+              <div className="rss-scene-flow">
+                <button
+                  disabled={sceneFlow.addButton.disabled}
+                  onClick={() =>
+                    onAddScene({
+                      sceneName: `Scene ${sceneFlow.sceneCount + 1}`,
+                      duration: 6,
+                    })
+                  }
+                  type="button"
+                >
+                  {sceneFlow.addButton.label}
+                </button>
+                {sceneFlow.scenes.length === 0 ? <p>{sceneFlow.emptyText}</p> : null}
+                <ol aria-label="Scene list">
+                  {sceneFlow.scenes.map((scene, index) => (
+                    <li key={scene.sceneId}>
+                      <button
+                        aria-pressed={scene.selected}
+                        onClick={() => onSelectScene(scene.sceneId)}
+                        type="button"
+                      >
+                        {scene.orderLabel}. {scene.sceneName} / {scene.duration.toFixed(1)}s
+                      </button>
+                      <button
+                        disabled={index === 0}
+                        onClick={() => onMoveScene({ sceneId: scene.sceneId, toIndex: index - 1 })}
+                        type="button"
+                      >
+                        Up
+                      </button>
+                      <button
+                        disabled={index === sceneFlow.scenes.length - 1}
+                        onClick={() => onMoveScene({ sceneId: scene.sceneId, toIndex: index + 1 })}
+                        type="button"
+                      >
+                        Down
+                      </button>
+                      <button onClick={() => onDeleteScene(scene.sceneId)} type="button">
+                        Delete
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </section>
         </aside>
 
@@ -207,6 +328,12 @@ function createInitialPreviewState(): PreviewState {
 }
 
 class BrowserAssetIdGenerator implements IdGenerator {
+  generate(prefix: string): string {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+}
+
+class BrowserSceneIdGenerator implements IdGenerator {
   generate(prefix: string): string {
     return `${prefix}-${crypto.randomUUID()}`;
   }
