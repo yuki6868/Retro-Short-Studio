@@ -1,14 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { ProjectDto, ProjectSettingsDto } from "../../../shared";
+import type { IProjectSerializer, ProjectDto, ProjectSettingsDto } from "../../../shared";
 import type {
   CreateProjectOptions,
   CreatedProject,
   ProjectRepository,
 } from "../contracts/ProjectRepository";
-import { PROJECT_FILE_NAME, PROJECT_FOLDER_NAMES } from "./ProjectFolderLayout";
+import { ensureProjectFolder } from "./ProjectFolderInitializer";
+import { resolveProjectFolderPaths } from "./ProjectFolderLayout";
+import { ProjectJsonSerializer } from "./ProjectJsonSerializer";
 
 const DEFAULT_PROJECTS_ROOT_PATH = "projects";
 
@@ -19,6 +21,10 @@ const DEFAULT_PROJECT_SETTINGS: ProjectSettingsDto = {
 };
 
 export class LocalJsonProjectRepository implements ProjectRepository {
+  constructor(
+    private readonly serializer: IProjectSerializer = new ProjectJsonSerializer(),
+  ) {}
+
   async create(
     projectName: string,
     options: CreateProjectOptions = {},
@@ -27,7 +33,7 @@ export class LocalJsonProjectRepository implements ProjectRepository {
     const projectsRootPath = options.projectsRootPath ?? DEFAULT_PROJECTS_ROOT_PATH;
     const projectPath = path.join(projectsRootPath, normalizedProjectName);
 
-    await createProjectFolders(projectPath);
+    await ensureProjectFolder(projectPath);
 
     const project: ProjectDto = {
       projectId: randomUUID(),
@@ -50,29 +56,19 @@ export class LocalJsonProjectRepository implements ProjectRepository {
   }
 
   async load(projectPath: string): Promise<ProjectDto> {
-    const projectFilePath = path.join(projectPath, PROJECT_FILE_NAME);
+    const { projectFilePath } = resolveProjectFolderPaths(projectPath);
     const rawProjectJson = await readFile(projectFilePath, "utf-8");
-    return JSON.parse(rawProjectJson) as ProjectDto;
+    return this.serializer.deserialize(rawProjectJson);
   }
 
   async save(projectPath: string, project: ProjectDto): Promise<void> {
-    await createProjectFolders(projectPath);
+    await ensureProjectFolder(projectPath);
 
-    const projectFilePath = path.join(projectPath, PROJECT_FILE_NAME);
-    const projectJson = JSON.stringify(project, null, 2);
+    const { projectFilePath } = resolveProjectFolderPaths(projectPath);
+    const projectJson = this.serializer.serialize(project);
 
-    await writeFile(projectFilePath, `${projectJson}\n`, "utf-8");
+    await writeFile(projectFilePath, projectJson, "utf-8");
   }
-}
-
-async function createProjectFolders(projectPath: string): Promise<void> {
-  await mkdir(projectPath, { recursive: true });
-
-  await Promise.all(
-    Object.values(PROJECT_FOLDER_NAMES).map((folderName) =>
-      mkdir(path.join(projectPath, folderName), { recursive: true }),
-    ),
-  );
 }
 
 function normalizeProjectName(projectName: string): string {
