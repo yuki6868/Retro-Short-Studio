@@ -1,8 +1,10 @@
-import { useMemo, useRef, useState, type PointerEvent, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type ReactElement } from "react";
 
 import {
   ActionEditorUseCase,
   AssetLibraryUseCase,
+  PyxelPreviewEngineClient,
+  PreviewSceneUseCase,
   InspectorUseCase,
   SceneFlowUseCase,
   TimelineUseCase,
@@ -26,7 +28,8 @@ import {
   type ResizeTimelineItemStartInput,
 } from "../../../app/src";
 import type { PreviewState } from "../../../app/src";
-import { Action, Project, Scene, type IdGenerator } from "../../../core/src";
+import type { AssetDto, CharacterDto, SceneDto } from "../../../shared";
+import { Action, Asset, Project, Scene, type IdGenerator } from "../../../core/src";
 import {
   AssetBrowser,
   Inspector,
@@ -42,6 +45,9 @@ import "./studio-app.css";
 
 export function StudioApp(): ReactElement {
   const [previewState, setPreviewState] = useState<PreviewState>(createInitialPreviewState);
+  const latestPreviewStateRef = useRef<PreviewState>(previewState);
+  const previewRequestSeqRef = useRef(0);
+  const playbackSessionRef = useRef(0);
   const projectRef = useRef<Project | null>(null);
   const assetLibraryRef = useRef<AssetLibraryUseCase | null>(null);
   const sceneFlowRef = useRef<SceneFlowUseCase | null>(null);
@@ -110,29 +116,109 @@ export function StudioApp(): ReactElement {
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
   const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
 
+  const selectedSceneForPreview = findSelectedSceneDto(requireProject(projectRef.current), sceneFlow.state.selectedSceneId);
+  const selectedSceneDuration = selectedSceneForPreview?.duration ?? 0;
+
+  const applyPreviewState = useCallback((next: PreviewState): PreviewState => {
+    latestPreviewStateRef.current = next;
+    setPreviewState(next);
+    return next;
+  }, []);
+
+  const renderPreviewAt = useCallback(
+    async (time: number, playbackStatus: PreviewState["playbackStatus"]): Promise<PreviewState> => {
+      const project = requireProject(projectRef.current);
+      const scene = findSelectedSceneDto(project, sceneFlow.state.selectedSceneId);
+
+      const requestSeq = ++previewRequestSeqRef.current;
+
+      if (scene === null) {
+        const next = {
+          ...createInitialPreviewState(),
+          playbackStatus: "paused" as const,
+          error: "Select a scene before previewing.",
+        };
+        return applyPreviewState(next);
+      }
+
+      const projectSnapshot = project.toSnapshot();
+      const preview = new PreviewSceneUseCase({
+        projectId: projectSnapshot.projectId,
+        scene,
+        assets: toAssetDtos(projectSnapshot.assets),
+        characters: toCharacterDtos(projectSnapshot.characters),
+        engineClient: new PyxelPreviewEngineClient(),
+        width: projectSnapshot.settings.width,
+        height: projectSnapshot.settings.height,
+        fps: projectSnapshot.settings.fps,
+        initialTime: time,
+      });
+
+      const next = await preview.seek(time);
+
+      if (requestSeq !== previewRequestSeqRef.current) {
+        return latestPreviewStateRef.current;
+      }
+
+      const nextState = { ...next, playbackStatus };
+      applyPreviewState(nextState);
+      setTimelineState(timeline.showScene(scene.sceneId));
+      timeline.setPlayhead({ time: nextState.currentTime });
+      setTimelineState(timeline.state);
+      return nextState;
+    },
+    [applyPreviewState, sceneFlow.state.selectedSceneId, timeline],
+  );
+
   const previewUseCase = useMemo(
     () => ({
       get state() {
         return previewState;
       },
       async play(): Promise<PreviewState> {
-        const next = { ...previewState, playbackStatus: "playing" as const, error: null };
-        setPreviewState(next);
-        return next;
+        playbackSessionRef.current += 1;
+        return renderPreviewAt(previewState.currentTime, "playing");
       },
       pause(): PreviewState {
-        const next = { ...previewState, playbackStatus: "paused" as const, error: null };
-        setPreviewState(next);
+        playbackSessionRef.current += 1;
+        previewRequestSeqRef.current += 1;
+        const next = { ...latestPreviewStateRef.current, playbackStatus: "paused" as const, error: null };
+        applyPreviewState(next);
         return next;
       },
       async seek(time: number): Promise<PreviewState> {
-        const next = { ...previewState, currentTime: time, error: null };
-        setPreviewState(next);
-        return next;
+        const nextPlaybackStatus = latestPreviewStateRef.current.playbackStatus;
+        if (nextPlaybackStatus === "paused") {
+          previewRequestSeqRef.current += 1;
+        }
+        return renderPreviewAt(time, nextPlaybackStatus);
       },
     }),
-    [previewState],
+    [previewState, renderPreviewAt],
   );
+
+  useEffect(() => {
+    if (previewState.playbackStatus !== "playing" || selectedSceneDuration <= 0) {
+      return;
+    }
+
+    const frameDurationMs = Math.max(1000 / previewState.fps, 16);
+    const playbackSession = playbackSessionRef.current;
+    const timer = window.setTimeout(() => {
+      if (playbackSession !== playbackSessionRef.current || latestPreviewStateRef.current.playbackStatus !== "playing") {
+        return;
+      }
+
+      const nextTime = Math.min(latestPreviewStateRef.current.currentTime + frameDurationMs / 1000, selectedSceneDuration);
+      const nextStatus = nextTime >= selectedSceneDuration ? "paused" : "playing";
+      if (nextStatus === "paused") {
+        playbackSessionRef.current += 1;
+      }
+      void renderPreviewAt(nextTime, nextStatus);
+    }, frameDurationMs);
+
+    return () => window.clearTimeout(timer);
+  }, [previewState.currentTime, previewState.fps, previewState.playbackStatus, renderPreviewAt, selectedSceneDuration]);
 
   const assetBrowserUseCase = useMemo(
     () => ({
@@ -337,7 +423,7 @@ export function StudioApp(): ReactElement {
   };
 
   const layout = new StudioLayout({
-    preview: new PreviewPanel({ duration: 12, preview: previewUseCase }).render(),
+    preview: new PreviewPanel({ duration: selectedSceneDuration, preview: previewUseCase }).render(),
     assetBrowser: new AssetBrowser({ assets: assetBrowserUseCase }).render(),
     sceneFlow: new SceneFlow({ scenes: sceneFlowUseCase }).render(),
     inspector: new Inspector({ inspector: inspectorUseCase }).render(),
@@ -436,6 +522,19 @@ export function StudioWorkspace({
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const preview = view.layout.center.preview;
+
+  useEffect(() => {
+    setSeekValue(preview.seekControl.value);
+  }, [preview.seekControl.value]);
+
+  const commitSeek = (): void => {
+    if (!Number.isFinite(seekValue)) {
+      return;
+    }
+
+    void onSeek(seekValue);
+  };
+
   const assetBrowser = view.layout.left[0].assetBrowser;
   const sceneFlow = view.layout.left[1].sceneFlow;
   const inspectorPanel = view.layout.right.inspector;
@@ -596,7 +695,11 @@ export function StudioWorkspace({
         <section className="rss-preview" aria-label={view.layout.center.title}>
           <h2>{preview.title}</h2>
           <div className="rss-preview__surface" aria-label="Preview surface">
-            {preview.surface.framePath === null ? preview.surface.placeholderText : preview.surface.framePath}
+            {preview.surface.framePath === null ? (
+              preview.surface.placeholderText
+            ) : (
+              <img alt="Current preview frame" src={preview.surface.framePath} />
+            )}
           </div>
           <div className="rss-preview__controls" aria-label="Preview controls">
             <button type="button" disabled={preview.playButton.disabled} onClick={() => void onPlay()}>
@@ -612,11 +715,17 @@ export function StudioWorkspace({
                 disabled={preview.seekControl.disabled}
                 max={preview.seekControl.max}
                 min={preview.seekControl.min}
+                onBlur={commitSeek}
                 onChange={(event) => {
-                  const value = Number(event.currentTarget.value);
-                  setSeekValue(value);
-                  void onSeek(value);
+                  setSeekValue(Number(event.currentTarget.value));
                 }}
+                onKeyUp={(event) => {
+                  if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "Home" || event.key === "End") {
+                    commitSeek();
+                  }
+                }}
+                onPointerUp={commitSeek}
+                step={1 / 30}
                 type="range"
                 value={seekValue}
               />
@@ -838,14 +947,85 @@ type TimelinePointerInteraction = {
   startClientX: number;
 };
 
+
+function requireProject(project: Project | null): Project {
+  if (project === null) {
+    throw new Error("Project is not initialized.");
+  }
+
+  return project;
+}
+
+function findSelectedSceneDto(project: Project, selectedSceneId: string | null): SceneDto | null {
+  const snapshot = project.toSnapshot();
+  const scene = snapshot.scenes.find((currentScene) => currentScene.sceneId === selectedSceneId) ?? snapshot.scenes[0] ?? null;
+
+  if (scene === null) {
+    return null;
+  }
+
+  return {
+    sceneId: scene.sceneId,
+    sceneName: scene.sceneName,
+    duration: scene.duration,
+    backgroundAssetId: scene.backgroundAssetId,
+    characterIds: scene.characters.map((character) => character.instanceId),
+    actions: scene.actions.map((action) => ({
+      actionId: action.actionId,
+      actionType: toActionDtoType(action.actionType),
+      startTime: action.startTime,
+      endTime: action.endTime,
+      targetId: action.targetId,
+      payload: action.payload,
+    })),
+  };
+}
+
+function toAssetDtos(assets: ReturnType<Project["toSnapshot"]>["assets"]): AssetDto[] {
+  return assets.map((asset) => ({
+    assetId: asset.assetId,
+    assetName: asset.assetName,
+    assetType: toAssetDtoType(asset.assetType),
+    assetPath: asset.assetPath,
+  }));
+}
+
+function toCharacterDtos(characters: ReturnType<Project["toSnapshot"]>["characters"]): CharacterDto[] {
+  return characters.map((character) => ({
+    characterId: character.characterId,
+    characterName: character.characterName,
+    imageMapId: null,
+  }));
+}
+
+function toActionDtoType(actionType: string): SceneDto["actions"][number]["actionType"] {
+  const knownTypes = ["talk", "move", "fade", "flash", "camera_move", "camera_zoom"] as const;
+  return knownTypes.some((knownType) => knownType === actionType) ? actionType as SceneDto["actions"][number]["actionType"] : "custom";
+}
+
+function toAssetDtoType(assetType: string): AssetDto["assetType"] {
+  const knownTypes = ["background", "character_image", "voice", "bgm", "se", "effect"] as const;
+  return knownTypes.some((knownType) => knownType === assetType) ? assetType as AssetDto["assetType"] : "effect";
+}
+
 function createInitialProject(): Project {
   const project = Project.create({ projectId: "project-local-preview", projectName: "Local Preview" });
+
+  project.addAsset(
+    Asset.create({
+      assetId: "asset-bg-opening",
+      assetName: "Opening Background",
+      assetType: "background",
+      assetPath: "assets/backgrounds/opening.png",
+    }),
+  );
 
   project.addScene(
     Scene.create({
       sceneId: "scene-opening",
       sceneName: "Opening",
       duration: 8,
+      backgroundAssetId: "asset-bg-opening",
       actions: [
         Action.create({
           actionId: "action-talk-opening",

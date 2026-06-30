@@ -35,3 +35,27 @@ This repository intentionally separates the studio into explicit boundaries.
 This commit adds Project Core as the pure project world root.
 
 It does not add Asset Core, Scene Core, Character Core, UseCases, Pyxel, VOICEVOX, ffmpeg export, SQLite, Cloud storage, or production UI yet.
+
+## Local development startup
+
+Retro Short Studio uses the normal two-process local development setup.
+The Python engine is called from the FastAPI backend; it is not started as a third preview server.
+
+```bash
+cd backend
+uvicorn app.main:app --reload
+```
+
+```bash
+npm run dev
+```
+
+Preview requests flow through:
+
+```text
+React PreviewPanel
+  -> /api/preview/frame
+  -> FastAPI backend
+  -> EngineApp
+  -> PyxelRenderer
+```

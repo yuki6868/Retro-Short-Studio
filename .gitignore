@@ -237,3 +237,12 @@ sandbox/
 *.pyxres
 *.pyxpal
 __pycache__/
+
+# Fonts
+assets/fonts/*.ttf
+assets/fonts/*.otf
+assets/fonts/*.ttc
+assets/fonts/*.otc
+
+# Keep directory
+!assets/fonts/.gitkeep

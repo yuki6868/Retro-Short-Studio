@@ -198,3 +198,91 @@ def test_pyxel_renderer_render_keeps_export_responsibility_outside_renderer() ->
         "outputDirectory": "renders/opening",
         "drawableCount": 1,
     }
+
+
+def test_pyxel_renderer_can_capture_browser_preview_frame() -> None:
+    from engine.renderer import PixelArtFrameCapture
+
+    fake_pyxel = FakePyxel()
+    renderer = PyxelRenderer(fake_pyxel, frame_capture=PixelArtFrameCapture(scale=8))
+
+    result = renderer.preview(
+        EngineRequest(
+            command_id="preview-capture",
+            command="preview",
+            payload={
+                "width": 320,
+                "height": 180,
+                "currentTime": 0.5,
+                "clearColor": 1,
+                "characters": [
+                    {
+                        "assetId": "asset-zunda",
+                        "path": "assets/characters/zunda/normal.png",
+                        "x": 120,
+                        "y": 32,
+                        "width": 64,
+                        "height": 96,
+                        "imageBank": 1,
+                        "zIndex": 10,
+                    }
+                ],
+                "textOverlays": [{"text": "Hello", "x": 16, "y": 120, "color": 7}],
+            },
+        )
+    )
+
+    assert result.ok is True
+    assert result.payload is not None
+    assert result.payload["framePath"].startswith("data:image/png;base64,")
+    assert result.payload["drawableCount"] == 1
+
+
+def test_pixel_art_frame_capture_draws_text_as_pixels_not_a_solid_bar() -> None:
+    from engine.renderer import PixelArtFrameCapture
+
+    capture = PixelArtFrameCapture(scale=8)
+    frame_path = capture.capture(
+        width=160,
+        height=80,
+        clear_color=1,
+        drawables=[],
+        text_overlays=[{"text": "A", "x": 8, "y": 8, "color": 7}],
+    )
+
+    assert frame_path.startswith("data:image/png;base64,")
+
+
+def test_pixel_art_frame_capture_routes_japanese_text_through_font_repository() -> None:
+    from engine.renderer import FontSpec, PixelArtFrameCapture
+
+    class SpyFontRepository:
+        def __init__(self) -> None:
+            self.requests: list[FontSpec] = []
+
+        def get(self, spec: FontSpec):
+            self.requests.append(spec)
+            return None
+
+    repository = SpyFontRepository()
+    capture = PixelArtFrameCapture(scale=8, font_repository=repository, font_spec=FontSpec(name="AkazukiPOP", size=18))
+
+    frame_path = capture.capture(
+        width=320,
+        height=180,
+        clear_color=1,
+        drawables=[],
+        text_overlays=[{"text": "こんにちは", "x": 8, "y": 120, "color": 7}],
+    )
+
+    assert frame_path.startswith("data:image/png;base64,")
+    assert repository.requests == [FontSpec(name="AkazukiPOP", size=18)]
+
+
+def test_local_font_repository_defaults_to_assets_fonts() -> None:
+    from engine.renderer import LocalFontRepository
+
+    repository = LocalFontRepository.default()
+
+    assert repository.root.name == "fonts"
+    assert repository.root.parent.name == "assets"

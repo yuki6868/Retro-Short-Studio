@@ -13,6 +13,11 @@ class PyxelImage(Protocol):
         raise NotImplementedError
 
 
+class FrameCapture(Protocol):
+    def capture(self, *, width: int, height: int, clear_color: int, drawables: Sequence["PyxelDrawable"], text_overlays: Sequence[dict[str, Any]]) -> str:
+        raise NotImplementedError
+
+
 class PyxelApi(Protocol):
     """Pyxel API surface required by Retro Short Studio.
 
@@ -85,8 +90,9 @@ class PyxelRenderer:
     Action data.
     """
 
-    def __init__(self, pyxel_api: PyxelApi | None = None) -> None:
+    def __init__(self, pyxel_api: PyxelApi | None = None, frame_capture: FrameCapture | None = None) -> None:
         self._pyxel = pyxel_api if pyxel_api is not None else self._load_pyxel()
+        self._frame_capture = frame_capture
         self._loaded_assets: set[tuple[int, str]] = set()
 
     def preview(self, request: EngineRequest) -> EngineResult:
@@ -95,17 +101,28 @@ class PyxelRenderer:
         current_time = float(request.payload.get("currentTime", 0))
 
         self._pyxel.init(width, height, title="Retro Short Studio Preview")
-        self._pyxel.cls(int(request.payload.get("clearColor", 0)))
+        clear_color = int(request.payload.get("clearColor", 0))
+        self._pyxel.cls(clear_color)
 
         drawables = self._collect_drawables(request.payload)
         for drawable in drawables:
             self._load_image(drawable)
             self._draw_image(drawable)
 
+        frame_path = None
+        if self._frame_capture is not None:
+            frame_path = self._frame_capture.capture(
+                width=width,
+                height=height,
+                clear_color=clear_color,
+                drawables=drawables,
+                text_overlays=self._collect_text_overlays(request.payload),
+            )
+
         return EngineResult.success(
             request.command_id,
             {
-                "framePath": None,
+                "framePath": frame_path,
                 "currentTime": current_time,
                 "width": width,
                 "height": height,
@@ -144,6 +161,12 @@ class PyxelRenderer:
                     )
 
         return sorted(drawables, key=lambda drawable: drawable.z_index)
+
+    def _collect_text_overlays(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
+        overlays = payload.get("textOverlays", [])
+        if not isinstance(overlays, list):
+            return []
+        return [overlay for overlay in overlays if isinstance(overlay, dict)]
 
     def _load_image(self, drawable: PyxelDrawable) -> None:
         if not drawable.path:

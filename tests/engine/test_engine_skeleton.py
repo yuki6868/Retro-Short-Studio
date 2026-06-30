@@ -7,7 +7,7 @@ from engine.renderer import StubRenderer
 from engine.voice import StubVoiceProvider
 
 
-def test_engine_app_routes_preview_without_pyxel_dependency() -> None:
+def test_engine_app_routes_preview_through_preview_renderer_boundary() -> None:
     app = create_engine_app()
 
     result = app.execute(
@@ -18,10 +18,12 @@ def test_engine_app_routes_preview_without_pyxel_dependency() -> None:
         )
     )
 
-    assert result == EngineResult.success(
-        "cmd-preview-1",
-        {"framePath": None, "currentTime": 1.5, "width": 1280, "height": 720},
-    )
+    assert result.ok is True
+    assert result.payload is not None
+    assert result.payload["framePath"].startswith("data:image/png;base64,")
+    assert result.payload["currentTime"] == 1.5
+    assert result.payload["width"] == 1280
+    assert result.payload["height"] == 720
 
 
 def test_engine_dispatcher_routes_capabilities_to_separate_adapters() -> None:

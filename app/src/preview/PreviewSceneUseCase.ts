@@ -1,10 +1,12 @@
-import type { EngineClient, PreviewRequest, SceneDto } from "../../../shared";
+import type { AssetDto, CharacterDto, EngineClient, PreviewRequest, SceneDto } from "../../../shared";
 import { PreviewClock } from "./PreviewClock";
 import type { PreviewPlaybackStatus, PreviewState } from "./PreviewState";
 
 export type PreviewSceneUseCaseConfig = {
   projectId: string;
   scene: SceneDto;
+  assets?: AssetDto[];
+  characters?: CharacterDto[];
   engineClient: EngineClient;
   width: number;
   height: number;
@@ -71,6 +73,8 @@ export class PreviewSceneUseCase {
     return {
       projectId: this.config.projectId,
       scene: this.config.scene,
+      ...(this.config.assets === undefined ? {} : { assets: this.config.assets }),
+      ...(this.config.characters === undefined ? {} : { characters: this.config.characters }),
       currentTime: this.clock.currentTime,
       width: this.config.width,
       height: this.config.height,
