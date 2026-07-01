@@ -2,11 +2,17 @@ import type { Project, ProjectSnapshot } from "../../../core/src";
 import {
   PreviewSceneUseCase,
   PyxelPreviewEngineClient,
+  type PreviewSceneUseCaseConfig,
   type PreviewState,
   type TimelineState,
   type TimelineUseCase,
 } from "../../../app/src";
 import type { ActionDto, AssetDto, SceneDto } from "../../../shared";
+
+export type PreviewSceneUseCaseLike = {
+  play(): Promise<PreviewState>;
+  seek(time: number): Promise<PreviewState>;
+};
 
 export type PreviewControllerConfig = {
   getProject(): Project;
@@ -15,6 +21,7 @@ export type PreviewControllerConfig = {
   applyPreviewState(state: PreviewState): PreviewState;
   setTimelineState(state: TimelineState): void;
   createInitialPreviewState(): PreviewState;
+  createPreviewSceneUseCase?(config: PreviewSceneUseCaseConfig): PreviewSceneUseCaseLike;
 };
 
 export class PreviewController {
@@ -35,7 +42,7 @@ export class PreviewController {
 
   async play(currentTime: number): Promise<PreviewState> {
     this.playbackSession += 1;
-    return this.previewAt(currentTime, "playing");
+    return this.previewAt(currentTime, "playing", this.playbackSession);
   }
 
   pause(): PreviewState {
@@ -46,7 +53,7 @@ export class PreviewController {
 
   async seek(time: number): Promise<PreviewState> {
     this.playbackSession += 1;
-    return this.previewAt(time, this.latestState.playbackStatus);
+    return this.previewAt(time, this.latestState.playbackStatus, this.playbackSession);
   }
 
   async advancePlayingFrame(deltaSeconds: number, duration: number, playbackSession: number): Promise<PreviewState> {
@@ -55,7 +62,7 @@ export class PreviewController {
     }
 
     const nextTime = Math.min(duration, this.latestState.currentTime + deltaSeconds);
-    const next = await this.previewAt(nextTime, nextTime >= duration ? "paused" : "playing");
+    const next = await this.previewAt(nextTime, nextTime >= duration ? "paused" : "playing", playbackSession);
 
     if (nextTime >= duration) {
       this.playbackSession += 1;
@@ -64,7 +71,7 @@ export class PreviewController {
     return next;
   }
 
-  private async previewAt(time: number, playbackStatus: PreviewState["playbackStatus"]): Promise<PreviewState> {
+  private async previewAt(time: number, playbackStatus: PreviewState["playbackStatus"], playbackSession: number): Promise<PreviewState> {
     const project = this.config.getProject();
     const snapshot = project.toSnapshot();
     const selectedScene = findSelectedSceneDto(project, this.config.getSelectedSceneId());
@@ -78,7 +85,7 @@ export class PreviewController {
       return this.config.applyPreviewState(next);
     }
 
-    const useCase = new PreviewSceneUseCase({
+    const useCaseConfig: PreviewSceneUseCaseConfig = {
       projectId: snapshot.projectId,
       scene: selectedScene,
       assets: snapshot.assets.map(toAssetDto),
@@ -92,9 +99,16 @@ export class PreviewController {
       height: snapshot.settings.height,
       fps: snapshot.settings.fps,
       initialTime: time,
-    });
+    };
+
+    const useCase = this.config.createPreviewSceneUseCase?.(useCaseConfig) ?? new PreviewSceneUseCase(useCaseConfig);
 
     const next = playbackStatus === "playing" ? await useCase.play() : await useCase.seek(time);
+
+    if (playbackSession !== this.playbackSession) {
+      return this.latestState;
+    }
+
     const normalized = { ...next, playbackStatus };
     this.config.setTimelineState(this.config.getTimeline().setPlayhead({ time: normalized.currentTime }));
     return this.config.applyPreviewState(normalized);
