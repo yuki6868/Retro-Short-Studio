@@ -4,7 +4,7 @@ from engine import create_engine_app
 from engine.api import EngineCommandDispatcher, EngineRequest, EngineResult
 from engine.exporter import StubExporter
 from engine.renderer import StubRenderer
-from engine.voice import StubVoiceProvider
+from engine.voice import StubVoiceProvider, VoiceRequest, VoiceResult
 
 
 def test_engine_app_routes_preview_through_preview_renderer_boundary() -> None:
@@ -44,7 +44,13 @@ def test_engine_dispatcher_routes_capabilities_to_separate_adapters() -> None:
         EngineRequest(
             command_id="cmd-voice-1",
             command="voice",
-            payload={"outputPath": "voices/talk.wav"},
+            payload={
+                "projectId": "project-1",
+                "talkActionId": "action-talk-1",
+                "text": "こんにちは",
+                "speakerId": "zundamon-normal",
+                "outputPath": "voices/talk.wav",
+            },
         )
     )
     export_result = dispatcher.execute(
@@ -58,6 +64,45 @@ def test_engine_dispatcher_routes_capabilities_to_separate_adapters() -> None:
     assert render_result.payload == {"framePaths": [], "outputDirectory": "renders/opening"}
     assert voice_result.payload == {"voiceAssetId": None, "wavPath": "voices/talk.wav", "duration": 0}
     assert export_result.payload == {"outputPath": "exports/opening.mp4", "format": "mp4"}
+
+
+def test_voice_provider_interface_is_independent_from_voicevox_and_engine_commands() -> None:
+    provider = StubVoiceProvider()
+
+    result = provider.generate(
+        VoiceRequest(
+            project_id="project-1",
+            talk_action_id="action-talk-1",
+            text="こんにちは",
+            speaker_id="zundamon-normal",
+            output_path="voices/action-talk-1.wav",
+        )
+    )
+
+    assert result == VoiceResult(
+        voice_asset_id=None,
+        wav_path="voices/action-talk-1.wav",
+        duration=0,
+    )
+
+
+def test_engine_dispatcher_validates_voice_payload_before_provider_call() -> None:
+    dispatcher = EngineCommandDispatcher(
+        renderer=StubRenderer(),
+        voice_provider=StubVoiceProvider(),
+        exporter=StubExporter(),
+    )
+
+    result = dispatcher.execute(
+        EngineRequest(
+            command_id="cmd-voice-invalid",
+            command="voice",
+            payload={"outputPath": "voices/missing-text.wav"},
+        )
+    )
+
+    assert result.ok is False
+    assert result.error == "VoiceRequest.projectId is required."
 
 
 def test_engine_skeleton_source_does_not_import_concrete_tools() -> None:
