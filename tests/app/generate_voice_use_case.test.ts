@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { GenerateVoiceUseCase } from "../../app/src";
-import { Project, Scene, Action, type IdGenerator } from "../../core/src";
+import { Project, Scene, Action, Asset, type IdGenerator } from "../../core/src";
 import type { EngineClient, EngineCommandRequest, EngineResult, ExportRequest, ExportResult, PreviewRequest, PreviewResult, RenderRequest, RenderResult, VoiceRequest, VoiceResult } from "../../shared";
 
 class FixedIdGenerator implements IdGenerator {
@@ -118,6 +118,86 @@ describe("GenerateVoiceUseCase", () => {
     });
   });
 
+
+
+
+  it("reuses the existing TalkAction voice asset when voice is regenerated", async () => {
+    const project = createProject();
+    const engineClient = new FakeVoiceEngineClient();
+    const useCase = new GenerateVoiceUseCase({
+      project,
+      engineClient,
+      idGenerator: new FixedIdGenerator(),
+      defaultOutputDirectory: "projects/voices",
+    });
+
+    const firstResult = await useCase.generateForTalkAction({ sceneId: "scene-1", actionId: "action-talk-1" });
+    const secondResult = await useCase.generateForTalkAction({ sceneId: "scene-1", actionId: "action-talk-1" });
+    const snapshot = project.toSnapshot();
+
+    expect(firstResult.voiceAssetId).toBe("voice-asset-1");
+    expect(secondResult.voiceAssetId).toBe("voice-asset-1");
+    expect(snapshot.assets.filter((asset) => asset.assetType === "voice")).toEqual([
+      {
+        assetId: "voice-asset-1",
+        assetName: "Voice action-talk-1",
+        assetType: "voice",
+        assetPath: "projects/voices/action-talk-1.wav",
+      },
+    ]);
+    expect(snapshot.scenes[0].actions[0].payload).toMatchObject({
+      voiceAssetId: "voice-asset-1",
+      generatedVoicePath: "projects/voices/action-talk-1.wav",
+      generatedVoiceDuration: 1.25,
+    });
+  });
+
+  it("updates an existing voice asset instead of adding a duplicate", async () => {
+    const project = createProject();
+    project.addAsset(
+      Asset.create({
+        assetId: "voice-existing-1",
+        assetName: "Old Voice",
+        assetType: "voice",
+        assetPath: "projects/voices/old.wav",
+      }),
+    );
+    project.updateScene("scene-1", (scene) => {
+      scene.updateAction("action-talk-1", (action) => {
+        action.replacePayload({
+          ...action.toSnapshot().payload,
+          voiceAssetId: "voice-existing-1",
+          generatedVoicePath: "projects/voices/old.wav",
+          generatedVoiceDuration: 0.5,
+        });
+      });
+    });
+    const engineClient = new FakeVoiceEngineClient();
+    const useCase = new GenerateVoiceUseCase({
+      project,
+      engineClient,
+      idGenerator: new FixedIdGenerator(),
+      defaultOutputDirectory: "projects/voices",
+    });
+
+    const result = await useCase.generateForTalkAction({ sceneId: "scene-1", actionId: "action-talk-1" });
+    const snapshot = project.toSnapshot();
+
+    expect(result.voiceAssetId).toBe("voice-existing-1");
+    expect(snapshot.assets.filter((asset) => asset.assetType === "voice")).toEqual([
+      {
+        assetId: "voice-existing-1",
+        assetName: "Voice action-talk-1",
+        assetType: "voice",
+        assetPath: "projects/voices/action-talk-1.wav",
+      },
+    ]);
+    expect(snapshot.scenes[0].actions[0].payload).toMatchObject({
+      voiceAssetId: "voice-existing-1",
+      generatedVoicePath: "projects/voices/action-talk-1.wav",
+      generatedVoiceDuration: 1.25,
+    });
+  });
 
   it("rejects empty talk text before calling the engine", async () => {
     const project = createProject();

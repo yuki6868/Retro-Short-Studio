@@ -62,12 +62,15 @@ export class AssetBrowser {
   }
 
   private createViewState(state: AssetLibraryState): AssetBrowserViewState {
+    const visibleAssets = compactDuplicateVoiceAssets(state.assets, state.selectedAssetId);
+    const selectedAssetId = visibleAssets.some((asset) => asset.assetId === state.selectedAssetId) ? state.selectedAssetId : null;
+
     return {
       title: this.props.title ?? "Asset Browser",
-      assets: state.assets.map((asset) => toItemViewState(asset, state.selectedAssetId)),
-      selectedAssetId: state.selectedAssetId,
-      assetCount: state.assets.length,
-      emptyText: state.assets.length === 0 ? "Add assets to use them in scenes." : "",
+      assets: visibleAssets.map((asset) => toItemViewState(asset, selectedAssetId)),
+      selectedAssetId,
+      assetCount: visibleAssets.length,
+      emptyText: visibleAssets.length === 0 ? "Add assets to use them in scenes." : "",
       addButton: {
         label: "Add Asset",
         disabled: false,
@@ -75,6 +78,21 @@ export class AssetBrowser {
       acceptedTypes: ["background", "character_image", "voice", "bgm", "se"],
     };
   }
+}
+
+function compactDuplicateVoiceAssets(assets: AssetDto[], selectedAssetId: string | null): AssetDto[] {
+  const visibleAssets = new Map<string, AssetDto>();
+
+  for (const asset of assets) {
+    const key = asset.assetType === "voice" ? `${asset.assetType}:${asset.assetPath}` : asset.assetId;
+    const current = visibleAssets.get(key);
+
+    if (current === undefined || asset.assetId === selectedAssetId) {
+      visibleAssets.set(key, asset);
+    }
+  }
+
+  return Array.from(visibleAssets.values());
 }
 
 function toItemViewState(asset: AssetDto, selectedAssetId: string | null): AssetBrowserItemViewState {

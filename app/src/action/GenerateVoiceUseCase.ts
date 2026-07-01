@@ -49,7 +49,6 @@ export class GenerateVoiceUseCase {
 
     const text = normalizeText(action.payload.text);
     const speakerId = normalizeId(input.speakerId ?? readString(action.payload.speakerId) ?? this.config.defaultSpeakerId ?? "3", "speakerId");
-    const voiceAssetId = this.config.idGenerator.generate("voice");
     const outputPath = buildVoiceOutputPath(input.outputDirectory ?? this.config.defaultOutputDirectory ?? "projects/voices", actionId);
     const request: VoiceRequest = {
       projectId: projectSnapshot.projectId,
@@ -68,15 +67,19 @@ export class GenerateVoiceUseCase {
     const voiceResult = engineResult.payload;
     const voiceAssetPath = normalizeVoicePath(voiceResult);
     const duration = normalizeDuration(voiceResult.duration);
+    const voiceAssetId = resolveReusableVoiceAssetId({
+      actionPayload: action.payload,
+      assets: this.config.project.toSnapshot().assets,
+      fallbackPath: voiceAssetPath,
+      idGenerator: this.config.idGenerator,
+    });
 
-    this.config.project.addAsset(
-      Asset.create({
-        assetId: voiceAssetId,
-        assetName: `Voice ${actionId}`,
-        assetType: "voice",
-        assetPath: voiceAssetPath,
-      }),
-    );
+    upsertVoiceAsset({
+      project: this.config.project,
+      voiceAssetId,
+      actionId,
+      voiceAssetPath,
+    });
     this.config.project.updateScene(sceneId, (editableScene) => {
       editableScene.updateAction(actionId, (editableAction) => {
         const talkAction = TalkAction.fromAction(editableAction);
@@ -98,6 +101,54 @@ export class GenerateVoiceUseCase {
       duration,
     };
   }
+}
+
+function resolveReusableVoiceAssetId(input: {
+  actionPayload: ActionPayloadRecord;
+  assets: ReturnType<Project["toSnapshot"]>["assets"];
+  fallbackPath: string;
+  idGenerator: IdGenerator;
+}): string {
+  const existingActionVoiceAssetId = readString(input.actionPayload.voiceAssetId);
+
+  if (existingActionVoiceAssetId !== null && input.assets.some((asset) => asset.assetId === existingActionVoiceAssetId)) {
+    return existingActionVoiceAssetId;
+  }
+
+  const existingAssetWithSamePath = input.assets.find((asset) => asset.assetType === "voice" && asset.assetPath === input.fallbackPath);
+
+  if (existingAssetWithSamePath !== undefined) {
+    return existingAssetWithSamePath.assetId;
+  }
+
+  return input.idGenerator.generate("voice");
+}
+
+function upsertVoiceAsset(input: {
+  project: Project;
+  voiceAssetId: string;
+  actionId: string;
+  voiceAssetPath: string;
+}): void {
+  const assetSnapshot = input.project.toSnapshot().assets.find((asset) => asset.assetId === input.voiceAssetId);
+
+  if (assetSnapshot === undefined) {
+    input.project.addAsset(
+      Asset.create({
+        assetId: input.voiceAssetId,
+        assetName: `Voice ${input.actionId}`,
+        assetType: "voice",
+        assetPath: input.voiceAssetPath,
+      }),
+    );
+    return;
+  }
+
+  input.project.updateAsset(input.voiceAssetId, (asset) => {
+    asset.rename(`Voice ${input.actionId}`);
+    asset.changeType("voice");
+    asset.changePath(input.voiceAssetPath);
+  });
 }
 
 function normalizeId(value: string, name: string): string {

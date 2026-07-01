@@ -94,6 +94,27 @@ describe("AssetBrowser", () => {
     expect(view.assets[0]).toMatchObject({ assetName: "Room Background", assetPath: "assets/backgrounds/room.png" });
   });
 
+
+
+  it("compacts duplicate generated voice assets in the browser view", () => {
+    const browser = new AssetBrowser({
+      assets: createAssetUseCase({
+        assets: [
+          { assetId: "voice-1", assetName: "Voice action-talk-opening", assetPath: "projects/voices/action-talk-opening.wav", assetType: "voice" },
+          { assetId: "voice-2", assetName: "Voice action-talk-opening", assetPath: "projects/voices/action-talk-opening.wav", assetType: "voice" },
+          { assetId: "bg-1", assetName: "Opening Background", assetPath: "assets/backgrounds/opening.png", assetType: "background" },
+        ],
+        selectedAssetId: "voice-2",
+      }),
+    });
+
+    const view = browser.render();
+
+    expect(view.assetCount).toBe(2);
+    expect(view.assets.map((asset) => asset.assetId)).toEqual(["voice-2", "bg-1"]);
+    expect(view.assets[0]).toMatchObject({ selected: true, assetPath: "projects/voices/action-talk-opening.wav" });
+  });
+
   it("delegates selection to the asset use case and reflects selected row state", () => {
     const selectedIds: string[] = [];
     const browser = new AssetBrowser({
