@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "backend": "./dev-backend.sh",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

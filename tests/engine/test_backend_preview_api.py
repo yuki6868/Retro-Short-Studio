@@ -43,3 +43,33 @@ def test_engine_main_does_not_start_preview_http_server() -> None:
     assert "--serve-preview" not in source
     assert "serve_preview_engine" not in source
     assert "HTTPServer" not in source
+
+
+def test_fastapi_voice_endpoint_routes_to_engine_voice_boundary() -> None:
+    client = TestClient(load_backend_app())
+
+    response = client.post(
+        "/api/voice/generate",
+        json={
+            "commandId": "cmd-voice-api",
+            "command": "voice",
+            "payload": {
+                "projectId": "project-1",
+                "talkActionId": "action-talk-1",
+                "text": "テストなのだ",
+                "speakerId": "3",
+                "outputPath": "projects/voices/action-talk-1.wav",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["commandId"] == "cmd-voice-api"
+    assert body["ok"] is True
+    payload = body["payload"]
+
+    assert payload["voiceAssetId"] is None
+    assert payload["wavPath"] == "projects/voices/action-talk-1.wav"
+    assert isinstance(payload["duration"], (int, float))
+    assert payload["duration"] >= 0

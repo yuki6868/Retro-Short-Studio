@@ -56,5 +56,25 @@ def preview_frame(body: dict[str, Any]) -> JSONResponse:
     )
 
 
+@app.post("/api/voice/generate")
+def generate_voice(body: dict[str, Any]) -> JSONResponse:
+    request = EngineRequest(
+        command_id=str(body.get("commandId", "voice")),
+        command="voice",
+        payload=_as_dict(body.get("payload", {})),
+    )
+    result = engine_app.execute(request)
+    status_code = 200 if result.ok else 500
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "commandId": result.command_id,
+            "ok": result.ok,
+            "payload": result.payload,
+            "error": result.error,
+        },
+    )
+
+
 def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}

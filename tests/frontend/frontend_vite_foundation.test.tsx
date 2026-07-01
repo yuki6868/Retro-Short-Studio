@@ -100,6 +100,47 @@ describe("Frontend Vite foundation", () => {
     expect(html).toContain('aria-label="Action creation"');
   });
 
+  it("renders Generate Voice for talk actions without exposing VOICEVOX details", () => {
+    const view = new StudioLayout({
+      preview: new PreviewPanel({ duration: 12, preview: createPreviewUseCase() }).render(),
+      inspector: {
+        type: "action",
+        title: "Action Inspector",
+        selectedTargetLabel: "Action: talk",
+        sceneId: "scene-1",
+        actionId: "action-talk-1",
+        actionType: "talk",
+        startTime: 0,
+        endTime: 2,
+        targetId: "character-1",
+        payload: { text: "テストなのだ", speakerCharacterId: "character-1", voiceAssetId: null, lipSyncEnabled: true },
+        payloadPreview: JSON.stringify({ text: "テストなのだ", speakerCharacterId: "character-1", voiceAssetId: null, lipSyncEnabled: true }),
+        fields: ["startTime", "endTime", "targetId", "payload"],
+      },
+    }).render();
+
+    const html = renderToStaticMarkup(
+      <StudioWorkspace
+        view={view}
+        onAddAsset={addAssetNoop}
+        onAddScene={addSceneNoop}
+        onDeleteScene={deleteSceneNoop}
+        onMoveScene={moveSceneNoop}
+        onPlay={async () => createPreviewState()}
+        onPause={() => createPreviewState()}
+        onSeek={async () => createPreviewState()}
+        onSelectAsset={selectAssetNoop}
+        onSelectScene={selectSceneNoop}
+        onEditSceneName={editSceneNameNoop}
+        onEditSceneDuration={editSceneDurationNoop}
+        onGenerateActionVoice={async () => createInspectorState()}
+      />,
+    );
+
+    expect(html).toContain("Generate Voice");
+    expect(html).not.toContain("VoiceVoxCoreProvider");
+  });
+
 });
 
 function createPreviewUseCase(state: PreviewState = createPreviewState()) {
@@ -166,6 +207,27 @@ function emptyInspectorState(): InspectorState {
       title: "Inspector",
       message: "Select a scene, character, or action to edit it.",
       selectedTargetLabel: "Nothing selected",
+    },
+  };
+}
+
+function createInspectorState(): InspectorState {
+  return {
+    selection: { type: "action", sceneId: "scene-1", actionId: "action-talk-1" },
+    panel: {
+      type: "action",
+      title: "Action Inspector",
+      selectedTargetLabel: "Action: talk",
+      action: {
+        sceneId: "scene-1",
+        actionId: "action-talk-1",
+        actionType: "talk",
+        startTime: 0,
+        endTime: 2,
+        targetId: "character-1",
+        payload: { text: "テストなのだ", speakerCharacterId: "character-1", voiceAssetId: null, lipSyncEnabled: true },
+      },
+      editableFields: ["startTime", "endTime", "targetId", "payload"],
     },
   };
 }

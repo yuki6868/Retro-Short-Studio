@@ -246,3 +246,17 @@ assets/fonts/*.otc
 
 # Keep directory
 !assets/fonts/.gitkeep
+
+# Generated project outputs
+projects/
+voices/
+renders/
+exports/
+
+# Generated media
+*.wav
+*.mp4
+*.mov
+*.avi
+*.gif
+*.png

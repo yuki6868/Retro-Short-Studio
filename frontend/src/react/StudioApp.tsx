@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, t
 
 import {
   ActionEditorUseCase,
+  GenerateVoiceUseCase,
   AssetLibraryUseCase,
   PyxelPreviewEngineClient,
   PreviewSceneUseCase,
@@ -54,6 +55,7 @@ export function StudioApp(): ReactElement {
   const inspectorRef = useRef<InspectorUseCase | null>(null);
   const timelineRef = useRef<TimelineUseCase | null>(null);
   const actionEditorRef = useRef<ActionEditorUseCase | null>(null);
+  const generateVoiceRef = useRef<GenerateVoiceUseCase | null>(null);
   const bootstrappedRef = useRef(false);
 
   if (projectRef.current === null) {
@@ -93,11 +95,22 @@ export function StudioApp(): ReactElement {
     });
   }
 
+  if (generateVoiceRef.current === null) {
+    generateVoiceRef.current = new GenerateVoiceUseCase({
+      project: projectRef.current,
+      engineClient: new PyxelPreviewEngineClient(),
+      idGenerator: new BrowserVoiceIdGenerator(),
+      defaultSpeakerId: "3",
+      defaultOutputDirectory: "projects/voices",
+    });
+  }
+
   const assetLibrary = assetLibraryRef.current;
   const sceneFlow = sceneFlowRef.current;
   const inspector = inspectorRef.current;
   const timeline = timelineRef.current;
   const actionEditor = actionEditorRef.current;
+  const generateVoice = generateVoiceRef.current;
 
   if (!bootstrappedRef.current) {
     const initialSceneId = projectRef.current.toSnapshot().scenes[0]?.sceneId ?? null;
@@ -115,6 +128,7 @@ export function StudioApp(): ReactElement {
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
   const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
+  const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
 
   const selectedSceneForPreview = findSelectedSceneDto(requireProject(projectRef.current), sceneFlow.state.selectedSceneId);
   const selectedSceneDuration = selectedSceneForPreview?.duration ?? 0;
@@ -414,6 +428,24 @@ export function StudioApp(): ReactElement {
     return nextTimeline;
   };
 
+
+  const generateSelectedActionVoice = async (sceneId: string, actionId: string): Promise<InspectorState> => {
+    try {
+      setVoiceStatus("Generating voice...");
+      const result = await generateVoice.generateForTalkAction({ sceneId, actionId });
+      setAssetState(assetLibrary.state);
+      const nextInspector = inspector.selectAction(sceneId, actionId);
+      setInspectorState(nextInspector);
+      setTimelineState(timeline.showScene(sceneId));
+      setVoiceStatus(`Generated voice: ${result.voiceAssetPath}`);
+      return nextInspector;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Voice generation failed.";
+      setVoiceStatus(message);
+      throw error;
+    }
+  };
+
   const deleteAction = (sceneId: string, actionId: string): TimelineState => {
     actionEditor.deleteAction({ sceneId, actionId });
     const nextTimeline = timeline.showScene(sceneId);
@@ -453,6 +485,8 @@ export function StudioApp(): ReactElement {
       onEditActionPayload={(sceneId, actionId, payload) =>
         inspectorUseCase.changeSelectedActionPayload({ sceneId, actionId, payload })
       }
+      onGenerateActionVoice={generateSelectedActionVoice}
+      voiceStatus={voiceStatus}
       onSetTimelinePlayhead={(time) => timelineUseCase.setPlayhead({ time })}
       onSetTimelineScale={(timeScale) => timelineUseCase.setTimeScale({ timeScale })}
       onMoveTimelineItem={timelineUseCase.moveItem}
@@ -485,6 +519,8 @@ type StudioWorkspaceProps = {
   onEditSceneBackground?: (sceneId: string, backgroundAssetId: string | null) => InspectorState;
   onEditActionTarget?: (sceneId: string, actionId: string, targetId: string | null) => InspectorState;
   onEditActionPayload?: (sceneId: string, actionId: string, payload: Record<string, string | number | boolean | null>) => InspectorState;
+  onGenerateActionVoice?: (sceneId: string, actionId: string) => Promise<InspectorState>;
+  voiceStatus?: string | null;
   onSetTimelinePlayhead?: (time: number) => TimelineState;
   onSetTimelineScale?: (timeScale: number) => TimelineState;
   onMoveTimelineItem?: (input: MoveTimelineItemInput) => TimelineState;
@@ -511,6 +547,8 @@ export function StudioWorkspace({
   onEditSceneBackground,
   onEditActionTarget,
   onEditActionPayload,
+  onGenerateActionVoice,
+  voiceStatus,
   onSetTimelinePlayhead,
   onSetTimelineScale,
   onMoveTimelineItem,
@@ -799,6 +837,16 @@ export function StudioWorkspace({
               <div className="rss-inspector" aria-label="Action Inspector">
                 <p>{actionInspector.selectedTargetLabel}</p>
                 <p>{actionInspector.actionType}</p>
+                {actionInspector.actionType === "talk" ? (
+                  <button
+                    disabled={onGenerateActionVoice === undefined}
+                    onClick={() => void onGenerateActionVoice?.(actionInspector.sceneId, actionInspector.actionId)}
+                    type="button"
+                  >
+                    Generate Voice
+                  </button>
+                ) : null}
+                {voiceStatus !== null ? <p role="status">{voiceStatus}</p> : null}
                 <label>
                   Target
                   <input
@@ -1091,6 +1139,12 @@ class BrowserSceneIdGenerator implements IdGenerator {
 }
 
 class BrowserActionIdGenerator implements IdGenerator {
+  generate(prefix: string): string {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+}
+
+class BrowserVoiceIdGenerator implements IdGenerator {
   generate(prefix: string): string {
     return `${prefix}-${crypto.randomUUID()}`;
   }

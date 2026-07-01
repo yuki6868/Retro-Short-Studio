@@ -1,61 +1,280 @@
 # Retro Short Studio
 
-Retro Short Studio is a local production studio for making retro-style short videos.
+Retro Short Studio is a local production studio for creating retro-style short videos.
 
-This repository intentionally separates the studio into explicit boundaries.
+This repository intentionally separates the studio into explicit architectural boundaries.
 
-## Directory responsibilities
+---
 
-- `frontend/`
-  React / TypeScript UI. Owns the production experience: layout, preview panel, timeline, inspector, asset browser, and scene flow.
+# Directory Responsibilities
 
-- `core/`
-  Pure project world model. Owns Project, Scene, Character, Asset, Action, Template, and Settings. It must not depend on Pyxel, VOICEVOX, ffmpeg, React, or storage details.
+## frontend/
 
-- `app/`
-  UseCase layer. Connects frontend operations to core, engine, and storage boundaries.
+React + TypeScript UI.
 
-- `engine/`
-  Python engine area. Owns rendering, voice generation, lip-sync analysis, and export adapters. It must not edit Project state directly.
+Responsible for:
 
-- `shared/`
-  DTOs, JSON Schema, and API contracts used across boundaries.
+- Studio Layout
+- Preview Panel
+- Timeline
+- Inspector
+- Asset Browser
+- Scene Flow
 
-- `storage/`
-  ProjectRepository boundary and storage implementations. The first implementation will be local project-folder JSON storage.
+The frontend must not contain rendering, VOICEVOX, or export logic.
 
-- `projects/`
-  Local project workspace. One work should be saved as one folder.
+---
 
-- `assets/`
-  Shared development assets and samples.
+## core/
 
-## Current commit scope
+Pure domain model.
 
-This commit adds Project Core as the pure project world root.
+Owns:
 
-It does not add Asset Core, Scene Core, Character Core, UseCases, Pyxel, VOICEVOX, ffmpeg export, SQLite, Cloud storage, or production UI yet.
+- Project
+- Scene
+- Character
+- Asset
+- Action
+- Template
+- Settings
 
-## Local development startup
+The Core must never depend on:
 
-Retro Short Studio uses the normal two-process local development setup.
-The Python engine is called from the FastAPI backend; it is not started as a third preview server.
+- React
+- Pyxel
+- VOICEVOX
+- ffmpeg
+- Storage implementations
 
-```bash
-cd backend
-uvicorn app.main:app --reload
+---
+
+## app/
+
+UseCase layer.
+
+Responsible for connecting:
+
+Frontend
+
+↓
+
+Core
+
+↓
+
+Engine / Storage
+
+---
+
+## engine/
+
+Python production engine.
+
+Responsible for:
+
+- Rendering
+- Voice generation
+- Lip Sync
+- Export
+
+The engine never edits Project state directly.
+
+---
+
+## shared/
+
+Shared DTOs, JSON Schema, and API contracts.
+
+---
+
+## storage/
+
+Storage boundary.
+
+Owns:
+
+- ProjectRepository
+- LocalJsonProjectRepository
+
+Future implementations:
+
+- SQLite
+- Cloud
+- PostgreSQL
+
+---
+
+## projects/
+
+Local workspace.
+
+Each project is stored as its own folder.
+
+Example:
+
+```
+projects/
+└── my-project/
+    ├── project.rss.json
+    ├── assets/
+    ├── voices/
+    ├── renders/
+    └── exports/
 ```
 
+---
+
+## assets/
+
+Shared development assets and samples.
+
+---
+
+# Development Environment
+
+The repository assumes the following workspace structure.
+
+```
+retro_short_studio/
+├── .venv/
+├── VOICEVOX/
+└── Retro-Short-Studio/
+```
+
+- `.venv` is shared by the project.
+- `VOICEVOX` is placed next to the Git repository.
+- The VOICEVOX directory is **not** included in Git.
+
+---
+
+# Local Development
+
+## Backend
+
+From the repository root:
+
 ```bash
+chmod +x dev-backend.sh
+./dev-backend.sh
+```
+
+The script automatically:
+
+- Uses the shared `.venv`
+- Starts FastAPI
+- Enables auto reload
+
+Internally it executes:
+
+```bash
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+using the Python interpreter in:
+
+```
+../.venv/
+```
+
+---
+
+## Frontend
+
+```bash
+npm install
 npm run dev
 ```
 
-Preview requests flow through:
+---
 
-```text
-React PreviewPanel
-  -> /api/preview/frame
-  -> FastAPI backend
-  -> EngineApp
-  -> PyxelRenderer
+## Python Tests
+
+```bash
+python -m pytest -q
 ```
+
+---
+
+## Frontend Tests
+
+```bash
+npm test
+```
+
+---
+
+# Preview Flow
+
+```
+React Preview Panel
+        │
+        ▼
+FastAPI
+/api/preview/frame
+        │
+        ▼
+EngineApp
+        │
+        ▼
+Pyxel Renderer
+```
+
+---
+
+# Voice Generation Flow
+
+```
+Talk Action
+        │
+        ▼
+GenerateVoiceUseCase
+        │
+        ▼
+VoiceProvider
+        │
+        ▼
+VoiceVoxCoreProvider
+        │
+        ▼
+VOICEVOX
+        │
+        ▼
+projects/<project>/voices/*.wav
+```
+
+The current implementation uses the local `voicevox_core` library.
+
+The VOICEVOX resources are loaded from the sibling directory:
+
+```
+retro_short_studio/
+└── VOICEVOX/
+```
+
+HTTP-based VOICEVOX integration is reserved for future providers.
+
+---
+
+# Current Commit Scope
+
+Current progress includes:
+
+- Project Core
+- Asset Core
+- Scene Core
+- Character Core
+- Action Core
+- Timeline Core
+- Pyxel Preview
+- Local VOICEVOX Core integration
+
+Not yet implemented:
+
+- SQLite
+- Cloud Storage
+- AI Providers
+- Live2D
+- 3D
+- Advanced Particle Effects
+- Full Video Editor Timeline
