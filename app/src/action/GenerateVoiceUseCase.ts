@@ -1,4 +1,4 @@
-import { Asset, type ActionPayloadRecord, type IdGenerator, type Project } from "../../../core/src";
+import { Asset, TalkAction, type ActionPayloadRecord, type IdGenerator, type Project } from "../../../core/src";
 import type { EngineClient, VoiceRequest, VoiceResult } from "../../../shared";
 
 export type GenerateVoiceInput = {
@@ -79,13 +79,14 @@ export class GenerateVoiceUseCase {
     );
     this.config.project.updateScene(sceneId, (editableScene) => {
       editableScene.updateAction(actionId, (editableAction) => {
-        editableAction.replacePayload({
-          ...action.payload,
-          voiceAssetId,
+        const talkAction = TalkAction.fromAction(editableAction);
+        talkAction.updateVoice({
           speakerId,
+          voiceAssetId,
           generatedVoicePath: voiceAssetPath,
           generatedVoiceDuration: duration,
         });
+        editableAction.replacePayload(talkAction.toSnapshot().payload);
       });
     });
 

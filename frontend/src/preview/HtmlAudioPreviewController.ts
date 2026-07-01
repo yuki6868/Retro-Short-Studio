@@ -1,3 +1,5 @@
+import type { PreviewAudioController } from "../../../app/src";
+
 export class HtmlAudioPreviewController
     implements PreviewAudioController
 {

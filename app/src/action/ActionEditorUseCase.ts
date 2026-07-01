@@ -94,8 +94,16 @@ function createActionDefaults(kind: CreateActionKind): ActionDefaults {
       return {
         actionType: "talk",
         duration: 3,
-        targetId: null,
-        payload: { text: "" },
+        targetId: "character-main",
+        payload: {
+          text: "",
+          speakerId: "3",
+          speakerCharacterId: "character-main",
+          voiceAssetId: null,
+          generatedVoicePath: null,
+          generatedVoiceDuration: null,
+          lipSyncEnabled: true,
+        },
       };
     case "character":
       return {

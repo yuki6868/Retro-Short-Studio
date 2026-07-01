@@ -60,9 +60,12 @@ function createProject(): Project {
           targetId: "character-1",
           payload: {
             text: "テストなのだ",
+            speakerId: "8",
             speakerCharacterId: "character-1",
             lipSyncEnabled: true,
             voiceAssetId: null,
+            generatedVoicePath: null,
+            generatedVoiceDuration: null,
           },
         }).toSnapshot(),
       ],
@@ -90,7 +93,7 @@ describe("GenerateVoiceUseCase", () => {
         projectId: "project-1",
         talkActionId: "action-talk-1",
         text: "テストなのだ",
-        speakerId: "3",
+        speakerId: "8",
         outputPath: "projects/voices/action-talk-1.wav",
       },
     ]);
@@ -109,9 +112,46 @@ describe("GenerateVoiceUseCase", () => {
     });
     expect(project.toSnapshot().scenes[0].actions[0].payload).toMatchObject({
       voiceAssetId: "voice-asset-1",
+      speakerId: "8",
       generatedVoicePath: "projects/voices/action-talk-1.wav",
       generatedVoiceDuration: 1.25,
     });
+  });
+
+
+  it("rejects empty talk text before calling the engine", async () => {
+    const project = createProject();
+    project.updateScene("scene-1", (scene) => {
+      scene.updateAction("action-talk-1", (action) => {
+        action.replacePayload({
+          ...action.toSnapshot().payload,
+          text: "   ",
+        });
+      });
+    });
+    const engineClient = new FakeVoiceEngineClient();
+    const useCase = new GenerateVoiceUseCase({ project, engineClient, idGenerator: new FixedIdGenerator() });
+
+    await expect(useCase.generateForTalkAction({ sceneId: "scene-1", actionId: "action-talk-1" })).rejects.toThrow(
+      "TalkAction text is required before generating voice.",
+    );
+    expect(engineClient.requests).toEqual([]);
+  });
+
+  it("uses an explicit input speakerId over the TalkAction payload speakerId", async () => {
+    const project = createProject();
+    const engineClient = new FakeVoiceEngineClient();
+    const useCase = new GenerateVoiceUseCase({
+      project,
+      engineClient,
+      idGenerator: new FixedIdGenerator(),
+      defaultOutputDirectory: "projects/voices",
+    });
+
+    await useCase.generateForTalkAction({ sceneId: "scene-1", actionId: "action-talk-1", speakerId: "13" });
+
+    expect(engineClient.requests[0].speakerId).toBe("13");
+    expect(project.toSnapshot().scenes[0].actions[0].payload).toMatchObject({ speakerId: "13" });
   });
 
   it("rejects non-talk actions before calling the engine", async () => {

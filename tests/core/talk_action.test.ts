@@ -22,8 +22,11 @@ describe("TalkAction", () => {
       targetId: "character-instance-1",
       payload: {
         text: "こんにちは",
+        speakerId: "3",
         speakerCharacterId: "character-instance-1",
         voiceAssetId: "voice-1",
+        generatedVoicePath: null,
+        generatedVoiceDuration: null,
         lipSyncEnabled: true,
       },
     });
@@ -40,8 +43,11 @@ describe("TalkAction", () => {
 
     expect(talkAction.toSnapshot().payload).toEqual({
       text: "まだ音声生成前",
+      speakerId: "3",
       speakerCharacterId: "character-instance-1",
       voiceAssetId: null,
+      generatedVoicePath: null,
+      generatedVoiceDuration: null,
       lipSyncEnabled: true,
     });
   });
@@ -89,13 +95,21 @@ describe("TalkAction", () => {
       targetId: "character-instance-1",
       payload: {
         text: "こんにちは",
+        speakerId: "8",
         speakerCharacterId: "character-instance-1",
         voiceAssetId: null,
+        generatedVoicePath: null,
+        generatedVoiceDuration: null,
         lipSyncEnabled: true,
       },
     });
 
-    expect(TalkAction.fromAction(action).toSnapshot().payload.text).toBe("こんにちは");
+    expect(TalkAction.fromAction(action).toSnapshot().payload).toMatchObject({
+      text: "こんにちは",
+      speakerId: "8",
+      generatedVoicePath: null,
+      generatedVoiceDuration: null,
+    });
     expect(isTalkActionSnapshot(action.toSnapshot())).toBe(true);
   });
 
@@ -141,8 +155,11 @@ describe("TalkAction", () => {
       targetId: "other-character-instance",
       payload: {
         text: "こんにちは",
+        speakerId: "3",
         speakerCharacterId: "character-instance-1",
         voiceAssetId: null,
+        generatedVoicePath: null,
+        generatedVoiceDuration: null,
         lipSyncEnabled: true,
       },
     });

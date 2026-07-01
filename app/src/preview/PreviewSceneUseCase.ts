@@ -124,7 +124,7 @@ export class PreviewSceneUseCase {
       return;
     }
 
-    await this.config.audioController?.play(activeVoice);
+    await this.config.audioController?.play(activeVoice.voicePath, activeVoice.offsetSeconds);
   }
 }
 

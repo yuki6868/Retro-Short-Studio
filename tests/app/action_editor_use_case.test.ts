@@ -29,8 +29,16 @@ describe("ActionEditorUseCase", () => {
       actionType: "talk",
       startTime: 2,
       endTime: 5,
-      targetId: null,
-      payload: { text: "" },
+      targetId: "character-main",
+      payload: {
+        text: "",
+        speakerId: "3",
+        speakerCharacterId: "character-main",
+        voiceAssetId: null,
+        generatedVoicePath: null,
+        generatedVoiceDuration: null,
+        lipSyncEnabled: true,
+      },
     });
     expect(project.toSnapshot().scenes[0]?.actions).toHaveLength(1);
   });
