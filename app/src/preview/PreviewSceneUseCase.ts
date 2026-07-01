@@ -1,5 +1,6 @@
 import type { AssetDto, CharacterDto, EngineClient, PreviewRequest, SceneDto } from "../../../shared";
 import { PreviewClock } from "./PreviewClock";
+import type { PreviewAudioController } from "./PreviewAudioController";
 import type { PreviewPlaybackStatus, PreviewState } from "./PreviewState";
 
 export type PreviewSceneUseCaseConfig = {
@@ -12,6 +13,7 @@ export type PreviewSceneUseCaseConfig = {
   height: number;
   fps: number;
   initialTime?: number;
+  audioController?: PreviewAudioController;
 };
 
 export class PreviewSceneUseCase {
@@ -19,6 +21,8 @@ export class PreviewSceneUseCase {
   private playbackStatus: PreviewPlaybackStatus = "paused";
   private framePath: string | null = null;
   private error: string | null = null;
+  private voicePath: string | null = null;
+  private voiceOffset = 0;
 
   constructor(private readonly config: PreviewSceneUseCaseConfig) {
     validatePreviewConfig(config);
@@ -41,6 +45,7 @@ export class PreviewSceneUseCase {
   pause(): PreviewState {
     this.playbackStatus = "paused";
     this.error = null;
+    this.config.audioController?.pause();
     return this.createState();
   }
 
@@ -62,6 +67,7 @@ export class PreviewSceneUseCase {
 
       this.clock.seek(result.payload.currentTime);
       this.framePath = result.payload.framePath;
+      await this.syncAudioWithCurrentTime();
       return this.createState();
     } catch (error) {
       this.error = error instanceof Error ? error.message : "Preview engine failed.";
@@ -91,7 +97,34 @@ export class PreviewSceneUseCase {
       height: this.config.height,
       fps: this.config.fps,
       error: this.error,
+      voicePath: this.voicePath,
+      voiceOffset: this.voiceOffset,
     };
+  }
+
+  private async syncAudioWithCurrentTime(): Promise<void> {
+    const activeVoice = findActiveTalkVoice({
+      scene: this.config.scene,
+      assets: this.config.assets ?? [],
+      currentTime: this.clock.currentTime,
+    });
+
+    this.voicePath = activeVoice?.voicePath ?? null;
+    this.voiceOffset = activeVoice?.offsetSeconds ?? 0;
+
+    if (this.playbackStatus !== "playing") {
+      if (activeVoice !== null) {
+        this.config.audioController?.seek(activeVoice.offsetSeconds);
+      }
+      return;
+    }
+
+    if (activeVoice === null) {
+      this.config.audioController?.stop();
+      return;
+    }
+
+    await this.config.audioController?.play(activeVoice);
   }
 }
 
@@ -111,4 +144,65 @@ function validatePreviewConfig(config: PreviewSceneUseCaseConfig): void {
   if (!Number.isFinite(config.fps) || config.fps <= 0) {
     throw new Error("Preview fps must be greater than 0.");
   }
+}
+
+
+type ActiveTalkVoice = {
+  voicePath: string;
+  offsetSeconds: number;
+};
+
+function findActiveTalkVoice(input: { scene: SceneDto; assets: AssetDto[]; currentTime: number }): ActiveTalkVoice | null {
+  for (const action of input.scene.actions) {
+    if (action.actionType !== "talk") {
+      continue;
+    }
+
+    if (input.currentTime < action.startTime || input.currentTime >= action.endTime) {
+      continue;
+    }
+
+    const voicePath = resolveTalkVoicePath(action.payload, input.assets);
+
+    if (voicePath === null) {
+      continue;
+    }
+
+    return {
+      voicePath,
+      offsetSeconds: roundPreviewAudioOffset(input.currentTime - action.startTime),
+    };
+  }
+
+  return null;
+}
+
+function resolveTalkVoicePath(payload: Record<string, unknown>, assets: AssetDto[]): string | null {
+  const generatedVoicePath = readNonEmptyString(payload.generatedVoicePath);
+
+  if (generatedVoicePath !== null) {
+    return generatedVoicePath;
+  }
+
+  const voiceAssetPath = readNonEmptyString(payload.voiceAssetPath);
+
+  if (voiceAssetPath !== null) {
+    return voiceAssetPath;
+  }
+
+  const voiceAssetId = readNonEmptyString(payload.voiceAssetId);
+
+  if (voiceAssetId === null) {
+    return null;
+  }
+
+  return assets.find((asset) => asset.assetId === voiceAssetId && asset.assetType === "voice")?.assetPath ?? null;
+}
+
+function readNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function roundPreviewAudioOffset(value: number): number {
+  return Number(Math.max(0, value).toFixed(6));
 }

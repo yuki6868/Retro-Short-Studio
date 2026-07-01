@@ -8,4 +8,6 @@ export type PreviewState = {
   height: number;
   fps: number;
   error: string | null;
+  voicePath: string | null;
+  voiceOffset: number;
 };

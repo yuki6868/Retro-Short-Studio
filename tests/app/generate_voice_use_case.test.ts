@@ -64,7 +64,7 @@ function createProject(): Project {
             lipSyncEnabled: true,
             voiceAssetId: null,
           },
-        }),
+        }).toSnapshot(),
       ],
     }),
   );
@@ -121,7 +121,16 @@ describe("GenerateVoiceUseCase", () => {
         sceneId: "scene-1",
         sceneName: "Opening",
         duration: 5,
-        actions: [Action.create({ actionId: "move-1", actionType: "move", startTime: 0, endTime: 1, targetId: null, payload: {} })],
+        actions: [
+          Action.create({
+            actionId: "move-1",
+            actionType: "move",
+            startTime: 0,
+            endTime: 1,
+            targetId: null,
+            payload: {},
+          }).toSnapshot(),
+        ],
       }),
     );
     const engineClient = new FakeVoiceEngineClient();
