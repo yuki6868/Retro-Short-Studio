@@ -115,6 +115,13 @@ describe("Frontend Vite foundation", () => {
         targetId: "character-1",
         payload: { text: "テストなのだ", speakerCharacterId: "character-1", voiceAssetId: null, lipSyncEnabled: true },
         payloadPreview: JSON.stringify({ text: "テストなのだ", speakerCharacterId: "character-1", voiceAssetId: null, lipSyncEnabled: true }),
+        voice: {
+          voiceAssetId: null,
+          voiceAssetPath: null,
+          generatedVoicePath: null,
+          duration: null,
+          canPlay: false,
+        },
         fields: ["startTime", "endTime", "targetId", "payload"],
       },
     }).render();
@@ -226,6 +233,13 @@ function createInspectorState(): InspectorState {
         endTime: 2,
         targetId: "character-1",
         payload: { text: "テストなのだ", speakerCharacterId: "character-1", voiceAssetId: null, lipSyncEnabled: true },
+      },
+      voice: {
+        voiceAssetId: null,
+        voiceAssetPath: null,
+        generatedVoicePath: null,
+        duration: null,
+        canPlay: false,
       },
       editableFields: ["startTime", "endTime", "targetId", "payload"],
     },

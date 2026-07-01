@@ -39,6 +39,7 @@ import {
   StudioLayout,
   Timeline,
   TimelineInteractionMapper,
+  HtmlVoicePreviewPlayer,
   type StudioLayoutViewState,
   type TimelineItemViewState,
 } from "../index";
@@ -56,6 +57,7 @@ export function StudioApp(): ReactElement {
   const timelineRef = useRef<TimelineUseCase | null>(null);
   const actionEditorRef = useRef<ActionEditorUseCase | null>(null);
   const generateVoiceRef = useRef<GenerateVoiceUseCase | null>(null);
+  const voicePreviewPlayerRef = useRef<HtmlVoicePreviewPlayer | null>(null);
   const bootstrappedRef = useRef(false);
 
   if (projectRef.current === null) {
@@ -105,12 +107,17 @@ export function StudioApp(): ReactElement {
     });
   }
 
+  if (voicePreviewPlayerRef.current === null) {
+    voicePreviewPlayerRef.current = new HtmlVoicePreviewPlayer();
+  }
+
   const assetLibrary = assetLibraryRef.current;
   const sceneFlow = sceneFlowRef.current;
   const inspector = inspectorRef.current;
   const timeline = timelineRef.current;
   const actionEditor = actionEditorRef.current;
   const generateVoice = generateVoiceRef.current;
+  const voicePreviewPlayer = voicePreviewPlayerRef.current;
 
   if (!bootstrappedRef.current) {
     const initialSceneId = projectRef.current.toSnapshot().scenes[0]?.sceneId ?? null;
@@ -446,6 +453,22 @@ export function StudioApp(): ReactElement {
     }
   };
 
+  const playSelectedActionVoice = async (voiceAssetPath: string): Promise<void> => {
+    try {
+      setVoiceStatus(`Playing voice: ${voiceAssetPath}`);
+      await voicePreviewPlayer.play(voiceAssetPath);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Voice preview playback failed.";
+      setVoiceStatus(message);
+      throw error;
+    }
+  };
+
+  const stopSelectedActionVoice = (): void => {
+    voicePreviewPlayer.stop();
+    setVoiceStatus("Voice preview stopped.");
+  };
+
   const deleteAction = (sceneId: string, actionId: string): TimelineState => {
     actionEditor.deleteAction({ sceneId, actionId });
     const nextTimeline = timeline.showScene(sceneId);
@@ -486,6 +509,8 @@ export function StudioApp(): ReactElement {
         inspectorUseCase.changeSelectedActionPayload({ sceneId, actionId, payload })
       }
       onGenerateActionVoice={generateSelectedActionVoice}
+      onPlayActionVoice={playSelectedActionVoice}
+      onStopActionVoice={stopSelectedActionVoice}
       voiceStatus={voiceStatus}
       onSetTimelinePlayhead={(time) => timelineUseCase.setPlayhead({ time })}
       onSetTimelineScale={(timeScale) => timelineUseCase.setTimeScale({ timeScale })}
@@ -520,6 +545,8 @@ type StudioWorkspaceProps = {
   onEditActionTarget?: (sceneId: string, actionId: string, targetId: string | null) => InspectorState;
   onEditActionPayload?: (sceneId: string, actionId: string, payload: Record<string, string | number | boolean | null>) => InspectorState;
   onGenerateActionVoice?: (sceneId: string, actionId: string) => Promise<InspectorState>;
+  onPlayActionVoice?: (voiceAssetPath: string) => Promise<void>;
+  onStopActionVoice?: () => void;
   voiceStatus?: string | null;
   onSetTimelinePlayhead?: (time: number) => TimelineState;
   onSetTimelineScale?: (timeScale: number) => TimelineState;
@@ -548,6 +575,8 @@ export function StudioWorkspace({
   onEditActionTarget,
   onEditActionPayload,
   onGenerateActionVoice,
+  onPlayActionVoice,
+  onStopActionVoice,
   voiceStatus,
   onSetTimelinePlayhead,
   onSetTimelineScale,
@@ -838,13 +867,36 @@ export function StudioWorkspace({
                 <p>{actionInspector.selectedTargetLabel}</p>
                 <p>{actionInspector.actionType}</p>
                 {actionInspector.actionType === "talk" ? (
-                  <button
-                    disabled={onGenerateActionVoice === undefined}
-                    onClick={() => void onGenerateActionVoice?.(actionInspector.sceneId, actionInspector.actionId)}
-                    type="button"
-                  >
-                    Generate Voice
-                  </button>
+                  <div className="rss-inspector__voice" aria-label="Talk voice preview">
+                    <button
+                      disabled={onGenerateActionVoice === undefined}
+                      onClick={() => void onGenerateActionVoice?.(actionInspector.sceneId, actionInspector.actionId)}
+                      type="button"
+                    >
+                      Generate Voice
+                    </button>
+                    <button
+                      disabled={actionInspector.voice?.canPlay !== true || onPlayActionVoice === undefined}
+                      onClick={() => {
+                        const path = actionInspector.voice?.voiceAssetPath;
+                        if (path !== undefined && path !== null) {
+                          void onPlayActionVoice?.(path);
+                        }
+                      }}
+                      type="button"
+                    >
+                      Play Voice
+                    </button>
+                    <button
+                      disabled={actionInspector.voice?.canPlay !== true || onStopActionVoice === undefined}
+                      onClick={() => onStopActionVoice?.()}
+                      type="button"
+                    >
+                      Stop Voice
+                    </button>
+                    <p>voiceAssetPath: {actionInspector.voice?.voiceAssetPath ?? "Not generated"}</p>
+                    <p>duration: {formatVoiceDuration(actionInspector.voice?.duration ?? null)}</p>
+                  </div>
                 ) : null}
                 {voiceStatus !== null ? <p role="status">{voiceStatus}</p> : null}
                 <label>
@@ -995,6 +1047,10 @@ type TimelinePointerInteraction = {
   startClientX: number;
 };
 
+
+function formatVoiceDuration(duration: number | null): string {
+  return duration === null ? "Unknown" : `${duration.toFixed(2)}s`;
+}
 
 function requireProject(project: Project | null): Project {
   if (project === null) {

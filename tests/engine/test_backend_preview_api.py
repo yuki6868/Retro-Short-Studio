@@ -73,3 +73,43 @@ def test_fastapi_voice_endpoint_routes_to_engine_voice_boundary() -> None:
     assert payload["wavPath"] == "projects/voices/action-talk-1.wav"
     assert isinstance(payload["duration"], (int, float))
     assert payload["duration"] >= 0
+
+
+def test_backend_serves_project_voice_files() -> None:
+    project_voice_dir = REPOSITORY_ROOT / "projects" / "voices"
+    project_voice_dir.mkdir(parents=True, exist_ok=True)
+    wav_path = project_voice_dir / "test-preview.wav"
+    wav_path.write_bytes(b"RIFF")
+
+    try:
+        client = TestClient(load_backend_app())
+        response = client.get("/api/project-files", params={"path": "projects/voices/test-preview.wav"})
+
+        assert response.status_code == 200
+        assert response.content == b"RIFF"
+    finally:
+        wav_path.unlink(missing_ok=True)
+
+
+def test_backend_serves_legacy_backend_project_voice_files() -> None:
+    project_voice_dir = REPOSITORY_ROOT / "backend" / "projects" / "voices"
+    project_voice_dir.mkdir(parents=True, exist_ok=True)
+    wav_path = project_voice_dir / "legacy-preview.wav"
+    wav_path.write_bytes(b"RIFF-LEGACY")
+
+    try:
+        client = TestClient(load_backend_app())
+        response = client.get("/api/project-files", params={"path": "projects/voices/legacy-preview.wav"})
+
+        assert response.status_code == 200
+        assert response.content == b"RIFF-LEGACY"
+    finally:
+        wav_path.unlink(missing_ok=True)
+
+
+def test_backend_rejects_project_file_path_traversal() -> None:
+    client = TestClient(load_backend_app())
+
+    response = client.get("/api/project-files", params={"path": "../README.md"})
+
+    assert response.status_code == 400

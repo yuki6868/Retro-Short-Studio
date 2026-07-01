@@ -177,6 +177,49 @@ describe("InspectorUseCase", () => {
     });
   });
 
+
+  it("exposes TalkAction voice state for Inspector preview without letting Engine play audio", () => {
+    const project = createProject();
+    project.updateScene("scene-1", (scene) => {
+      scene.updateAction("action-1", (action) => {
+        action.replacePayload({
+          text: "Hello",
+          speakerId: "3",
+          speakerCharacterId: "character-1",
+          voiceAssetId: "asset-voice-1",
+          generatedVoicePath: "voices/line001.wav",
+          generatedVoiceDuration: 1.25,
+          lipSyncEnabled: true,
+        });
+      });
+    });
+    const useCase = new InspectorUseCase({ project });
+
+    const state = useCase.selectAction("scene-1", "action-1");
+
+    expect(state.panel.type === "action" ? state.panel.voice : null).toEqual({
+      voiceAssetId: "asset-voice-1",
+      voiceAssetPath: "voices/line001.wav",
+      generatedVoicePath: "voices/line001.wav",
+      duration: 1.25,
+      canPlay: true,
+    });
+  });
+
+  it("disables TalkAction voice preview when no generated voice path or voice asset exists", () => {
+    const useCase = new InspectorUseCase({ project: createProject() });
+
+    const state = useCase.selectAction("scene-1", "action-1");
+
+    expect(state.panel.type === "action" ? state.panel.voice : null).toEqual({
+      voiceAssetId: null,
+      voiceAssetPath: null,
+      generatedVoicePath: null,
+      duration: null,
+      canPlay: false,
+    });
+  });
+
   it("rejects selection outside the project instead of creating phantom inspector panels", () => {
     const useCase = new InspectorUseCase({ project: createProject() });
 

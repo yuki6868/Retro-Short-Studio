@@ -94,7 +94,38 @@ describe("Inspector", () => {
       actionType: "talk",
       payload: { text: "Hello" },
       payloadPreview: JSON.stringify({ text: "Hello" }),
+      voice: { canPlay: false },
       fields: ["startTime", "endTime", "targetId", "payload"],
+    });
+  });
+
+
+  it("renders TalkAction voice preview state from the ActionInspector view state", () => {
+    const inspector = new Inspector({
+      inspector: createInspectorUseCase(actionState({
+        payload: {
+          text: "Hello",
+          speakerId: "3",
+          speakerCharacterId: "character-1",
+          voiceAssetId: "asset-voice-1",
+          generatedVoicePath: "voices/line001.wav",
+          generatedVoiceDuration: 1.25,
+          lipSyncEnabled: true,
+        },
+      })),
+    });
+
+    const view = inspector.render();
+
+    expect(view).toMatchObject({
+      type: "action",
+      voice: {
+        voiceAssetId: "asset-voice-1",
+        voiceAssetPath: "voices/line001.wav",
+        generatedVoicePath: "voices/line001.wav",
+        duration: 1.25,
+        canPlay: true,
+      },
     });
   });
 
@@ -219,6 +250,7 @@ function actionState(overrides: Partial<{ startTime: number; endTime: number; ta
         targetId: overrides.targetId ?? "character-1",
         payload: overrides.payload ?? { text: "Hello" },
       },
+      voice: createVoiceState(overrides.payload),
       editableFields: ["startTime", "endTime", "targetId", "payload"],
     },
   };
@@ -258,5 +290,18 @@ function createInspectorUseCase(
     changeSelectedActionTimeRange: overrides.changeSelectedActionTimeRange ?? (() => state),
     changeSelectedActionTarget: overrides.changeSelectedActionTarget ?? (() => state),
     changeSelectedActionPayload: overrides.changeSelectedActionPayload ?? (() => state),
+  };
+}
+
+
+function createVoiceState(payload: Record<string, unknown> | undefined): InspectorState["panel"] extends infer Panel ? Panel extends { type: "action"; voice: infer Voice } ? Voice : never : never {
+  const currentPayload = payload ?? { text: "Hello" };
+  const path = typeof currentPayload.generatedVoicePath === "string" ? currentPayload.generatedVoicePath : null;
+  return {
+    voiceAssetId: typeof currentPayload.voiceAssetId === "string" ? currentPayload.voiceAssetId : null,
+    voiceAssetPath: path,
+    generatedVoicePath: path,
+    duration: typeof currentPayload.generatedVoiceDuration === "number" ? currentPayload.generatedVoiceDuration : null,
+    canPlay: path !== null,
   };
 }

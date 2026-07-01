@@ -73,6 +73,13 @@ export type ActionInspectorViewState = {
   targetId: string | null;
   payload: Record<string, unknown>;
   payloadPreview: string;
+  voice: {
+    voiceAssetId: string | null;
+    voiceAssetPath: string | null;
+    generatedVoicePath: string | null;
+    duration: number | null;
+    canPlay: boolean;
+  } | null;
   fields: ["startTime", "endTime", "targetId", "payload"];
 };
 
@@ -138,6 +145,7 @@ export class Inspector {
         targetId: panel.action.targetId,
         payload: { ...panel.action.payload },
         payloadPreview: JSON.stringify(panel.action.payload),
+        voice: panel.voice === null ? null : { ...panel.voice },
         fields: panel.editableFields,
       };
     }

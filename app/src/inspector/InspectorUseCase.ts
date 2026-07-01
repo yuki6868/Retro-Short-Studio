@@ -1,6 +1,7 @@
 import type { ActionPayloadRecord, ActionSnapshot, AssetSnapshot, Project, SceneSnapshot } from "../../../core/src";
 import type { CharacterModelSnapshot } from "../../../core/src";
 import type { ActionDto, AssetDto, SceneDto } from "../../../shared";
+import { createTalkActionVoiceState, type TalkActionVoiceState } from "../action";
 import { SelectionState, type SelectionTarget } from "./SelectionState";
 
 export type InspectorPanelType = "empty" | "scene" | "character" | "action";
@@ -41,6 +42,7 @@ export type ActionInspectorPanelState = {
   title: "Action Inspector";
   selectedTargetLabel: string;
   action: ActionDto & { sceneId: string };
+  voice: TalkActionVoiceState | null;
   editableFields: ["startTime", "endTime", "targetId", "payload"];
 };
 
@@ -252,6 +254,7 @@ export class InspectorUseCase {
         title: "Action Inspector",
         selectedTargetLabel: `Action: ${action.actionType}`,
         action: { ...toActionDto(action), sceneId: target.sceneId },
+        voice: createTalkActionVoiceState({ action, assets: this.config.project.toSnapshot().assets }),
         editableFields: ["startTime", "endTime", "targetId", "payload"],
       };
     }

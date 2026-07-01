@@ -87,13 +87,13 @@ class VoiceVoxCoreProvider(VoiceProvider):
         synthesizer = self._get_synthesizer()
         wav_bytes = synthesizer.tts(request.text, style_id=style_id)
 
-        output_path = Path(request.output_path)
+        output_path = _resolve_output_path(request.output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(wav_bytes)
 
         return VoiceResult(
             voice_asset_id=None,
-            wav_path=str(output_path),
+            wav_path=request.output_path,
             duration=_wav_duration(output_path),
         )
 
@@ -131,6 +131,17 @@ def _style_id(value: str) -> int:
         return int(stripped)
     except ValueError as error:
         raise ValueError("VoiceRequest.speaker_id must be a numeric VOICEVOX style_id for local core generation.") from error
+
+
+def _repository_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _resolve_output_path(output_path: str) -> Path:
+    path = Path(output_path)
+    if path.is_absolute():
+        return path
+    return _repository_root() / path
 
 
 def _wav_duration(path: Path) -> float:

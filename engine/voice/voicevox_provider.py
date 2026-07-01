@@ -77,13 +77,13 @@ class VoiceVoxProvider(VoiceProvider):
             query,
         )
 
-        output_path = Path(request.output_path)
+        output_path = _resolve_output_path(request.output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(wav_bytes)
 
         return VoiceResult(
             voice_asset_id=None,
-            wav_path=str(output_path),
+            wav_path=request.output_path,
             duration=_wav_duration(output_path),
         )
 
@@ -93,6 +93,17 @@ def _speaker_id(value: str) -> str:
     if stripped == "":
         raise ValueError("VoiceRequest.speaker_id is required.")
     return stripped
+
+
+def _repository_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _resolve_output_path(output_path: str) -> Path:
+    path = Path(output_path)
+    if path.is_absolute():
+        return path
+    return _repository_root() / path
 
 
 def _wav_duration(path: Path) -> float:
