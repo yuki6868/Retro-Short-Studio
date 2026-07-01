@@ -54,6 +54,7 @@ class PixelArtFrameCapture:
     scale: int = 4
     palette: Palette = None  # type: ignore[assignment]
     font_repository: FontRepository | None = None
+    font_spec: FontSpec | None = None
     settings_repository: PreviewSettingsRepository | None = None
 
     def __post_init__(self) -> None:
@@ -77,8 +78,9 @@ class PixelArtFrameCapture:
         for drawable in drawables:
             self._draw_drawable(pixels, drawable)
 
+        font = self._resolve_font() if text_overlays else None
         if Image is not None and ImageDraw is not None:
-            png_bytes = self._encode_with_text_overlays(pixels, text_overlays)
+            png_bytes = self._encode_with_text_overlays(pixels, text_overlays, font)
         else:
             for overlay in text_overlays:
                 self._draw_text_bar(pixels, overlay)
@@ -89,17 +91,10 @@ class PixelArtFrameCapture:
         self,
         pixels: list[list[tuple[int, int, int, int]]],
         text_overlays: Sequence[dict[str, Any]],
+        font: Any,
     ) -> bytes:
         image = low_pixels_to_image(pixels, self.scale)
         draw = ImageDraw.Draw(image)
-        settings = self.settings_repository.load()
-
-        font = self.font_repository.get(
-            FontSpec(
-                name=settings.default_font,
-                size=settings.font_size,
-            )
-        )
 
         for overlay in text_overlays:
             text = str(overlay.get("text", ""))
@@ -133,6 +128,14 @@ class PixelArtFrameCapture:
         output = io.BytesIO()
         image.save(output, format="PNG")
         return output.getvalue()
+
+    def _resolve_font(self) -> Any:
+        settings = self.settings_repository.load()
+        font_spec = self.font_spec or FontSpec(
+            name=settings.default_font,
+            size=settings.font_size,
+        )
+        return self.font_repository.get(font_spec)
 
     def _draw_drawable(self, pixels: list[list[tuple[int, int, int, int]]], drawable: PyxelDrawable) -> None:
         x = drawable.x // self.scale
