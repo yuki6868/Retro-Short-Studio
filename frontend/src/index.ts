@@ -7,3 +7,5 @@ export * from "./timeline";
 export * from "./scene";
 
 export * from "./voice";
+
+export * from "./react/BrowserProjectPersistence";

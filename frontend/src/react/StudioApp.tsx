@@ -43,6 +43,7 @@ import {
   type StudioLayoutViewState,
   type TimelineItemViewState,
 } from "../index";
+import { loadBrowserProject, saveBrowserProject } from "./BrowserProjectPersistence";
 import "./studio-app.css";
 
 export function StudioApp(): ReactElement {
@@ -118,6 +119,10 @@ export function StudioApp(): ReactElement {
   const actionEditor = actionEditorRef.current;
   const generateVoice = generateVoiceRef.current;
   const voicePreviewPlayer = voicePreviewPlayerRef.current;
+
+  const persistCurrentProject = (): void => {
+    saveBrowserProject(requireProject(projectRef.current));
+  };
 
   if (!bootstrappedRef.current) {
     const initialSceneId = projectRef.current.toSnapshot().scenes[0]?.sceneId ?? null;
@@ -333,6 +338,7 @@ export function StudioApp(): ReactElement {
         setInspectorState(next);
         setSceneState(sceneFlow.state);
         setTimelineState(timeline.state);
+        persistCurrentProject();
         return next;
       },
       changeSelectedSceneDuration(input: ChangeSceneDurationInput): InspectorState {
@@ -340,34 +346,41 @@ export function StudioApp(): ReactElement {
         setInspectorState(next);
         setSceneState(sceneFlow.state);
         setTimelineState(timeline.state);
+        persistCurrentProject();
         return next;
       },
       changeSelectedSceneBackground(input: ChangeSceneBackgroundInput): InspectorState {
         const next = inspector.changeSelectedSceneBackground(input);
         setInspectorState(next);
+        setSceneState(sceneFlow.state);
+        persistCurrentProject();
         return next;
       },
       renameSelectedCharacter(input: RenameCharacterInput): InspectorState {
         const next = inspector.renameSelectedCharacter(input);
         setInspectorState(next);
+        persistCurrentProject();
         return next;
       },
       changeSelectedActionTimeRange(input: ChangeActionTimeRangeInput): InspectorState {
         const next = inspector.changeSelectedActionTimeRange(input);
         setInspectorState(next);
         setTimelineState(timeline.state);
+        persistCurrentProject();
         return next;
       },
       changeSelectedActionTarget(input: ChangeActionTargetInput): InspectorState {
         const next = inspector.changeSelectedActionTarget(input);
         setInspectorState(next);
         setTimelineState(timeline.state);
+        persistCurrentProject();
         return next;
       },
       changeSelectedActionPayload(input: ChangeActionPayloadInput): InspectorState {
         const next = inspector.changeSelectedActionPayload(input);
         setInspectorState(next);
         setTimelineState(timeline.state);
+        persistCurrentProject();
         return next;
       },
     }),
@@ -398,18 +411,21 @@ export function StudioApp(): ReactElement {
         const next = timeline.moveItem(input);
         setTimelineState(next);
         setInspectorState(inspector.selectAction(input.sceneId, input.actionId));
+        persistCurrentProject();
         return next;
       },
       resizeItemStart(input: ResizeTimelineItemStartInput): TimelineState {
         const next = timeline.resizeItemStart(input);
         setTimelineState(next);
         setInspectorState(inspector.selectAction(input.sceneId, input.actionId));
+        persistCurrentProject();
         return next;
       },
       resizeItemEnd(input: ResizeTimelineItemEndInput): TimelineState {
         const next = timeline.resizeItemEnd(input);
         setTimelineState(next);
         setInspectorState(inspector.selectAction(input.sceneId, input.actionId));
+        persistCurrentProject();
         return next;
       },
     }),
@@ -432,6 +448,7 @@ export function StudioApp(): ReactElement {
     const nextTimeline = timeline.showScene(sceneId);
     setTimelineState(nextTimeline);
     setInspectorState(inspector.selectAction(result.sceneId, result.action.actionId));
+    persistCurrentProject();
     return nextTimeline;
   };
 
@@ -444,6 +461,7 @@ export function StudioApp(): ReactElement {
       const nextInspector = inspector.selectAction(sceneId, actionId);
       setInspectorState(nextInspector);
       setTimelineState(timeline.showScene(sceneId));
+      persistCurrentProject();
       setVoiceStatus(`Generated voice: ${result.voiceAssetPath}`);
       return nextInspector;
     } catch (error) {
@@ -1113,6 +1131,12 @@ function toAssetDtoType(assetType: string): AssetDto["assetType"] {
 }
 
 function createInitialProject(): Project {
+  const storedProject = loadBrowserProject();
+
+  if (storedProject !== null) {
+    return storedProject;
+  }
+
   const project = Project.create({ projectId: "project-local-preview", projectName: "Local Preview" });
 
   project.addAsset(
