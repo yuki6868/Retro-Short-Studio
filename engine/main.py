@@ -3,7 +3,7 @@ from __future__ import annotations
 from engine.api import EngineCommandDispatcher, EngineRequest, EngineResult
 from engine.exporter import StubExporter
 from engine.renderer import PixelArtFrameCapture, PyxelRenderer, HeadlessPyxelApi
-from engine.voice import StubVoiceProvider
+from engine.voice import create_default_voice_provider
 
 
 class EngineApp:
@@ -27,7 +27,7 @@ def create_engine_app() -> EngineApp:
     return EngineApp(
         EngineCommandDispatcher(
             renderer=PyxelRenderer(pyxel_api=HeadlessPyxelApi(), frame_capture=PixelArtFrameCapture()),
-            voice_provider=StubVoiceProvider(),
+            voice_provider=create_default_voice_provider(),
             exporter=StubExporter(),
         )
     )
