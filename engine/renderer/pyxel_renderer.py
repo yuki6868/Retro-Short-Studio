@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol, Sequence
 
 from engine.api.commands import EngineRequest, EngineResult
@@ -176,7 +177,7 @@ class PyxelRenderer:
         if key in self._loaded_assets:
             return
 
-        self._pyxel.images[drawable.image_bank].load(0, 0, drawable.path)
+        self._pyxel.images[drawable.image_bank].load(0, 0, resolve_pyxel_asset_path(drawable.path))
         self._loaded_assets.add(key)
 
     def _draw_image(self, drawable: PyxelDrawable) -> None:
@@ -198,3 +199,22 @@ class PyxelRenderer:
         import pyxel  # type: ignore[import-not-found]
 
         return pyxel
+
+
+def resolve_pyxel_asset_path(path: str) -> str:
+    normalized = path.replace("\\", "/").strip()
+
+    if normalized == "" or Path(normalized).is_absolute() or ".." in Path(normalized).parts:
+        return path
+
+    repository_root = Path(__file__).resolve().parents[2]
+    candidates = [
+        (repository_root / normalized).resolve(),
+        (repository_root / "backend" / normalized).resolve(),
+    ]
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+
+    return path

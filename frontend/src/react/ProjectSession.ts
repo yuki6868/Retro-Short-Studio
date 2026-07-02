@@ -12,6 +12,8 @@ import {
   ActionEditorUseCase,
   AssetLibraryUseCase,
   GenerateVoiceUseCase,
+  ImportAssetUseCase,
+  type AssetFileStore,
   InspectorUseCase,
   PyxelPreviewEngineClient,
   SceneFlowUseCase,
@@ -37,12 +39,14 @@ export type StudioUseCases = {
   timeline: TimelineUseCase;
   actionEditor: ActionEditorUseCase;
   generateVoice: GenerateVoiceUseCase;
+  importAsset: ImportAssetUseCase;
 };
 
 export type ProjectSessionConfig = {
   project?: Project;
   idGenerator?: IdGenerator;
   engineClient?: EngineClient;
+  assetFileStore?: AssetFileStore;
 };
 
 export class ProjectSession {
@@ -55,6 +59,7 @@ export class ProjectSession {
     this.project = config.project ?? loadBrowserProject() ?? createDefaultStudioProject();
     const idGenerator = config.idGenerator ?? new CryptoRandomIdGenerator();
     this.engineClient = config.engineClient ?? new PyxelPreviewEngineClient();
+    const assetFileStore = config.assetFileStore ?? createUnavailableAssetFileStore();
 
     this.useCases = {
       assetLibrary: new AssetLibraryUseCase({ project: this.project, idGenerator }),
@@ -66,6 +71,11 @@ export class ProjectSession {
         project: this.project,
         engineClient: this.engineClient,
         idGenerator,
+      }),
+      importAsset: new ImportAssetUseCase({
+        project: this.project,
+        idGenerator,
+        fileStore: assetFileStore,
       }),
     };
   }
@@ -113,6 +123,17 @@ export class ProjectSession {
   getActiveSavedProjectId(): string | null {
     return getActiveBrowserProjectId();
   }
+}
+
+function createUnavailableAssetFileStore(): AssetFileStore {
+  return {
+    async exists(): Promise<boolean> {
+      return false;
+    },
+    async write(): Promise<void> {
+      throw new Error("Asset import file store is not configured.");
+    },
+  };
 }
 
 export function createDefaultStudioProject(): Project {

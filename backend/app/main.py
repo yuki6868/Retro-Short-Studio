@@ -4,6 +4,8 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from fastapi import Request
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -76,6 +78,29 @@ def generate_voice(body: dict[str, Any]) -> JSONResponse:
     )
 
 
+@app.get("/api/projects/{project_id}/files/exists")
+def project_file_exists(project_id: str, relativePath: str) -> JSONResponse:
+    resolved_file = _resolve_project_relative_file(project_id, relativePath)
+
+    return JSONResponse(content={"exists": resolved_file.is_file()})
+
+
+@app.put("/api/projects/{project_id}/files")
+async def write_project_file(project_id: str, relativePath: str, request: Request) -> JSONResponse:
+    resolved_file = _resolve_project_relative_file(project_id, relativePath)
+    resolved_file.parent.mkdir(parents=True, exist_ok=True)
+    resolved_file.write_bytes(await request.body())
+
+    return JSONResponse(
+        content={
+            "ok": True,
+            "projectId": project_id,
+            "relativePath": _normalize_project_relative_path(relativePath),
+            "projectPath": f"projects/{project_id}",
+        }
+    )
+
+
 @app.get("/api/project-files")
 def project_file(path: str) -> FileResponse:
     requested_path = path.strip()
@@ -89,6 +114,43 @@ def project_file(path: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Project file was not found.")
 
     return FileResponse(resolved_file)
+
+
+def _resolve_project_relative_file(project_id: str, relative_path: str) -> Path:
+    safe_project_id = _normalize_project_id(project_id)
+    safe_relative_path = _normalize_project_relative_path(relative_path)
+    project_root = (REPOSITORY_ROOT / "projects" / safe_project_id).resolve()
+    resolved_file = (project_root / safe_relative_path).resolve()
+
+    try:
+        resolved_file.relative_to(project_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Project file path is outside the project folder.") from exc
+
+    return resolved_file
+
+
+def _normalize_project_id(project_id: str) -> str:
+    normalized = project_id.strip()
+
+    if normalized == "" or "/" in normalized or "\\" in normalized or normalized in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Project id is invalid.")
+
+    return normalized
+
+
+def _normalize_project_relative_path(relative_path: str) -> str:
+    normalized = relative_path.replace("\\", "/").strip()
+
+    if normalized == "" or normalized.startswith("/"):
+        raise HTTPException(status_code=400, detail="Project-relative path is required.")
+
+    path = Path(normalized)
+
+    if path.is_absolute() or ".." in path.parts or "." in path.parts:
+        raise HTTPException(status_code=400, detail="Project file path is outside the project folder.")
+
+    return "/".join(path.parts)
 
 
 def _resolve_project_file(requested_path: str) -> Path:

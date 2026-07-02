@@ -1,4 +1,4 @@
-import type { AddAssetInput, AssetLibraryState, ProjectAssetType, UpdateAssetInput } from "../../../app/src";
+import type { AddAssetInput, AssetLibraryState, ImportAssetInput, ImportableAssetType, ProjectAssetType, UpdateAssetInput } from "../../../app/src";
 import type { AssetDto, AssetTypeDto } from "../../../shared";
 
 export type AssetBrowserUseCase = {
@@ -6,6 +6,7 @@ export type AssetBrowserUseCase = {
   addAsset(input: AddAssetInput): AssetLibraryState;
   updateAsset(input: UpdateAssetInput): AssetLibraryState;
   selectAsset(assetId: string): AssetLibraryState;
+  importAsset?(input: ImportAssetInput): Promise<AssetLibraryState>;
 };
 
 export type AssetBrowserProps = {
@@ -33,6 +34,7 @@ export type AssetBrowserViewState = {
     disabled: boolean;
   };
   acceptedTypes: ProjectAssetType[];
+  importableTypes: ImportableAssetType[];
 };
 
 export class AssetBrowser {
@@ -61,6 +63,15 @@ export class AssetBrowser {
     return this.render();
   }
 
+  async importFile(input: ImportAssetInput): Promise<AssetBrowserViewState> {
+    if (this.props.assets.importAsset === undefined) {
+      throw new Error("Asset import is not configured.");
+    }
+
+    this.latestState = await this.props.assets.importAsset(input);
+    return this.render();
+  }
+
   private createViewState(state: AssetLibraryState): AssetBrowserViewState {
     const visibleAssets = compactDuplicateVoiceAssets(state.assets, state.selectedAssetId);
     const selectedAssetId = visibleAssets.some((asset) => asset.assetId === state.selectedAssetId) ? state.selectedAssetId : null;
@@ -76,6 +87,7 @@ export class AssetBrowser {
         disabled: false,
       },
       acceptedTypes: ["background", "character_image", "voice", "bgm", "se"],
+      importableTypes: ["background", "character_image", "voice"],
     };
   }
 }

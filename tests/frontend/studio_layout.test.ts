@@ -75,6 +75,7 @@ describe("StudioLayout", () => {
       emptyText: "",
       addButton: { label: "Add Asset", disabled: false },
       acceptedTypes: ["background" as const],
+      importableTypes: ["background" as const],
     };
 
     const view = new StudioLayout({

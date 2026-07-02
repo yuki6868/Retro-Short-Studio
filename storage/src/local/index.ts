@@ -8,3 +8,4 @@ export {
   type ProjectFolderName,
   type ProjectFolderPaths,
 } from "./ProjectFolderLayout";
+export * from "./LocalProjectAssetFileStore";

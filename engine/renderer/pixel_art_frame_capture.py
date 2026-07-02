@@ -5,6 +5,7 @@ import io
 import struct
 import zlib
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Sequence
 
 from .font_repository import FontRepository, FontSpec, LocalFontRepository
@@ -142,6 +143,10 @@ class PixelArtFrameCapture:
         y = drawable.y // self.scale
         w = max(1, int(drawable.width * drawable.scale) // self.scale)
         h = max(1, int(drawable.height * drawable.scale) // self.scale)
+
+        if self._draw_image_file(pixels, drawable, x, y, w, h):
+            return
+
         color_index = 12 if drawable.z_index < 0 else 11
         outline = self._color(7)
         fill = self._color(color_index)
@@ -149,6 +154,35 @@ class PixelArtFrameCapture:
         self._rect(pixels, x + 2, y + 2, w, h, shadow)
         self._rect(pixels, x, y, w, h, outline)
         self._rect(pixels, x + 2, y + 2, max(1, w - 4), max(1, h - 4), fill)
+
+    def _draw_image_file(self, pixels: list[list[tuple[int, int, int, int]]], drawable: PyxelDrawable, x: int, y: int, w: int, h: int) -> bool:
+        if Image is None:
+            return False
+
+        resolved_path = resolve_project_file_path(drawable.path)
+        if resolved_path is None or not resolved_path.is_file():
+            return False
+
+        try:
+            with Image.open(resolved_path) as source_image:
+                rgba = source_image.convert("RGBA").resize((w, h))
+                image_pixels = rgba.load()
+                for py in range(h):
+                    target_y = y + py
+                    if target_y < 0 or target_y >= len(pixels):
+                        continue
+                    row = pixels[target_y]
+                    for px in range(w):
+                        target_x = x + px
+                        if target_x < 0 or target_x >= len(row):
+                            continue
+                        red, green, blue, alpha = image_pixels[px, py]
+                        if alpha == 0:
+                            continue
+                        row[target_x] = (red, green, blue, alpha)
+            return True
+        except Exception:
+            return False
 
     def _draw_text_bar(self, pixels: list[list[tuple[int, int, int, int]]], overlay: dict[str, Any]) -> None:
         text = str(overlay.get("text", ""))
@@ -201,6 +235,25 @@ class PixelArtFrameCapture:
     def _color(self, index: int) -> tuple[int, int, int, int]:
         return self.palette[index % len(self.palette)]
 
+
+
+def resolve_project_file_path(path: str) -> Path | None:
+    normalized = path.replace("\\", "/").strip()
+
+    if normalized == "" or normalized.startswith("/") or ".." in Path(normalized).parts:
+        return None
+
+    repository_root = Path(__file__).resolve().parents[2]
+    candidates = [
+        (repository_root / normalized).resolve(),
+        (repository_root / "backend" / normalized).resolve(),
+    ]
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+
+    return candidates[0]
 
 def pixel_text_width(text: str) -> int:
     return max(0, len(text) * 4 - 1)

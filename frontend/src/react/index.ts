@@ -5,3 +5,7 @@ export * from "./VoicePreviewController";
 export * from "./PreviewController";
 export * from "./StudioWorkspace";
 export * from "./StudioAppController";
+export * from "./BrowserAssetFileStore";
+export * from "./BrowserProjectFolderFileStore";
+export * from "./BackendProjectFolderFileStore";
+export * from "./ProjectDtoMapper";

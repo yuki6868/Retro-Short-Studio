@@ -13,12 +13,14 @@ import type {
   TimelineState,
   AddAssetInput,
   AddSceneInput,
+  ImportableAssetType,
 } from "../../../app/src";
 import { TalkActionInspector, TimelineInteractionMapper, type BrowserProjectSummary, type StudioLayoutViewState, type TimelineItemViewState } from "../index";
 
 export type StudioWorkspaceProps = {
   view: StudioLayoutViewState;
   onAddAsset(input: AddAssetInput): AssetLibraryState;
+  onImportAsset?(input: { assetType: ImportableAssetType; file: File }): Promise<AssetLibraryState>;
   onAddScene(input: AddSceneInput): SceneFlowState;
   onDeleteScene(sceneId: string): SceneFlowState;
   onMoveScene(input: MoveSceneInput): SceneFlowState;
@@ -37,6 +39,7 @@ export type StudioWorkspaceProps = {
   onPlayActionVoice?: (voiceAssetPath: string) => Promise<void>;
   onStopActionVoice?: () => void;
   voiceStatus?: string | null;
+  assetImportStatus?: string | null;
   onSetTimelinePlayhead?: (time: number) => TimelineState;
   onSetTimelineScale?: (timeScale: number) => TimelineState;
   onMoveTimelineItem?: (input: MoveTimelineItemInput) => TimelineState;
@@ -51,12 +54,22 @@ export type StudioWorkspaceProps = {
   onSaveProject?: (projectName: string) => void;
   onSaveProjectAsNew?: (projectName: string) => void;
   onOpenProject?: (projectId: string) => void;
+  onChooseProjectFolder?: () => Promise<void>;
+  projectFolderStatus?: string | null;
   projectPersistenceStatus?: string | null;
 };
+
+export function shouldApplyAssetSelectionToSceneBackground(input: {
+  assetType: string;
+  selectedSceneId: string | null;
+}): boolean {
+  return input.assetType === "background" && input.selectedSceneId !== null;
+}
 
 export function StudioWorkspace({
   view,
   onAddAsset,
+  onImportAsset,
   onAddScene,
   onDeleteScene,
   onMoveScene,
@@ -75,6 +88,7 @@ export function StudioWorkspace({
   onPlayActionVoice,
   onStopActionVoice,
   voiceStatus,
+  assetImportStatus,
   onSetTimelinePlayhead,
   onSetTimelineScale,
   onMoveTimelineItem,
@@ -89,12 +103,15 @@ export function StudioWorkspace({
   onSaveProject,
   onSaveProjectAsNew,
   onOpenProject,
+  onChooseProjectFolder,
+  projectFolderStatus,
   projectPersistenceStatus,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const [isSeekEditing, setIsSeekEditing] = useState(false);
   const preview = view.layout.center.preview;
   const [saveProjectName, setSaveProjectName] = useState(projectName);
+  const [importAssetType, setImportAssetType] = useState<ImportableAssetType>("background");
   const [openProjectId, setOpenProjectId] = useState(selectedSavedProjectId ?? savedProjects[0]?.projectId ?? "");
 
   useEffect(() => {
@@ -216,6 +233,10 @@ export function StudioWorkspace({
           <button disabled={openProjectId.length === 0} onClick={() => onOpenProject?.(openProjectId)} type="button">
             Open Project
           </button>
+          <button disabled={onChooseProjectFolder === undefined} onClick={() => void onChooseProjectFolder?.()} type="button">
+            Choose Project Folder
+          </button>
+          {projectFolderStatus !== null && projectFolderStatus !== undefined ? <output>{projectFolderStatus}</output> : null}
           {projectPersistenceStatus !== null ? <output>{projectPersistenceStatus}</output> : null}
         </nav>
       </header>
@@ -241,17 +262,73 @@ export function StudioWorkspace({
                 >
                   {assetBrowser.addButton.label}
                 </button>
+                <label>
+                  Import type
+                  <select
+                    aria-label="Import asset type"
+                    onChange={(event: ChangeEvent<HTMLSelectElement>) => setImportAssetType(event.target.value as ImportableAssetType)}
+                    value={importAssetType}
+                  >
+                    {assetBrowser.importableTypes.map((assetType) => (
+                      <option key={assetType} value={assetType}>
+                        {assetType}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Import Asset
+                  <input
+                    aria-label="Import asset file"
+                    disabled={onImportAsset === undefined}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                      const file = event.currentTarget.files?.[0];
+
+                      if (file !== undefined) {
+                        void onImportAsset?.({ assetType: importAssetType, file }).catch(() => {
+                          // Import errors are surfaced through assetImportStatus by the controller.
+                        });
+                      }
+
+                      event.currentTarget.value = "";
+                    }}
+                    type="file"
+                  />
+                </label>
+                {assetImportStatus !== null && assetImportStatus !== undefined ? <output>{assetImportStatus}</output> : null}
                 {assetBrowser.assets.length === 0 ? <p>{assetBrowser.emptyText}</p> : null}
                 <ul aria-label="Asset list">
                   {assetBrowser.assets.map((asset) => (
                     <li key={asset.assetId}>
                       <button
                         aria-pressed={asset.selected}
-                        onClick={() => onSelectAsset(asset.assetId)}
+                        onClick={() => {
+                          onSelectAsset(asset.assetId);
+
+                          if (
+                            shouldApplyAssetSelectionToSceneBackground({
+                              assetType: asset.assetType,
+                              selectedSceneId: sceneInspector?.sceneId ?? null,
+                            })
+                          ) {
+                            onEditSceneBackground?.(sceneInspector!.sceneId, asset.assetId);
+                          }
+                        }}
                         type="button"
                       >
                         {asset.assetName} / {asset.assetType}
                       </button>
+                      {shouldApplyAssetSelectionToSceneBackground({
+                        assetType: asset.assetType,
+                        selectedSceneId: sceneInspector?.sceneId ?? null,
+                      }) && sceneInspector !== null ? (
+                        <button
+                          onClick={() => onEditSceneBackground?.(sceneInspector.sceneId, asset.assetId)}
+                          type="button"
+                        >
+                          Set as scene background
+                        </button>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

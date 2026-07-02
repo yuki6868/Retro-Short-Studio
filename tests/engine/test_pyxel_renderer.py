@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import base64
+import io
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from engine.api import EngineRequest
-from engine.renderer import PyxelRenderer
+from engine.renderer import PyxelDrawable, PyxelRenderer
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass
@@ -286,3 +292,41 @@ def test_local_font_repository_defaults_to_assets_fonts() -> None:
 
     assert repository.root.name == "fonts"
     assert repository.root.parent.name == "assets"
+
+
+def test_pixel_art_frame_capture_draws_saved_background_image_pixels() -> None:
+    from PIL import Image
+    from engine.renderer import PixelArtFrameCapture
+
+    project_dir = REPOSITORY_ROOT / "projects" / "project-render-image-test" / "assets" / "backgrounds"
+    image_path = project_dir / "solid-red.png"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    Image.new("RGBA", (4, 4), (255, 0, 0, 255)).save(image_path)
+
+    try:
+        capture = PixelArtFrameCapture(scale=4)
+        frame_path = capture.capture(
+            width=16,
+            height=16,
+            clear_color=1,
+            drawables=[
+                PyxelDrawable(
+                    asset_id="asset-bg-red",
+                    path="projects/project-render-image-test/assets/backgrounds/solid-red.png",
+                    x=0,
+                    y=0,
+                    width=16,
+                    height=16,
+                    image_bank=0,
+                    z_index=-10000,
+                )
+            ],
+            text_overlays=[],
+        )
+
+        assert frame_path.startswith("data:image/png;base64,")
+        png_bytes = base64.b64decode(frame_path.split(",", 1)[1])
+        with Image.open(io.BytesIO(png_bytes)) as rendered:
+            assert rendered.convert("RGBA").getpixel((2, 2)) == (255, 0, 0, 255)
+    finally:
+        image_path.unlink(missing_ok=True)

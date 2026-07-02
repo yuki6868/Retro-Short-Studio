@@ -72,7 +72,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
         : {
             background: {
               assetId: backgroundAsset.assetId,
-              path: backgroundAsset.assetPath,
+              path: toProjectAssetPath(request.projectId, backgroundAsset.assetPath),
               x: 0,
               y: 0,
               width: request.width,
@@ -83,7 +83,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
           }),
       characters: characterIds.map((characterId, index) => ({
         assetId: characterAsset?.assetId ?? characterId,
-        path: characterAsset?.assetPath ?? "assets/characters/placeholder.png",
+        path: toProjectAssetPath(request.projectId, characterAsset?.assetPath ?? "assets/characters/placeholder.png"),
         x: Math.round(request.width / 2 - 96 + moveX + index * 24),
         y: Math.round(request.height * 0.42 + moveY),
         width: 192,
@@ -111,6 +111,22 @@ function buildTextOverlays(request: PreviewRequest, characters: CharacterDto[], 
   }
 
   return overlays;
+}
+
+function toProjectAssetPath(projectId: string, assetPath: string): string {
+  const normalizedAssetPath = assetPath.replace(/\\/g, "/").replace(/^\/+/, "");
+
+  if (normalizedAssetPath.startsWith("projects/")) {
+    return normalizedAssetPath;
+  }
+
+  const normalizedProjectId = projectId.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+
+  if (normalizedProjectId.length === 0 || normalizedProjectId.includes("/") || normalizedProjectId === "." || normalizedProjectId === "..") {
+    throw new Error("Preview projectId must be a single project folder name.");
+  }
+
+  return `projects/${normalizedProjectId}/${normalizedAssetPath}`;
 }
 
 function findAsset(assets: AssetDto[], assetId: string | null): AssetDto | null {

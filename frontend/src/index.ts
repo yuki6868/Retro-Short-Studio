@@ -9,3 +9,5 @@ export * from "./scene";
 export * from "./voice";
 
 export * from "./react/BrowserProjectPersistence";
+
+export { shouldApplyAssetSelectionToSceneBackground } from "./react/StudioWorkspace";

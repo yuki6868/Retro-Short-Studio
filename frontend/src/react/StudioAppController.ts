@@ -11,6 +11,7 @@ import {
 } from "../index";
 import {
   type AddAssetInput,
+  type ImportAssetInput,
   type AddSceneInput,
   type AssetLibraryState,
   type ChangeActionPayloadInput,
@@ -32,8 +33,10 @@ import {
   type TimelineState,
   type UpdateAssetInput,
 } from "../../../app/src";
+import { ProjectJsonSerializer } from "../../../storage/src/local/ProjectJsonSerializer";
 import { findSelectedSceneDto, PreviewController } from "./PreviewController";
 import { createStudioCompositionRoot } from "./StudioCompositionRoot";
+import { projectSnapshotToProjectDto } from "./ProjectDtoMapper";
 import type { StudioWorkspaceProps } from "./StudioWorkspace";
 
 export type StudioAppControllerConfig = {
@@ -52,20 +55,44 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   }
 
   const projectSession = compositionRootRef.current.projectSession;
+  const projectFolderFileStore = compositionRootRef.current.projectFolderFileStore;
   const voicePreviewController = compositionRootRef.current.voicePreviewController;
   const project = projectSession.project;
-  const { assetLibrary, sceneFlow, inspector, timeline, actionEditor } = projectSession.useCases;
+  const { assetLibrary, importAsset, sceneFlow, inspector, timeline, actionEditor } = projectSession.useCases;
 
   projectSession.bootstrapSelection();
 
   const persistCurrentProject = (): void => {
     projectSession.persist();
+    void persistProjectJsonToLocalFolder();
+  };
+
+  const persistProjectJsonToLocalFolder = async (): Promise<void> => {
+    if (!projectFolderFileStore.hasProjectFolder) {
+      return;
+    }
+
+    const serializer = new ProjectJsonSerializer();
+    const projectJson = serializer.serialize(projectSnapshotToProjectDto(project.toSnapshot()));
+    const result = await projectFolderFileStore.writeProjectJson(projectJson);
+    setProjectFolderStatus(`Local project saved: ${result.folderName}/${result.projectJsonPath}`);
+  };
+
+  const chooseProjectFolderFromToolbar = async (): Promise<void> => {
+    try {
+      const folderName = await projectFolderFileStore.chooseProjectFolder();
+      setProjectFolderStatus(`Project folder selected: ${folderName}`);
+      await persistProjectJsonToLocalFolder();
+    } catch (error) {
+      setProjectFolderStatus(error instanceof Error ? error.message : "Project folder selection failed");
+    }
   };
 
   const saveProjectFromToolbar = (projectName: string): void => {
     const savedProject = projectSession.persist(projectName);
     setSavedProjects(projectSession.listSavedProjects());
     setSelectedSavedProjectId(savedProject?.projectId ?? projectSession.getActiveSavedProjectId());
+    void persistProjectJsonToLocalFolder();
     setProjectPersistenceStatus(savedProject === null ? "Project save is unavailable" : `Project saved: ${savedProject.projectName}`);
   };
 
@@ -91,6 +118,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
       return;
     }
 
+    void persistProjectJsonToLocalFolder();
     setProjectPersistenceStatus(`Project saved as new: ${savedProject.projectName}`);
     config.onRequestWorkspaceReload?.();
   };
@@ -111,7 +139,13 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
   const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
+  const [assetImportStatus, setAssetImportStatus] = useState<string | null>(null);
   const [projectPersistenceStatus, setProjectPersistenceStatus] = useState<string | null>(null);
+  const [projectFolderStatus, setProjectFolderStatus] = useState<string | null>(() =>
+    projectFolderFileStore.hasProjectFolder && projectFolderFileStore.projectFolderName !== null
+      ? `Project folder selected: ${projectFolderFileStore.projectFolderName}`
+      : "Choose a project folder before importing assets",
+  );
   const [savedProjects, setSavedProjects] = useState(() => projectSession.listSavedProjects());
   const [selectedSavedProjectId, setSelectedSavedProjectId] = useState<string | null>(() =>
     projectSession.getActiveSavedProjectId(),
@@ -257,8 +291,27 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
         setAssetState(next);
         return next;
       },
+      async importAsset(input: ImportAssetInput): Promise<AssetLibraryState> {
+        setAssetImportStatus(`Importing asset: ${input.file.name}`);
+
+        try {
+          const folderName = await projectFolderFileStore.ensureProjectFolderSelected();
+          setProjectFolderStatus(`Project folder selected: ${folderName}`);
+
+          const result = await importAsset.importAsset(input);
+          setAssetState(result.assetState);
+          projectSession.persist();
+          await persistProjectJsonToLocalFolder();
+          setAssetImportStatus(`Imported asset: ${result.asset.assetName} -> ${result.asset.assetPath}`);
+          return result.assetState;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Asset import failed";
+          setAssetImportStatus(message);
+          return assetLibrary.state;
+        }
+      },
     }),
-    [assetLibrary, assetState],
+    [assetLibrary, assetState, importAsset, projectFolderFileStore, projectSession],
   );
 
   const sceneFlowUseCase = useMemo(
@@ -344,6 +397,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
         const next = inspector.changeSelectedSceneBackground(input);
         setInspectorState(next);
         setSceneState(sceneFlow.state);
+        void previewUseCase.seek(previewState.currentTime);
         persistCurrentProject();
         return next;
       },
@@ -483,6 +537,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   return {
     view: layout,
     onAddAsset: assetBrowserUseCase.addAsset,
+    onImportAsset: assetBrowserUseCase.importAsset,
     onAddScene: sceneFlowUseCase.addScene,
     onDeleteScene: sceneFlowUseCase.deleteScene,
     onMoveScene: sceneFlowUseCase.moveScene,
@@ -505,6 +560,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     onPlayActionVoice: playSelectedActionVoice,
     onStopActionVoice: stopSelectedActionVoice,
     voiceStatus,
+    assetImportStatus,
     projectName: project.toSnapshot().projectName,
     savedProjects,
     selectedSavedProjectId,

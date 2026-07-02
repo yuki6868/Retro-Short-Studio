@@ -53,14 +53,14 @@ function createWorkspaceProps(overrides: Partial<StudioWorkspaceProps> = {}): St
 
   return {
     view,
-    onAddAsset: () => ({ title: "Asset Browser", assets: [], selectedAssetId: null, assetCount: 0, emptyText: "", addButton: { label: "Add Asset", disabled: false }, acceptedTypes: [] }),
+    onAddAsset: () => ({ title: "Asset Browser", assets: [], selectedAssetId: null, assetCount: 0, emptyText: "", addButton: { label: "Add Asset", disabled: false }, acceptedTypes: [], importableTypes: [] }),
     onAddScene: () => ({ title: "Scene Flow", scenes: [], selectedSceneId: null, sceneCount: 0, emptyText: "", addButton: { label: "Add Scene", disabled: false }, canReorder: false }),
     onDeleteScene: () => ({ title: "Scene Flow", scenes: [], selectedSceneId: null, sceneCount: 0, emptyText: "", addButton: { label: "Add Scene", disabled: false }, canReorder: false }),
     onMoveScene: () => ({ title: "Scene Flow", scenes: [], selectedSceneId: null, sceneCount: 0, emptyText: "", addButton: { label: "Add Scene", disabled: false }, canReorder: false }),
     onPlay: async () => initialPreviewState(),
     onPause: () => initialPreviewState(),
     onSeek: async () => initialPreviewState(),
-    onSelectAsset: () => ({ title: "Asset Browser", assets: [], selectedAssetId: null, assetCount: 0, emptyText: "", addButton: { label: "Add Asset", disabled: false }, acceptedTypes: [] }),
+    onSelectAsset: () => ({ title: "Asset Browser", assets: [], selectedAssetId: null, assetCount: 0, emptyText: "", addButton: { label: "Add Asset", disabled: false }, acceptedTypes: [], importableTypes: [] }),
     onSelectScene: () => ({ title: "Scene Flow", scenes: [], selectedSceneId: null, sceneCount: 0, emptyText: "", addButton: { label: "Add Scene", disabled: false }, canReorder: false }),
     onEditSceneName: () => emptyInspectorState(),
     onEditSceneDuration: () => emptyInspectorState(),

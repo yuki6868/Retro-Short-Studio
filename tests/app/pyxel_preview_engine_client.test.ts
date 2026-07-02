@@ -12,8 +12,8 @@ describe("PyxelPreviewEngineClient", () => {
 
     expect(result.ok).toBe(true);
     expect(result.payload?.framePath).toMatch(/^data:image\/png;base64,/);
-    expect(transport.lastFrame?.background?.path).toBe("assets/backgrounds/opening.png");
-    expect(transport.lastFrame?.characters[0]?.path).toBe("assets/characters/zunda/normal.png");
+    expect(transport.lastFrame?.background?.path).toBe("projects/project-1/assets/backgrounds/opening.png");
+    expect(transport.lastFrame?.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/normal.png");
     expect(transport.lastFrame?.textOverlays.some((overlay) => overlay.text.includes("Hello Pyxel"))).toBe(true);
     expect(transport.lastFrame?.activeActionTypes).toEqual(["talk"]);
   });
