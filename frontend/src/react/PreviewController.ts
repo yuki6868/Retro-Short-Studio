@@ -23,6 +23,7 @@ export type PreviewControllerConfig = {
   getTimeline(): TimelineUseCase;
   applyPreviewState(state: PreviewState): PreviewState;
   setTimelineState(state: TimelineState): void;
+  syncPreviewCurrentTime?(input: { currentTime: number }): TimelineState;
   createInitialPreviewState(): PreviewState;
   audioController?: PreviewAudioController;
   createPreviewSceneUseCase?(config: PreviewSceneUseCaseConfig): PreviewSceneUseCaseLike;
@@ -122,7 +123,10 @@ export class PreviewController {
     const previous = this.latestState;
     const normalized = { ...next, playbackStatus };
     this.syncAudio(previous, normalized, renderMode);
-    this.config.setTimelineState(this.config.getTimeline().setPlayhead({ time: normalized.currentTime }));
+    const timelineState =
+      this.config.syncPreviewCurrentTime?.({ currentTime: normalized.currentTime }) ??
+      this.config.getTimeline().setPlayhead({ time: normalized.currentTime });
+    this.config.setTimelineState(timelineState);
     return this.config.applyPreviewState(normalized);
   }
   private syncAudio(previous: PreviewState, next: PreviewState, renderMode: PreviewRenderMode): void {

@@ -12,6 +12,7 @@ export type PreviewSceneUseCaseConfig = {
   height: number;
   fps: number;
   initialTime?: number;
+  audioController?: never;
 };
 
 export class PreviewSceneUseCase {

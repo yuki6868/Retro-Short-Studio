@@ -459,9 +459,10 @@ describe("PreviewController pause priority", () => {
 
     expect(next.currentTime).toBeCloseTo(1.1);
     expect(latestPreviewState.currentTime).toBeCloseTo(1.1);
-    expect(resolveAudioPlay).not.toBeNull();
+    const resolve = resolveAudioPlay as (() => void) | null;
+    expect(resolve).not.toBeNull();
 
-    resolveAudioPlay?.();
+    resolve?.();
     await Promise.resolve();
   });
 

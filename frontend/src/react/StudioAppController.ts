@@ -22,6 +22,7 @@ import {
   type InspectorState,
   type MoveSceneInput,
   type MoveTimelineItemInput,
+  PreviewTimelineSyncUseCase,
   type PreviewState,
   type RenameCharacterInput,
   type RenameSceneInput,
@@ -62,6 +63,42 @@ export function useStudioAppController(): StudioWorkspaceProps {
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
   const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
+  const previewTimelineSyncRef = useRef<PreviewTimelineSyncUseCase | null>(null);
+
+  if (previewTimelineSyncRef.current === null) {
+    previewTimelineSyncRef.current = new PreviewTimelineSyncUseCase({ project, timeline, inspector });
+  }
+
+  const previewTimelineSync = previewTimelineSyncRef.current;
+
+  const applyPreviewTimelineSync = (currentTime: number): TimelineState => {
+    const result = previewTimelineSync.syncPreviewCurrentTime({
+      sceneId: sceneFlow.state.selectedSceneId,
+      currentTime,
+    });
+
+    if (result.inspectorState !== null) {
+      setInspectorState(result.inspectorState);
+    }
+
+    return result.timelineState;
+  };
+
+  const seekTimelineAndPreview = (time: number): TimelineState => {
+    const result = previewTimelineSync.seekTimeline({
+      sceneId: sceneFlow.state.selectedSceneId,
+      time,
+    });
+
+    setTimelineState(result.timelineState);
+
+    if (result.inspectorState !== null) {
+      setInspectorState(result.inspectorState);
+    }
+
+    void previewUseCase.seek(result.timelineState.playhead);
+    return result.timelineState;
+  };
 
   const selectedSceneForPreview = findSelectedSceneDto(project, sceneFlow.state.selectedSceneId);
   const selectedSceneDuration = selectedSceneForPreview?.duration ?? 0;
@@ -82,6 +119,7 @@ export function useStudioAppController(): StudioWorkspaceProps {
       getTimeline: () => timeline,
       applyPreviewState,
       setTimelineState,
+      syncPreviewCurrentTime: ({ currentTime }) => applyPreviewTimelineSync(currentTime),
       createInitialPreviewState,
       audioController: compositionRootRef.current.previewAudioController,
     });
@@ -412,7 +450,7 @@ export function useStudioAppController(): StudioWorkspaceProps {
     onPlayActionVoice: playSelectedActionVoice,
     onStopActionVoice: stopSelectedActionVoice,
     voiceStatus,
-    onSetTimelinePlayhead: (time) => timelineUseCase.setPlayhead({ time }),
+    onSetTimelinePlayhead: seekTimelineAndPreview,
     onSetTimelineScale: (timeScale) => timelineUseCase.setTimeScale({ timeScale }),
     onMoveTimelineItem: timelineUseCase.moveItem,
     onResizeTimelineItemStart: timelineUseCase.resizeItemStart,
