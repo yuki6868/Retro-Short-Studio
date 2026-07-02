@@ -17,6 +17,10 @@ export type UpdateAssetInput = {
   assetPath?: string;
 };
 
+export type DeleteAssetInput = {
+  assetId: string;
+};
+
 export type AssetLibraryState = {
   assets: AssetDto[];
   selectedAssetId: string | null;
@@ -50,6 +54,19 @@ export class AssetLibraryUseCase {
 
     this.config.project.addAsset(asset);
     this.selectedAssetId = asset.toSnapshot().assetId;
+    return this.createState();
+  }
+
+  deleteAsset(input: DeleteAssetInput): AssetLibraryState {
+    const assetId = normalizeAssetId(input.assetId);
+    this.ensureAssetExists(assetId);
+
+    this.config.project.removeAsset(assetId);
+
+    if (this.selectedAssetId === assetId) {
+      this.selectedAssetId = null;
+    }
+
     return this.createState();
   }
 

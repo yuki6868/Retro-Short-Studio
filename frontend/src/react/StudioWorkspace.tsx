@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type PointerEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent, type ReactElement } from "react";
 
 import type {
   AssetLibraryState,
@@ -28,6 +28,7 @@ export type StudioWorkspaceProps = {
   onPause(): PreviewState;
   onSeek(time: number): Promise<PreviewState>;
   onSelectAsset(assetId: string): AssetLibraryState;
+  onDeleteAsset?(assetId: string): AssetLibraryState;
   onSelectScene(sceneId: string): SceneFlowState;
   onEditSceneName(sceneId: string, sceneName: string): InspectorState;
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
@@ -77,6 +78,7 @@ export function StudioWorkspace({
   onPause,
   onSeek,
   onSelectAsset,
+  onDeleteAsset,
   onSelectScene,
   onEditSceneName,
   onEditSceneDuration,
@@ -109,6 +111,7 @@ export function StudioWorkspace({
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const [isSeekEditing, setIsSeekEditing] = useState(false);
+  const lastCommittedSeekValueRef = useRef<number | null>(null);
   const preview = view.layout.center.preview;
   const [saveProjectName, setSaveProjectName] = useState(projectName);
   const [importAssetType, setImportAssetType] = useState<ImportableAssetType>("background");
@@ -128,12 +131,17 @@ export function StudioWorkspace({
     setOpenProjectId(selectedSavedProjectId ?? savedProjects[0]?.projectId ?? "");
   }, [savedProjects, selectedSavedProjectId]);
 
-  const commitSeek = (): void => {
-    if (!Number.isFinite(seekValue)) {
+  const commitSeek = (time: number): void => {
+    if (!Number.isFinite(time)) {
       return;
     }
 
-    void onSeek(seekValue);
+    if (lastCommittedSeekValueRef.current === time) {
+      return;
+    }
+
+    lastCommittedSeekValueRef.current = time;
+    void onSeek(time);
   };
 
   const assetBrowser = view.layout.left[0].assetBrowser;
@@ -318,6 +326,13 @@ export function StudioWorkspace({
                       >
                         {asset.assetName} / {asset.assetType}
                       </button>
+                      <button
+                        disabled={onDeleteAsset === undefined}
+                        onClick={() => onDeleteAsset?.(asset.assetId)}
+                        type="button"
+                      >
+                        Delete
+                      </button>
                       {shouldApplyAssetSelectionToSceneBackground({
                         assetType: asset.assetType,
                         selectedSceneId: sceneInspector?.sceneId ?? null,
@@ -413,22 +428,24 @@ export function StudioWorkspace({
                 disabled={preview.seekControl.disabled}
                 max={preview.seekControl.max}
                 min={preview.seekControl.min}
-                onBlur={() => {
+                onBlur={(event) => {
+                  const nextSeekValue = Number(event.currentTarget.value);
                   setIsSeekEditing(false);
-                  commitSeek();
+                  commitSeek(nextSeekValue);
                 }}
                 onChange={(event) => {
                   setSeekValue(Number(event.currentTarget.value));
                 }}
                 onKeyUp={(event) => {
                   if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "Home" || event.key === "End") {
-                    commitSeek();
+                    commitSeek(Number(event.currentTarget.value));
                   }
                 }}
                 onPointerDown={() => setIsSeekEditing(true)}
-                onPointerUp={() => {
+                onPointerUp={(event) => {
+                  const nextSeekValue = Number(event.currentTarget.value);
                   setIsSeekEditing(false);
-                  commitSeek();
+                  commitSeek(nextSeekValue);
                 }}
                 step={1 / 30}
                 type="range"

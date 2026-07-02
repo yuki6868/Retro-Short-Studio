@@ -14,6 +14,7 @@ import {
   type ImportAssetInput,
   type AddSceneInput,
   type AssetLibraryState,
+  type DeleteAssetInput,
   type ChangeActionPayloadInput,
   type ChangeActionTargetInput,
   type ChangeSceneBackgroundInput,
@@ -284,6 +285,16 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
       updateAsset(input: UpdateAssetInput): AssetLibraryState {
         const next = assetLibrary.updateAsset(input);
         setAssetState(next);
+        persistCurrentProject();
+        return next;
+      },
+      deleteAsset(input: DeleteAssetInput): AssetLibraryState {
+        const next = assetLibrary.deleteAsset(input);
+        setAssetState(next);
+        setInspectorState(inspector.state);
+        setSceneState(sceneFlow.state);
+        void previewUseCase.seek(previewState.currentTime);
+        persistCurrentProject();
         return next;
       },
       selectAsset(assetId: string): AssetLibraryState {
@@ -311,7 +322,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
         }
       },
     }),
-    [assetLibrary, assetState, importAsset, projectFolderFileStore, projectSession],
+    [assetLibrary, assetState, importAsset, inspector, previewState.currentTime, previewUseCase, projectFolderFileStore, projectSession, sceneFlow],
   );
 
   const sceneFlowUseCase = useMemo(
@@ -545,6 +556,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     onPause: previewUseCase.pause,
     onSeek: previewUseCase.seek,
     onSelectAsset: assetBrowserUseCase.selectAsset,
+    onDeleteAsset: (assetId) => assetBrowserUseCase.deleteAsset({ assetId }),
     onSelectScene: sceneFlowUseCase.selectScene,
     onEditSceneName: (sceneId, sceneName) => inspectorUseCase.renameSelectedScene({ sceneId, sceneName }),
     onEditSceneDuration: (sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration }),

@@ -74,6 +74,10 @@ export class Project {
     this.collections = this.collections.addAsset(asset);
   }
 
+  removeAsset(assetId: string): void {
+    this.collections = this.collections.removeAsset(assetId);
+  }
+
   updateAsset(assetId: string, updater: (asset: Asset) => void): void {
     this.collections = this.collections.updateAsset(assetId, updater);
   }

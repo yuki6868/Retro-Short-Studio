@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AssetLibraryUseCase } from "../../app/src";
-import { DeterministicIdGenerator, Project } from "../../core/src";
+import { DeterministicIdGenerator, Project, Scene } from "../../core/src";
 
 function createUseCase(): { useCase: AssetLibraryUseCase; project: Project } {
   const project = Project.create({ projectId: "project-1", projectName: "Opening Short" });
@@ -73,7 +73,28 @@ describe("AssetLibraryUseCase", () => {
 
     expect(() => useCase.selectAsset("missing-asset")).toThrow("Asset does not exist: missing-asset.");
   });
-});
+
+  it("deletes an asset and clears the selected asset", () => {
+    const { project, useCase } = createUseCase();
+    useCase.addAsset({ assetName: "Room", assetPath: "assets/room.png", assetType: "background" });
+    useCase.addAsset({ assetName: "Voice", assetPath: "voices/line.wav", assetType: "voice" });
+
+    const state = useCase.deleteAsset({ assetId: "asset-2" });
+
+    expect(state.assets.map((asset) => asset.assetId)).toEqual(["asset-1"]);
+    expect(state.selectedAssetId).toBeNull();
+    expect(project.toSnapshot().assets.map((asset) => asset.assetId)).toEqual(["asset-1"]);
+  });
+
+  it("clears scene background references when deleting a background asset", () => {
+    const { project, useCase } = createUseCase();
+    project.addScene(Scene.create({ sceneId: "scene-1", sceneName: "Opening", duration: 6, backgroundAssetId: "asset-1" }));
+    useCase.addAsset({ assetName: "Room", assetPath: "assets/room.png", assetType: "background" });
+
+    useCase.deleteAsset({ assetId: "asset-1" });
+
+    expect(project.toSnapshot().scenes[0]?.backgroundAssetId).toBeNull();
+  });
 
   it("updates asset metadata and keeps the asset selected", () => {
     const { project, useCase } = createUseCase();
@@ -98,3 +119,4 @@ describe("AssetLibraryUseCase", () => {
       assetPath: "assets/backgrounds/room.png",
     });
   });
+});

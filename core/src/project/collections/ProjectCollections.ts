@@ -116,6 +116,28 @@ export class ProjectCollections {
     );
   }
 
+  removeAsset(assetId: string): ProjectCollections {
+    if (!this.assets.some((asset) => asset.toSnapshot().assetId === assetId)) {
+      throw new Error(`Asset does not exist: ${assetId}.`);
+    }
+
+    return new ProjectCollections(
+      this.scenes.map((scene) => {
+        const nextScene = Scene.restore(scene.toSnapshot());
+
+        if (nextScene.toSnapshot().backgroundAssetId === assetId) {
+          nextScene.changeBackground(null);
+        }
+
+        return nextScene;
+      }),
+      this.assets
+        .filter((asset) => asset.toSnapshot().assetId !== assetId)
+        .map((asset) => Asset.restore(asset.toSnapshot())),
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+    );
+  }
+
   updateAsset(assetId: string, updater: (asset: Asset) => void): ProjectCollections {
     let assetWasUpdated = false;
     const nextAssets = this.assets.map((asset) => {

@@ -115,6 +115,30 @@ describe("AssetBrowser", () => {
     expect(view.assets[0]).toMatchObject({ selected: true, assetPath: "projects/voices/action-talk-opening.wav" });
   });
 
+  it("delegates asset deletion to the asset use case", () => {
+    const deletedIds: string[] = [];
+    const browser = new AssetBrowser({
+      assets: createAssetUseCase(
+        {
+          assets: [{ assetId: "asset-1", assetName: "Room", assetPath: "assets/room.png", assetType: "background" }],
+          selectedAssetId: "asset-1",
+        },
+        {
+          deleteAsset: (input) => {
+            deletedIds.push(input.assetId);
+            return { assets: [], selectedAssetId: null };
+          },
+        },
+      ),
+    });
+
+    const view = browser.clickDelete("asset-1");
+
+    expect(deletedIds).toEqual(["asset-1"]);
+    expect(view.assetCount).toBe(0);
+    expect(view.selectedAssetId).toBeNull();
+  });
+
   it("delegates selection to the asset use case and reflects selected row state", () => {
     const selectedIds: string[] = [];
     const browser = new AssetBrowser({
@@ -176,7 +200,7 @@ function emptyState(): AssetLibraryState {
 
 function createAssetUseCase(
   state: AssetLibraryState,
-  overrides: Partial<Pick<AssetBrowserUseCase, "addAsset" | "updateAsset" | "selectAsset">> = {},
+  overrides: Partial<Pick<AssetBrowserUseCase, "addAsset" | "updateAsset" | "deleteAsset" | "selectAsset">> = {},
 ): AssetBrowserUseCase {
   return {
     get state() {
@@ -184,6 +208,7 @@ function createAssetUseCase(
     },
     addAsset: overrides.addAsset ?? (() => state),
     updateAsset: overrides.updateAsset ?? (() => state),
+    deleteAsset: overrides.deleteAsset ?? (() => state),
     selectAsset: overrides.selectAsset ?? (() => state),
   };
 }

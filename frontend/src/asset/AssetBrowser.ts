@@ -1,10 +1,19 @@
-import type { AddAssetInput, AssetLibraryState, ImportAssetInput, ImportableAssetType, ProjectAssetType, UpdateAssetInput } from "../../../app/src";
+import type {
+  AddAssetInput,
+  AssetLibraryState,
+  DeleteAssetInput,
+  ImportAssetInput,
+  ImportableAssetType,
+  ProjectAssetType,
+  UpdateAssetInput,
+} from "../../../app/src";
 import type { AssetDto, AssetTypeDto } from "../../../shared";
 
 export type AssetBrowserUseCase = {
   readonly state: AssetLibraryState;
   addAsset(input: AddAssetInput): AssetLibraryState;
   updateAsset(input: UpdateAssetInput): AssetLibraryState;
+  deleteAsset(input: DeleteAssetInput): AssetLibraryState;
   selectAsset(assetId: string): AssetLibraryState;
   importAsset?(input: ImportAssetInput): Promise<AssetLibraryState>;
 };
@@ -60,6 +69,11 @@ export class AssetBrowser {
 
   editAsset(input: UpdateAssetInput): AssetBrowserViewState {
     this.latestState = this.props.assets.updateAsset(input);
+    return this.render();
+  }
+
+  clickDelete(assetId: string): AssetBrowserViewState {
+    this.latestState = this.props.assets.deleteAsset({ assetId });
     return this.render();
   }
 
