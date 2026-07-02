@@ -253,3 +253,15 @@ input {
   object-fit: contain;
   image-rendering: pixelated;
 }
+
+.rss-project-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.rss-project-toolbar output {
+  color: #c7b8a6;
+  font-size: 0.85rem;
+}

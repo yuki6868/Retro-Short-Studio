@@ -18,7 +18,17 @@ import {
   TimelineUseCase,
 } from "../../../app/src";
 import type { EngineClient } from "../../../shared";
-import { loadBrowserProject, saveBrowserProject } from "./BrowserProjectPersistence";
+import {
+  findBrowserProjectByName,
+  getActiveBrowserProjectId,
+  hasSavedBrowserProject,
+  listBrowserProjects,
+  loadBrowserProject,
+  saveBrowserProject,
+  saveBrowserProjectAsNew,
+  setActiveBrowserProjectId,
+  type BrowserProjectSummary,
+} from "./BrowserProjectPersistence";
 
 export type StudioUseCases = {
   assetLibrary: AssetLibraryUseCase;
@@ -76,8 +86,32 @@ export class ProjectSession {
     this.didBootstrapSelection = true;
   }
 
-  persist(): void {
-    saveBrowserProject(this.project);
+  persist(projectName?: string): BrowserProjectSummary | null {
+    return saveBrowserProject(this.project, projectName);
+  }
+
+  persistAsNew(projectName: string): BrowserProjectSummary | null {
+    return saveBrowserProjectAsNew(this.project, projectName);
+  }
+
+  hasSavedProject(): boolean {
+    return hasSavedBrowserProject();
+  }
+
+  hasSavedProjectNamed(projectName: string): boolean {
+    return findBrowserProjectByName(projectName) !== null;
+  }
+
+  listSavedProjects(): BrowserProjectSummary[] {
+    return listBrowserProjects();
+  }
+
+  selectSavedProject(projectId: string): void {
+    setActiveBrowserProjectId(projectId);
+  }
+
+  getActiveSavedProjectId(): string | null {
+    return getActiveBrowserProjectId();
   }
 }
 

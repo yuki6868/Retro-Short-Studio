@@ -36,7 +36,11 @@ import { findSelectedSceneDto, PreviewController } from "./PreviewController";
 import { createStudioCompositionRoot } from "./StudioCompositionRoot";
 import type { StudioWorkspaceProps } from "./StudioWorkspace";
 
-export function useStudioAppController(): StudioWorkspaceProps {
+export type StudioAppControllerConfig = {
+  onRequestWorkspaceReload?: () => void;
+};
+
+export function useStudioAppController(config: StudioAppControllerConfig = {}): StudioWorkspaceProps {
   const [previewState, setPreviewState] = useState<PreviewState>(createInitialPreviewState);
   const latestPreviewStateRef = useRef<PreviewState>(previewState);
   const selectedSceneDurationRef = useRef(0);
@@ -58,11 +62,60 @@ export function useStudioAppController(): StudioWorkspaceProps {
     projectSession.persist();
   };
 
+  const saveProjectFromToolbar = (projectName: string): void => {
+    const savedProject = projectSession.persist(projectName);
+    setSavedProjects(projectSession.listSavedProjects());
+    setSelectedSavedProjectId(savedProject?.projectId ?? projectSession.getActiveSavedProjectId());
+    setProjectPersistenceStatus(savedProject === null ? "Project save is unavailable" : `Project saved: ${savedProject.projectName}`);
+  };
+
+  const saveProjectAsNewFromToolbar = (projectName: string): void => {
+    const trimmedProjectName = projectName.trim();
+
+    if (trimmedProjectName.length === 0) {
+      setProjectPersistenceStatus("Project name is required");
+      return;
+    }
+
+    if (projectSession.hasSavedProjectNamed(trimmedProjectName)) {
+      setProjectPersistenceStatus(`Project already exists: ${trimmedProjectName}`);
+      return;
+    }
+
+    const savedProject = projectSession.persistAsNew(trimmedProjectName);
+    setSavedProjects(projectSession.listSavedProjects());
+    setSelectedSavedProjectId(savedProject?.projectId ?? projectSession.getActiveSavedProjectId());
+
+    if (savedProject === null) {
+      setProjectPersistenceStatus("Project save is unavailable");
+      return;
+    }
+
+    setProjectPersistenceStatus(`Project saved as new: ${savedProject.projectName}`);
+    config.onRequestWorkspaceReload?.();
+  };
+
+  const openSavedProjectFromToolbar = (projectId: string): void => {
+    if (!projectSession.hasSavedProject()) {
+      setProjectPersistenceStatus("No saved project");
+      return;
+    }
+
+    projectSession.selectSavedProject(projectId);
+    setSelectedSavedProjectId(projectId);
+    config.onRequestWorkspaceReload?.();
+  };
+
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
   const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
+  const [projectPersistenceStatus, setProjectPersistenceStatus] = useState<string | null>(null);
+  const [savedProjects, setSavedProjects] = useState(() => projectSession.listSavedProjects());
+  const [selectedSavedProjectId, setSelectedSavedProjectId] = useState<string | null>(() =>
+    projectSession.getActiveSavedProjectId(),
+  );
   const previewTimelineSyncRef = useRef<PreviewTimelineSyncUseCase | null>(null);
 
   if (previewTimelineSyncRef.current === null) {
@@ -452,6 +505,13 @@ export function useStudioAppController(): StudioWorkspaceProps {
     onPlayActionVoice: playSelectedActionVoice,
     onStopActionVoice: stopSelectedActionVoice,
     voiceStatus,
+    projectName: project.toSnapshot().projectName,
+    savedProjects,
+    selectedSavedProjectId,
+    projectPersistenceStatus,
+    onSaveProject: saveProjectFromToolbar,
+    onSaveProjectAsNew: saveProjectAsNewFromToolbar,
+    onOpenProject: openSavedProjectFromToolbar,
     onSetTimelinePlayhead: seekTimelineAndPreview,
     onSetTimelineScale: (timeScale) => timelineUseCase.setTimeScale({ timeScale }),
     onMoveTimelineItem: timelineUseCase.moveItem,

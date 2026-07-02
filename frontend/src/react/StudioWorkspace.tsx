@@ -1,4 +1,4 @@
-import { useEffect, useState, type PointerEvent, type ReactElement } from "react";
+import { useEffect, useState, type ChangeEvent, type PointerEvent, type ReactElement } from "react";
 
 import type {
   AssetLibraryState,
@@ -14,7 +14,7 @@ import type {
   AddAssetInput,
   AddSceneInput,
 } from "../../../app/src";
-import { TalkActionInspector, TimelineInteractionMapper, type StudioLayoutViewState, type TimelineItemViewState } from "../index";
+import { TalkActionInspector, TimelineInteractionMapper, type BrowserProjectSummary, type StudioLayoutViewState, type TimelineItemViewState } from "../index";
 
 export type StudioWorkspaceProps = {
   view: StudioLayoutViewState;
@@ -45,6 +45,13 @@ export type StudioWorkspaceProps = {
   onCreateAction?: (kind: CreateActionKind) => TimelineState;
   onDeleteAction?: (sceneId: string, actionId: string) => TimelineState;
   onSelectAction?: (sceneId: string, actionId: string) => InspectorState;
+  projectName?: string;
+  savedProjects?: BrowserProjectSummary[];
+  selectedSavedProjectId?: string | null;
+  onSaveProject?: (projectName: string) => void;
+  onSaveProjectAsNew?: (projectName: string) => void;
+  onOpenProject?: (projectId: string) => void;
+  projectPersistenceStatus?: string | null;
 };
 
 export function StudioWorkspace({
@@ -76,16 +83,33 @@ export function StudioWorkspace({
   onCreateAction,
   onDeleteAction,
   onSelectAction,
+  projectName = "Local Preview",
+  savedProjects = [],
+  selectedSavedProjectId = null,
+  onSaveProject,
+  onSaveProjectAsNew,
+  onOpenProject,
+  projectPersistenceStatus,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const [isSeekEditing, setIsSeekEditing] = useState(false);
   const preview = view.layout.center.preview;
+  const [saveProjectName, setSaveProjectName] = useState(projectName);
+  const [openProjectId, setOpenProjectId] = useState(selectedSavedProjectId ?? savedProjects[0]?.projectId ?? "");
 
   useEffect(() => {
     if (!isSeekEditing) {
       setSeekValue(preview.seekControl.value);
     }
   }, [isSeekEditing, preview.seekControl.value]);
+
+  useEffect(() => {
+    setSaveProjectName(projectName);
+  }, [projectName]);
+
+  useEffect(() => {
+    setOpenProjectId(selectedSavedProjectId ?? savedProjects[0]?.projectId ?? "");
+  }, [savedProjects, selectedSavedProjectId]);
 
   const commitSeek = (): void => {
     if (!Number.isFinite(seekValue)) {
@@ -157,6 +181,43 @@ export function StudioWorkspace({
     <main className="rss-studio" aria-label={view.title}>
       <header className="rss-studio__header">
         <h1>{view.title}</h1>
+        <nav className="rss-project-toolbar" aria-label="Project controls">
+          <label>
+            Project name
+            <input
+              aria-label="Project name"
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setSaveProjectName(event.target.value)}
+              type="text"
+              value={saveProjectName}
+            />
+          </label>
+          <button onClick={() => onSaveProject?.(saveProjectName)} type="button">
+            Save Project
+          </button>
+          <button onClick={() => onSaveProjectAsNew?.(saveProjectName)} type="button">
+            Save As New Project
+          </button>
+          <label>
+            Open
+            <select
+              aria-label="Saved projects"
+              disabled={savedProjects.length === 0}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setOpenProjectId(event.target.value)}
+              value={openProjectId}
+            >
+              {savedProjects.length === 0 ? <option value="">No saved projects</option> : null}
+              {savedProjects.map((project) => (
+                <option key={project.projectId} value={project.projectId}>
+                  {project.projectName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button disabled={openProjectId.length === 0} onClick={() => onOpenProject?.(openProjectId)} type="button">
+            Open Project
+          </button>
+          {projectPersistenceStatus !== null ? <output>{projectPersistenceStatus}</output> : null}
+        </nav>
       </header>
 
       <section className="rss-studio__body" aria-label="Studio regions">

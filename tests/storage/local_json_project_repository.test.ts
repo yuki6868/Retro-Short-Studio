@@ -143,4 +143,62 @@ describe("LocalJsonProjectRepository", () => {
 
     expect(existsSync(path.join(projectPath, PROJECT_FILE_NAME))).toBe(true);
   });
+
+  it("saves and restores edited TalkAction voice metadata without losing generated audio links", async () => {
+    const repository = new LocalJsonProjectRepository();
+    const projectPath = path.join(tempRoot, "sample");
+    const project: ProjectDto = {
+      schemaVersion: 1,
+      projectId: "p-1",
+      projectName: "Sample",
+      settings: { width: 1080, height: 1920, fps: 30 },
+      assets: [
+        {
+          assetId: "voice-action-talk-1",
+          assetName: "Voice action-talk-1",
+          assetType: "voice",
+          assetPath: "projects/voices/action-talk-1.wav",
+        },
+      ],
+      characters: [
+        {
+          characterId: "character-zundamon",
+          characterName: "Zundamon",
+          imageMapId: null,
+        },
+      ],
+      scenes: [
+        {
+          sceneId: "scene-opening",
+          sceneName: "Opening",
+          duration: 8,
+          backgroundAssetId: null,
+          characterIds: ["character-zundamon"],
+          actions: [
+            {
+              actionId: "action-talk-1",
+              actionType: "talk",
+              startTime: 0.5,
+              endTime: 2.5,
+              targetId: "character-zundamon",
+              payload: {
+                text: "保存と復元を確認するのだ",
+                speakerId: "13",
+                speakerCharacterId: "character-zundamon",
+                voiceAssetId: "voice-action-talk-1",
+                generatedVoicePath: "projects/voices/action-talk-1.wav",
+                generatedVoiceDuration: 1.75,
+                lipSyncEnabled: false,
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    await repository.save(projectPath, project);
+
+    await expect(repository.load(projectPath)).resolves.toEqual(project);
+  });
+
 });
