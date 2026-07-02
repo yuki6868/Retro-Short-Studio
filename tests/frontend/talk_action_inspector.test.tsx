@@ -48,6 +48,25 @@ describe("TalkActionInspector", () => {
     });
   });
 
+
+  it("enables Play Voice only after a playable voice path exists", () => {
+    const withoutVoiceHtml = renderToStaticMarkup(<TalkActionInspector action={createAction()} onPlayActionVoice={async () => undefined} />);
+    const withVoice = createAction();
+    withVoice.voice = {
+      voiceAssetId: "voice-asset-1",
+      voiceAssetPath: "projects/voices/action-1.wav",
+      generatedVoicePath: "projects/voices/action-1.wav",
+      duration: 1.5,
+      canPlay: true,
+    };
+    const withVoiceHtml = renderToStaticMarkup(<TalkActionInspector action={withVoice} onPlayActionVoice={async () => undefined} />);
+
+    expect(withoutVoiceHtml).toContain('<button disabled="" type="button">Play Voice</button>');
+    expect(withVoiceHtml).toContain('<button type="button">Play Voice</button>');
+    expect(withVoiceHtml).toContain("voiceAssetPath: projects/voices/action-1.wav");
+    expect(withVoiceHtml).toContain("duration: 1.50s");
+  });
+
   it("falls back to safe defaults for incomplete TalkAction payloads", () => {
     expect(createTalkActionPayload({ text: "hello" }, "character-main")).toEqual({
       text: "hello",

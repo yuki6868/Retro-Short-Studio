@@ -26,6 +26,7 @@ export class HtmlVoicePreviewPlayer implements VoicePreviewPlayer {
     }
 
     const audio = this.getAudio();
+    audio.pause();
     audio.src = toPlayableVoiceUrl(normalizedPath);
     audio.currentTime = 0;
     await audio.play();
