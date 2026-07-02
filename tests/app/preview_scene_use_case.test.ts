@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { PreviewSceneUseCase } from "../../app/src";
-import type { EngineClient, EngineCommandRequest, EngineResult, PreviewRequest, PreviewResult, SceneDto } from "../../shared";
+import { PreviewSceneUseCase, type PreviewAudioController } from "../../app/src";
+import type { ActionDto, AssetDto, EngineClient, EngineCommandRequest, EngineResult, PreviewRequest, PreviewResult, SceneDto } from "../../shared";
 
 const scene: SceneDto = {
   sceneId: "scene-1",
@@ -103,6 +103,164 @@ describe("PreviewSceneUseCase", () => {
     expect(state.error).toBe("preview renderer is unavailable");
   });
 
+
+
+  it("plays the generated Talk Action voice with the offset for the current preview time", async () => {
+    const audio = createRecordingAudioController();
+    const useCase = createUseCase(
+      {
+        preview: async (request) => okPreview(request.currentTime, "renders/preview-0060.png"),
+      },
+      {
+        scene: createSceneWithActions([
+          createTalkAction({
+            actionId: "talk-1",
+            startTime: 1,
+            endTime: 3,
+            payload: {
+              generatedVoicePath: "projects/voices/talk-1.wav",
+              voiceAssetId: "voice-asset-1",
+            },
+          }),
+        ]),
+        assets: [createVoiceAsset("voice-asset-1", "projects/voices/fallback.wav")],
+        audioController: audio,
+        initialTime: 1.25,
+      },
+    );
+
+    const state = await useCase.play();
+
+    expect(audio.calls).toEqual([{ method: "play", path: "projects/voices/talk-1.wav", offsetSeconds: 0.25 }]);
+    expect(state.audio).toEqual({
+      voicePath: "projects/voices/talk-1.wav",
+      offsetSeconds: 0.25,
+      playbackStatus: "playing",
+    });
+  });
+
+  it("falls back to voiceAssetId when generatedVoicePath is not present", async () => {
+    const audio = createRecordingAudioController();
+    const useCase = createUseCase(
+      {
+        preview: async (request) => okPreview(request.currentTime, "renders/preview-0060.png"),
+      },
+      {
+        scene: createSceneWithActions([
+          createTalkAction({
+            actionId: "talk-1",
+            startTime: 1,
+            endTime: 3,
+            payload: { voiceAssetId: "voice-asset-1" },
+          }),
+        ]),
+        assets: [createVoiceAsset("voice-asset-1", "projects/voices/from-asset.wav")],
+        audioController: audio,
+        initialTime: 1.5,
+      },
+    );
+
+    await useCase.play();
+
+    expect(audio.calls).toEqual([{ method: "play", path: "projects/voices/from-asset.wav", offsetSeconds: 0.5 }]);
+  });
+
+  it("does not play audio and stops the controller when the current time is outside Talk Action range", async () => {
+    const audio = createRecordingAudioController();
+    const useCase = createUseCase(
+      {
+        preview: async (request) => okPreview(request.currentTime, "renders/preview-0000.png"),
+      },
+      {
+        scene: createSceneWithActions([
+          createTalkAction({
+            actionId: "talk-1",
+            startTime: 1,
+            endTime: 3,
+            payload: { generatedVoicePath: "projects/voices/talk-1.wav" },
+          }),
+        ]),
+        audioController: audio,
+        initialTime: 0.5,
+      },
+    );
+
+    const state = await useCase.play();
+
+    expect(audio.calls).toEqual([{ method: "stop" }]);
+    expect(state.voicePath).toBeNull();
+    expect(state.voiceOffset).toBe(0);
+  });
+
+  it("does not play audio and stops the controller when the Talk Action has no generated or resolvable voice asset", async () => {
+    const audio = createRecordingAudioController();
+    const useCase = createUseCase(
+      {
+        preview: async (request) => okPreview(request.currentTime, "renders/preview-0060.png"),
+      },
+      {
+        scene: createSceneWithActions([
+          createTalkAction({
+            actionId: "talk-1",
+            startTime: 1,
+            endTime: 3,
+            payload: { voiceAssetId: "missing-voice-asset" },
+          }),
+        ]),
+        assets: [],
+        audioController: audio,
+        initialTime: 1.5,
+      },
+    );
+
+    await useCase.play();
+
+    expect(audio.calls).toEqual([{ method: "stop" }]);
+  });
+
+  it("pauses the audio controller when preview is paused", () => {
+    const audio = createRecordingAudioController();
+    const useCase = createUseCase(
+      {
+        preview: async (request) => okPreview(request.currentTime, "renders/preview.png"),
+      },
+      { audioController: audio },
+    );
+
+    useCase.pause();
+
+    expect(audio.calls).toEqual([{ method: "pause" }]);
+  });
+
+  it("seeks the audio controller to the Talk Action offset without starting playback when preview is paused", async () => {
+    const audio = createRecordingAudioController();
+    const useCase = createUseCase(
+      {
+        preview: async (request) => okPreview(request.currentTime, "renders/preview-0060.png"),
+      },
+      {
+        scene: createSceneWithActions([
+          createTalkAction({
+            actionId: "talk-1",
+            startTime: 1,
+            endTime: 3,
+            payload: { generatedVoicePath: "projects/voices/talk-1.wav" },
+          }),
+        ]),
+        audioController: audio,
+      },
+    );
+
+    const state = await useCase.seek(1.75);
+
+    expect(audio.calls).toEqual([{ method: "seek", offsetSeconds: 0.75 }]);
+    expect(state.audio).toEqual({
+      voicePath: "projects/voices/talk-1.wav",
+      offsetSeconds: 0.75,
+      playbackStatus: "paused",
+    });
+  });
+
   it("does not expose Pyxel, VOICEVOX, or ffmpeg details in preview state", async () => {
     const useCase = createUseCase({
       preview: async (request) => okPreview(request.currentTime, "renders/preview.png"),
@@ -116,10 +274,20 @@ describe("PreviewSceneUseCase", () => {
   });
 });
 
-function createUseCase(overrides: Pick<EngineClient, "preview">): PreviewSceneUseCase {
+type PreviewUseCaseOptions = {
+  scene?: SceneDto;
+  assets?: AssetDto[];
+  audioController?: PreviewAudioController;
+  initialTime?: number;
+};
+
+function createUseCase(overrides: Pick<EngineClient, "preview">, options: PreviewUseCaseOptions = {}): PreviewSceneUseCase {
   return new PreviewSceneUseCase({
     projectId: "project-1",
-    scene,
+    scene: options.scene ?? scene,
+    ...(options.assets === undefined ? {} : { assets: options.assets }),
+    ...(options.audioController === undefined ? {} : { audioController: options.audioController }),
+    ...(options.initialTime === undefined ? {} : { initialTime: options.initialTime }),
     engineClient: createEngineClient(overrides),
     width: 1280,
     height: 720,
@@ -146,6 +314,65 @@ function createEngineClient(overrides: Pick<EngineClient, "preview">): EngineCli
     },
     async exportVideo() {
       throw new Error("exportVideo is not used by PreviewSceneUseCase.");
+    },
+  };
+}
+
+
+function createSceneWithActions(actions: ActionDto[]): SceneDto {
+  return {
+    ...scene,
+    actions,
+  };
+}
+
+function createTalkAction(input: {
+  actionId: string;
+  startTime: number;
+  endTime: number;
+  payload: Record<string, unknown>;
+}): ActionDto {
+  return {
+    actionId: input.actionId,
+    actionType: "talk",
+    startTime: input.startTime,
+    endTime: input.endTime,
+    targetId: "character-instance-1",
+    payload: input.payload,
+  };
+}
+
+function createVoiceAsset(assetId: string, assetPath: string): AssetDto {
+  return {
+    assetId,
+    assetName: assetId,
+    assetType: "voice",
+    assetPath,
+  };
+}
+
+type AudioCall =
+  | { method: "play"; path: string; offsetSeconds: number }
+  | { method: "pause" }
+  | { method: "stop" }
+  | { method: "seek"; offsetSeconds: number };
+
+function createRecordingAudioController(): PreviewAudioController & { calls: AudioCall[] } {
+  const calls: AudioCall[] = [];
+
+  return {
+    calls,
+    async play(path: string, offsetSeconds: number): Promise<void> {
+      calls.push({ method: "play", path, offsetSeconds });
+    },
+    pause(): void {
+      calls.push({ method: "pause" });
+    },
+    stop(): void {
+      calls.push({ method: "stop" });
+    },
+    seek(offsetSeconds: number): void {
+      calls.push({ method: "seek", offsetSeconds });
     },
   };
 }

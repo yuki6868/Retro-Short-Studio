@@ -1,3 +1,5 @@
+import type { PreviewAudioState } from "./PreviewAudioController";
+
 export type PreviewPlaybackStatus = "paused" | "playing";
 
 export type PreviewState = {
@@ -10,4 +12,5 @@ export type PreviewState = {
   error: string | null;
   voicePath?: string | null;
   voiceOffset?: number;
+  audio?: PreviewAudioState;
 };

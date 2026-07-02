@@ -99,6 +99,11 @@ export class PreviewSceneUseCase {
       error: this.error,
       voicePath: this.voicePath,
       voiceOffset: this.voiceOffset,
+      audio: {
+        voicePath: this.voicePath,
+        offsetSeconds: this.voiceOffset,
+        playbackStatus: this.playbackStatus,
+      },
     };
   }
 
@@ -112,15 +117,13 @@ export class PreviewSceneUseCase {
     this.voicePath = activeVoice?.voicePath ?? null;
     this.voiceOffset = activeVoice?.offsetSeconds ?? 0;
 
-    if (this.playbackStatus !== "playing") {
-      if (activeVoice !== null) {
-        this.config.audioController?.seek(activeVoice.offsetSeconds);
-      }
+    if (activeVoice === null) {
+      this.config.audioController?.stop();
       return;
     }
 
-    if (activeVoice === null) {
-      this.config.audioController?.stop();
+    if (this.playbackStatus !== "playing") {
+      this.config.audioController?.seek(activeVoice.offsetSeconds);
       return;
     }
 
