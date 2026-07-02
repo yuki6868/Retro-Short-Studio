@@ -1,6 +1,5 @@
 import type { AssetDto, CharacterDto, EngineClient, PreviewRequest, SceneDto } from "../../../shared";
 import { PreviewClock } from "./PreviewClock";
-import type { PreviewAudioController } from "./PreviewAudioController";
 import type { PreviewPlaybackStatus, PreviewState } from "./PreviewState";
 
 export type PreviewSceneUseCaseConfig = {
@@ -13,7 +12,6 @@ export type PreviewSceneUseCaseConfig = {
   height: number;
   fps: number;
   initialTime?: number;
-  audioController?: PreviewAudioController;
 };
 
 export class PreviewSceneUseCase {
@@ -45,7 +43,6 @@ export class PreviewSceneUseCase {
   pause(): PreviewState {
     this.playbackStatus = "paused";
     this.error = null;
-    this.config.audioController?.pause();
     return this.createState();
   }
 
@@ -67,7 +64,7 @@ export class PreviewSceneUseCase {
 
       this.clock.seek(result.payload.currentTime);
       this.framePath = result.payload.framePath;
-      await this.syncAudioWithCurrentTime();
+      this.updateActiveVoiceForCurrentTime();
       return this.createState();
     } catch (error) {
       this.error = error instanceof Error ? error.message : "Preview engine failed.";
@@ -107,7 +104,7 @@ export class PreviewSceneUseCase {
     };
   }
 
-  private async syncAudioWithCurrentTime(): Promise<void> {
+  private updateActiveVoiceForCurrentTime(): void {
     const activeVoice = findActiveTalkVoice({
       scene: this.config.scene,
       assets: this.config.assets ?? [],
@@ -116,18 +113,6 @@ export class PreviewSceneUseCase {
 
     this.voicePath = activeVoice?.voicePath ?? null;
     this.voiceOffset = activeVoice?.offsetSeconds ?? 0;
-
-    if (activeVoice === null) {
-      this.config.audioController?.stop();
-      return;
-    }
-
-    if (this.playbackStatus !== "playing") {
-      this.config.audioController?.seek(activeVoice.offsetSeconds);
-      return;
-    }
-
-    await this.config.audioController?.play(activeVoice.voicePath, activeVoice.offsetSeconds);
   }
 }
 

@@ -2,6 +2,7 @@ import type { Project, ProjectSnapshot } from "../../../core/src";
 import {
   PreviewSceneUseCase,
   PyxelPreviewEngineClient,
+  type PreviewAudioController,
   type PreviewSceneUseCaseConfig,
   type PreviewState,
   type TimelineState,
@@ -14,6 +15,8 @@ export type PreviewSceneUseCaseLike = {
   seek(time: number): Promise<PreviewState>;
 };
 
+type PreviewRenderMode = "play" | "seek" | "advance";
+
 export type PreviewControllerConfig = {
   getProject(): Project;
   getSelectedSceneId(): string | null;
@@ -21,6 +24,7 @@ export type PreviewControllerConfig = {
   applyPreviewState(state: PreviewState): PreviewState;
   setTimelineState(state: TimelineState): void;
   createInitialPreviewState(): PreviewState;
+  audioController?: PreviewAudioController;
   createPreviewSceneUseCase?(config: PreviewSceneUseCaseConfig): PreviewSceneUseCaseLike;
 };
 
@@ -47,13 +51,14 @@ export class PreviewController {
 
   pause(): PreviewState {
     this.playbackSession += 1;
+    this.config.audioController?.pause();
     const next = { ...this.latestState, playbackStatus: "paused" as const, error: null };
     return this.config.applyPreviewState(next);
   }
 
   async seek(time: number): Promise<PreviewState> {
     this.playbackSession += 1;
-    return this.previewAt(time, this.latestState.playbackStatus, this.playbackSession);
+    return this.previewAt(time, this.latestState.playbackStatus, this.playbackSession, "seek");
   }
 
   async advancePlayingFrame(deltaSeconds: number, duration: number, playbackSession: number): Promise<PreviewState> {
@@ -62,7 +67,7 @@ export class PreviewController {
     }
 
     const nextTime = Math.min(duration, this.latestState.currentTime + deltaSeconds);
-    const next = await this.previewAt(nextTime, nextTime >= duration ? "paused" : "playing", playbackSession);
+    const next = await this.previewAt(nextTime, nextTime >= duration ? "paused" : "playing", playbackSession, "advance");
 
     if (nextTime >= duration) {
       this.playbackSession += 1;
@@ -71,7 +76,12 @@ export class PreviewController {
     return next;
   }
 
-  private async previewAt(time: number, playbackStatus: PreviewState["playbackStatus"], playbackSession: number): Promise<PreviewState> {
+  private async previewAt(
+    time: number,
+    playbackStatus: PreviewState["playbackStatus"],
+    playbackSession: number,
+    renderMode: PreviewRenderMode = playbackStatus === "playing" ? "play" : "seek",
+  ): Promise<PreviewState> {
     const project = this.config.getProject();
     const snapshot = project.toSnapshot();
     const selectedScene = findSelectedSceneDto(project, this.config.getSelectedSceneId());
@@ -103,15 +113,76 @@ export class PreviewController {
 
     const useCase = this.config.createPreviewSceneUseCase?.(useCaseConfig) ?? new PreviewSceneUseCase(useCaseConfig);
 
-    const next = playbackStatus === "playing" ? await useCase.play() : await useCase.seek(time);
+    const next = renderMode === "play" ? await useCase.play() : await useCase.seek(time);
 
     if (playbackSession !== this.playbackSession) {
       return this.latestState;
     }
 
+    const previous = this.latestState;
     const normalized = { ...next, playbackStatus };
+    this.syncAudio(previous, normalized, renderMode);
     this.config.setTimelineState(this.config.getTimeline().setPlayhead({ time: normalized.currentTime }));
     return this.config.applyPreviewState(normalized);
+  }
+  private syncAudio(previous: PreviewState, next: PreviewState, renderMode: PreviewRenderMode): void {
+    const audioController = this.config.audioController;
+
+    if (audioController === undefined) {
+      return;
+    }
+
+    const nextVoicePath = next.voicePath ?? null;
+    const previousVoicePath = previous.voicePath ?? null;
+    const nextVoiceOffset = next.voiceOffset ?? 0;
+
+    try {
+      if (next.playbackStatus !== "playing") {
+        if (renderMode === "advance" && next.currentTime >= (findSelectedSceneDto(this.config.getProject(), this.config.getSelectedSceneId())?.duration ?? 0)) {
+          audioController.stop();
+          return;
+        }
+
+        audioController.pause();
+        return;
+      }
+
+      if (nextVoicePath === null) {
+        if (previousVoicePath !== null || renderMode !== "advance") {
+          audioController.stop();
+        }
+        return;
+      }
+
+      if (renderMode === "seek") {
+        audioController.seek(nextVoiceOffset);
+        void playAudioWithoutBlockingPreview(audioController, nextVoicePath, nextVoiceOffset);
+        return;
+      }
+
+      if (renderMode === "play" || previousVoicePath !== nextVoicePath) {
+        void playAudioWithoutBlockingPreview(audioController, nextVoicePath, nextVoiceOffset);
+      }
+    } catch {
+      // Audio playback must never block or stop preview rendering.
+      // Browsers may reject play() because of autoplay policy, missing files,
+      // or a voice clip that is shorter than the Talk Action range.
+    }
+  }
+
+}
+
+async function playAudioWithoutBlockingPreview(
+  audioController: PreviewAudioController,
+  voicePath: string,
+  voiceOffset: number,
+): Promise<void> {
+  try {
+    await audioController.play(voicePath, voiceOffset);
+  } catch {
+    // Audio playback must never block or stop preview rendering.
+    // Browsers may reject play() because of autoplay policy, missing files,
+    // or a voice clip that is shorter than the Talk Action range.
   }
 }
 

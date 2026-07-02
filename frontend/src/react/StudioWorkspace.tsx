@@ -76,11 +76,14 @@ export function StudioWorkspace({
   onSelectAction,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
+  const [isSeekEditing, setIsSeekEditing] = useState(false);
   const preview = view.layout.center.preview;
 
   useEffect(() => {
-    setSeekValue(preview.seekControl.value);
-  }, [preview.seekControl.value]);
+    if (!isSeekEditing) {
+      setSeekValue(preview.seekControl.value);
+    }
+  }, [isSeekEditing, preview.seekControl.value]);
 
   const commitSeek = (): void => {
     if (!Number.isFinite(seekValue)) {
@@ -270,7 +273,10 @@ export function StudioWorkspace({
                 disabled={preview.seekControl.disabled}
                 max={preview.seekControl.max}
                 min={preview.seekControl.min}
-                onBlur={commitSeek}
+                onBlur={() => {
+                  setIsSeekEditing(false);
+                  commitSeek();
+                }}
                 onChange={(event) => {
                   setSeekValue(Number(event.currentTarget.value));
                 }}
@@ -279,7 +285,11 @@ export function StudioWorkspace({
                     commitSeek();
                   }
                 }}
-                onPointerUp={commitSeek}
+                onPointerDown={() => setIsSeekEditing(true)}
+                onPointerUp={() => {
+                  setIsSeekEditing(false);
+                  commitSeek();
+                }}
                 step={1 / 30}
                 type="range"
                 value={seekValue}

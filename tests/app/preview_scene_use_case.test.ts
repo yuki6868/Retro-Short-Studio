@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PreviewSceneUseCase, type PreviewAudioController } from "../../app/src";
+import { PreviewSceneUseCase } from "../../app/src";
 import type { ActionDto, AssetDto, EngineClient, EngineCommandRequest, EngineResult, PreviewRequest, PreviewResult, SceneDto } from "../../shared";
 
 const scene: SceneDto = {
@@ -105,8 +105,7 @@ describe("PreviewSceneUseCase", () => {
 
 
 
-  it("plays the generated Talk Action voice with the offset for the current preview time", async () => {
-    const audio = createRecordingAudioController();
+  it("exposes the generated Talk Action voice path and offset for the current preview time", async () => {
     const useCase = createUseCase(
       {
         preview: async (request) => okPreview(request.currentTime, "renders/preview-0060.png"),
@@ -124,14 +123,14 @@ describe("PreviewSceneUseCase", () => {
           }),
         ]),
         assets: [createVoiceAsset("voice-asset-1", "projects/voices/fallback.wav")],
-        audioController: audio,
         initialTime: 1.25,
       },
     );
 
     const state = await useCase.play();
 
-    expect(audio.calls).toEqual([{ method: "play", path: "projects/voices/talk-1.wav", offsetSeconds: 0.25 }]);
+    expect(state.voicePath).toBe("projects/voices/talk-1.wav");
+    expect(state.voiceOffset).toBe(0.25);
     expect(state.audio).toEqual({
       voicePath: "projects/voices/talk-1.wav",
       offsetSeconds: 0.25,
@@ -140,7 +139,6 @@ describe("PreviewSceneUseCase", () => {
   });
 
   it("falls back to voiceAssetId when generatedVoicePath is not present", async () => {
-    const audio = createRecordingAudioController();
     const useCase = createUseCase(
       {
         preview: async (request) => okPreview(request.currentTime, "renders/preview-0060.png"),
@@ -155,18 +153,17 @@ describe("PreviewSceneUseCase", () => {
           }),
         ]),
         assets: [createVoiceAsset("voice-asset-1", "projects/voices/from-asset.wav")],
-        audioController: audio,
         initialTime: 1.5,
       },
     );
 
-    await useCase.play();
+    const state = await useCase.play();
 
-    expect(audio.calls).toEqual([{ method: "play", path: "projects/voices/from-asset.wav", offsetSeconds: 0.5 }]);
+    expect(state.voicePath).toBe("projects/voices/from-asset.wav");
+    expect(state.voiceOffset).toBe(0.5);
   });
 
-  it("does not play audio and stops the controller when the current time is outside Talk Action range", async () => {
-    const audio = createRecordingAudioController();
+  it("clears voice state when the current time is outside Talk Action range", async () => {
     const useCase = createUseCase(
       {
         preview: async (request) => okPreview(request.currentTime, "renders/preview-0000.png"),
@@ -180,20 +177,17 @@ describe("PreviewSceneUseCase", () => {
             payload: { generatedVoicePath: "projects/voices/talk-1.wav" },
           }),
         ]),
-        audioController: audio,
         initialTime: 0.5,
       },
     );
 
     const state = await useCase.play();
 
-    expect(audio.calls).toEqual([{ method: "stop" }]);
     expect(state.voicePath).toBeNull();
     expect(state.voiceOffset).toBe(0);
   });
 
-  it("does not play audio and stops the controller when the Talk Action has no generated or resolvable voice asset", async () => {
-    const audio = createRecordingAudioController();
+  it("clears voice state when the Talk Action has no generated or resolvable voice asset", async () => {
     const useCase = createUseCase(
       {
         preview: async (request) => okPreview(request.currentTime, "renders/preview-0060.png"),
@@ -208,32 +202,27 @@ describe("PreviewSceneUseCase", () => {
           }),
         ]),
         assets: [],
-        audioController: audio,
         initialTime: 1.5,
       },
     );
 
-    await useCase.play();
+    const state = await useCase.play();
 
-    expect(audio.calls).toEqual([{ method: "stop" }]);
+    expect(state.voicePath).toBeNull();
+    expect(state.voiceOffset).toBe(0);
   });
 
-  it("pauses the audio controller when preview is paused", () => {
-    const audio = createRecordingAudioController();
-    const useCase = createUseCase(
-      {
-        preview: async (request) => okPreview(request.currentTime, "renders/preview.png"),
-      },
-      { audioController: audio },
-    );
+  it("pause only changes preview state and does not own audio playback", () => {
+    const useCase = createUseCase({
+      preview: async (request) => okPreview(request.currentTime, "renders/preview.png"),
+    });
 
-    useCase.pause();
+    const state = useCase.pause();
 
-    expect(audio.calls).toEqual([{ method: "pause" }]);
+    expect(state.playbackStatus).toBe("paused");
   });
 
-  it("seeks the audio controller to the Talk Action offset without starting playback when preview is paused", async () => {
-    const audio = createRecordingAudioController();
+  it("seek exposes Talk Action voice offset without starting or seeking audio", async () => {
     const useCase = createUseCase(
       {
         preview: async (request) => okPreview(request.currentTime, "renders/preview-0060.png"),
@@ -247,13 +236,11 @@ describe("PreviewSceneUseCase", () => {
             payload: { generatedVoicePath: "projects/voices/talk-1.wav" },
           }),
         ]),
-        audioController: audio,
       },
     );
 
     const state = await useCase.seek(1.75);
 
-    expect(audio.calls).toEqual([{ method: "seek", offsetSeconds: 0.75 }]);
     expect(state.audio).toEqual({
       voicePath: "projects/voices/talk-1.wav",
       offsetSeconds: 0.75,
@@ -277,7 +264,6 @@ describe("PreviewSceneUseCase", () => {
 type PreviewUseCaseOptions = {
   scene?: SceneDto;
   assets?: AssetDto[];
-  audioController?: PreviewAudioController;
   initialTime?: number;
 };
 
@@ -286,7 +272,6 @@ function createUseCase(overrides: Pick<EngineClient, "preview">, options: Previe
     projectId: "project-1",
     scene: options.scene ?? scene,
     ...(options.assets === undefined ? {} : { assets: options.assets }),
-    ...(options.audioController === undefined ? {} : { audioController: options.audioController }),
     ...(options.initialTime === undefined ? {} : { initialTime: options.initialTime }),
     engineClient: createEngineClient(overrides),
     width: 1280,
@@ -348,32 +333,6 @@ function createVoiceAsset(assetId: string, assetPath: string): AssetDto {
     assetName: assetId,
     assetType: "voice",
     assetPath,
-  };
-}
-
-type AudioCall =
-  | { method: "play"; path: string; offsetSeconds: number }
-  | { method: "pause" }
-  | { method: "stop" }
-  | { method: "seek"; offsetSeconds: number };
-
-function createRecordingAudioController(): PreviewAudioController & { calls: AudioCall[] } {
-  const calls: AudioCall[] = [];
-
-  return {
-    calls,
-    async play(path: string, offsetSeconds: number): Promise<void> {
-      calls.push({ method: "play", path, offsetSeconds });
-    },
-    pause(): void {
-      calls.push({ method: "pause" });
-    },
-    stop(): void {
-      calls.push({ method: "stop" });
-    },
-    seek(offsetSeconds: number): void {
-      calls.push({ method: "seek", offsetSeconds });
-    },
   };
 }
 

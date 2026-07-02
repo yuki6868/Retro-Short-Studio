@@ -4,6 +4,7 @@ import {
   AssetBrowser,
   Inspector,
   PreviewPanel,
+  PreviewPlaybackLoop,
   SceneFlow,
   StudioLayout,
   Timeline,
@@ -37,6 +38,8 @@ import type { StudioWorkspaceProps } from "./StudioWorkspace";
 export function useStudioAppController(): StudioWorkspaceProps {
   const [previewState, setPreviewState] = useState<PreviewState>(createInitialPreviewState);
   const latestPreviewStateRef = useRef<PreviewState>(previewState);
+  const selectedSceneDurationRef = useRef(0);
+  const playbackLoopRef = useRef<PreviewPlaybackLoop | null>(null);
   const compositionRootRef = useRef<ReturnType<typeof createStudioCompositionRoot> | null>(null);
 
   if (compositionRootRef.current === null) {
@@ -62,6 +65,7 @@ export function useStudioAppController(): StudioWorkspaceProps {
 
   const selectedSceneForPreview = findSelectedSceneDto(project, sceneFlow.state.selectedSceneId);
   const selectedSceneDuration = selectedSceneForPreview?.duration ?? 0;
+  selectedSceneDurationRef.current = selectedSceneDuration;
 
   const applyPreviewState = useCallback((next: PreviewState): PreviewState => {
     latestPreviewStateRef.current = next;
@@ -79,6 +83,7 @@ export function useStudioAppController(): StudioWorkspaceProps {
       applyPreviewState,
       setTimelineState,
       createInitialPreviewState,
+      audioController: compositionRootRef.current.previewAudioController,
     });
   }
 
@@ -97,25 +102,49 @@ export function useStudioAppController(): StudioWorkspaceProps {
         return previewController.pause();
       },
       async seek(time: number): Promise<PreviewState> {
-        return previewController.seek(time);
+        playbackLoopRef.current?.pause();
+        const next = await previewController.seek(time);
+        playbackLoopRef.current?.seek();
+
+        if (next.playbackStatus === "playing" && selectedSceneDurationRef.current > 0) {
+          playbackLoopRef.current?.start();
+        }
+
+        return next;
       },
     }),
     [previewController, previewState],
   );
 
+  if (playbackLoopRef.current === null) {
+    playbackLoopRef.current = new PreviewPlaybackLoop({
+      getState: () => latestPreviewStateRef.current,
+      getDuration: () => selectedSceneDurationRef.current,
+      advance: (deltaSeconds) =>
+        previewController.advancePlayingFrame(
+          deltaSeconds,
+          selectedSceneDurationRef.current,
+          previewController.currentPlaybackSession,
+        ),
+    });
+  }
+
   useEffect(() => {
-    if (previewState.playbackStatus !== "playing" || selectedSceneDuration <= 0) {
+    const playbackLoop = playbackLoopRef.current;
+
+    if (playbackLoop === null) {
       return;
     }
 
-    const frameDurationMs = Math.max(1000 / previewState.fps, 16);
-    const playbackSession = previewController.currentPlaybackSession;
-    const timer = window.setTimeout(() => {
-      void previewController.advancePlayingFrame(frameDurationMs / 1000, selectedSceneDuration, playbackSession);
-    }, frameDurationMs);
+    if (previewState.playbackStatus === "playing" && selectedSceneDuration > 0) {
+      playbackLoop.start();
+      return;
+    }
 
-    return () => window.clearTimeout(timer);
-  }, [previewController, previewState.currentTime, previewState.fps, previewState.playbackStatus, selectedSceneDuration]);
+    playbackLoop.pause();
+  }, [previewState.playbackStatus, selectedSceneDuration]);
+
+  useEffect(() => () => playbackLoopRef.current?.stop(), []);
 
   const assetBrowserUseCase = useMemo(
     () => ({
