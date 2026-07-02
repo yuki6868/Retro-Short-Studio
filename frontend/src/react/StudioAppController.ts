@@ -442,6 +442,8 @@ export function useStudioAppController(): StudioWorkspaceProps {
     onEditSceneDuration: (sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration }),
     onEditSceneBackground: (sceneId, backgroundAssetId) =>
       inspectorUseCase.changeSelectedSceneBackground({ sceneId, backgroundAssetId }),
+    onEditActionTimeRange: (sceneId, actionId, startTime, endTime) =>
+      inspectorUseCase.changeSelectedActionTimeRange({ sceneId, actionId, startTime, endTime }),
     onEditActionTarget: (sceneId, actionId, targetId) =>
       inspectorUseCase.changeSelectedActionTarget({ sceneId, actionId, targetId }),
     onEditActionPayload: (sceneId, actionId, payload) =>

@@ -14,7 +14,7 @@ import type {
   AddAssetInput,
   AddSceneInput,
 } from "../../../app/src";
-import { TimelineInteractionMapper, type StudioLayoutViewState, type TimelineItemViewState } from "../index";
+import { TalkActionInspector, TimelineInteractionMapper, type StudioLayoutViewState, type TimelineItemViewState } from "../index";
 
 export type StudioWorkspaceProps = {
   view: StudioLayoutViewState;
@@ -30,6 +30,7 @@ export type StudioWorkspaceProps = {
   onEditSceneName(sceneId: string, sceneName: string): InspectorState;
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
   onEditSceneBackground?: (sceneId: string, backgroundAssetId: string | null) => InspectorState;
+  onEditActionTimeRange?: (sceneId: string, actionId: string, startTime: number, endTime: number) => InspectorState;
   onEditActionTarget?: (sceneId: string, actionId: string, targetId: string | null) => InspectorState;
   onEditActionPayload?: (sceneId: string, actionId: string, payload: Record<string, string | number | boolean | null>) => InspectorState;
   onGenerateActionVoice?: (sceneId: string, actionId: string) => Promise<InspectorState>;
@@ -60,6 +61,7 @@ export function StudioWorkspace({
   onEditSceneName,
   onEditSceneDuration,
   onEditSceneBackground,
+  onEditActionTimeRange,
   onEditActionTarget,
   onEditActionPayload,
   onGenerateActionVoice,
@@ -360,43 +362,25 @@ export function StudioWorkspace({
                 <p>{characterInspector.characterName}</p>
               </div>
             ) : null}
-            {actionInspector !== null ? (
+            {actionInspector !== null && actionInspector.actionType === "talk" ? (
+              <TalkActionInspector
+                action={actionInspector}
+                voiceStatus={voiceStatus}
+                onEditActionTimeRange={(input) =>
+                  onEditActionTimeRange?.(input.sceneId, input.actionId, input.startTime, input.endTime)
+                }
+                onEditActionTarget={onEditActionTarget}
+                onEditActionPayload={onEditActionPayload}
+                onGenerateActionVoice={onGenerateActionVoice}
+                onPlayActionVoice={onPlayActionVoice}
+                onStopActionVoice={onStopActionVoice}
+                onDeleteAction={onDeleteAction}
+              />
+            ) : null}
+            {actionInspector !== null && actionInspector.actionType !== "talk" ? (
               <div className="rss-inspector" aria-label="Action Inspector">
                 <p>{actionInspector.selectedTargetLabel}</p>
                 <p>{actionInspector.actionType}</p>
-                {actionInspector.actionType === "talk" ? (
-                  <div className="rss-inspector__voice" aria-label="Talk voice preview">
-                    <button
-                      disabled={onGenerateActionVoice === undefined}
-                      onClick={() => void onGenerateActionVoice?.(actionInspector.sceneId, actionInspector.actionId)}
-                      type="button"
-                    >
-                      Generate Voice
-                    </button>
-                    <button
-                      disabled={actionInspector.voice?.canPlay !== true || onPlayActionVoice === undefined}
-                      onClick={() => {
-                        const path = actionInspector.voice?.voiceAssetPath;
-                        if (path !== undefined && path !== null) {
-                          void onPlayActionVoice?.(path);
-                        }
-                      }}
-                      type="button"
-                    >
-                      Play Voice
-                    </button>
-                    <button
-                      disabled={actionInspector.voice?.canPlay !== true || onStopActionVoice === undefined}
-                      onClick={() => onStopActionVoice?.()}
-                      type="button"
-                    >
-                      Stop Voice
-                    </button>
-                    <p>voiceAssetPath: {actionInspector.voice?.voiceAssetPath ?? "Not generated"}</p>
-                    <p>duration: {formatVoiceDuration(actionInspector.voice?.duration ?? null)}</p>
-                  </div>
-                ) : null}
-                {voiceStatus !== null ? <p role="status">{voiceStatus}</p> : null}
                 <label>
                   Target
                   <input
@@ -422,10 +406,7 @@ export function StudioWorkspace({
                     }}
                   />
                 </label>
-                <button
-                  onClick={() => onDeleteAction?.(actionInspector.sceneId, actionInspector.actionId)}
-                  type="button"
-                >
+                <button onClick={() => onDeleteAction?.(actionInspector.sceneId, actionInspector.actionId)} type="button">
                   Delete Action
                 </button>
               </div>
@@ -545,7 +526,3 @@ type TimelinePointerInteraction = {
   startClientX: number;
 };
 
-
-function formatVoiceDuration(duration: number | null): string {
-  return duration === null ? "Unknown" : `${duration.toFixed(2)}s`;
-}
