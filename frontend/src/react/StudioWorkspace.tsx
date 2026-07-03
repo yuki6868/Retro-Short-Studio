@@ -77,8 +77,10 @@ export type StudioWorkspaceProps = {
   onOpenProject?: (projectId: string) => void;
   onChooseProjectFolder?: () => Promise<void>;
   onOpenPixelEditor?: (input?: { characterTarget?: { characterId: string; kind: AssignCharacterImageInput["kind"]; state: string } }) => void;
+  onExportFrameSequence?: () => Promise<void>;
   projectFolderStatus?: string | null;
   projectPersistenceStatus?: string | null;
+  exportStatus?: string | null;
 };
 
 export function shouldApplyAssetSelectionToSceneBackground(input: {
@@ -140,8 +142,10 @@ export function StudioWorkspace({
   onOpenProject,
   onChooseProjectFolder,
   onOpenPixelEditor,
+  onExportFrameSequence,
   projectFolderStatus,
   projectPersistenceStatus,
+  exportStatus,
 }: StudioWorkspaceProps): ReactElement {
   const [seekValue, setSeekValue] = useState(view.layout.center.preview.seekControl.value);
   const [isSeekEditing, setIsSeekEditing] = useState(false);
@@ -283,8 +287,12 @@ export function StudioWorkspace({
           <button disabled={onOpenPixelEditor === undefined} onClick={() => onOpenPixelEditor?.()} type="button">
             Open Pixel Editor
           </button>
+          <button disabled={onExportFrameSequence === undefined || view.layout.bottom.timeline === null} onClick={() => void onExportFrameSequence?.()} type="button">
+            Export Frames
+          </button>
           {projectFolderStatus !== null && projectFolderStatus !== undefined ? <output>{projectFolderStatus}</output> : null}
           {projectPersistenceStatus !== null ? <output>{projectPersistenceStatus}</output> : null}
+          {exportStatus !== null && exportStatus !== undefined ? <output>{exportStatus}</output> : null}
         </nav>
       </header>
 

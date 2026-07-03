@@ -33,6 +33,8 @@ import {
   type ResizeTimelineItemEndInput,
   type ResizeTimelineItemStartInput,
   type SceneCharacterPlacementState,
+  DefaultFrameSequenceExporter,
+  type FrameSequenceFrameWriter,
   type AddCharacterInstanceInput,
   type UpdateCharacterInstanceInput,
   type RemoveCharacterInstanceInput,
@@ -168,6 +170,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
   const [assetImportStatus, setAssetImportStatus] = useState<string | null>(null);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [projectPersistenceStatus, setProjectPersistenceStatus] = useState<string | null>(null);
   const [projectFolderStatus, setProjectFolderStatus] = useState<string | null>(() =>
     projectFolderFileStore.hasProjectFolder && projectFolderFileStore.projectFolderName !== null
@@ -674,6 +677,52 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     return nextTimeline;
   };
 
+
+  const exportSelectedSceneAsFrameSequence = async (): Promise<void> => {
+    const snapshot = project.toSnapshot();
+    const projectDto = projectSnapshotToProjectDto(snapshot);
+    const selectedScene = projectDto.scenes.find((scene) => scene.sceneId === sceneFlow.state.selectedSceneId) ?? null;
+
+    if (selectedScene === null) {
+      setExportStatus("Select a scene before exporting frames.");
+      return;
+    }
+
+    const writer: FrameSequenceFrameWriter = {
+      writeFrame: async (path, data) => projectFolderFileStore.write({ relativePath: path, data: new Uint8Array(data) }),
+    };
+    const exporter = new DefaultFrameSequenceExporter({
+      engineClient: projectSession.engineClient,
+      frameWriter: writer,
+    });
+
+    setExportStatus("Exporting frames: 0%");
+    const result = await exporter.exportScene(
+      {
+        projectId: projectDto.projectId,
+        scene: selectedScene,
+        assets: projectDto.assets,
+        characters: projectDto.characters,
+        outputDirectory: `renders/${selectedScene.sceneId}`,
+        fps: projectDto.settings.fps,
+        width: projectDto.settings.width,
+        height: projectDto.settings.height,
+        duration: selectedScene.duration,
+      },
+      (progress) => {
+        const percent = Math.round((progress.completedFrames / progress.totalFrames) * 100);
+        setExportStatus(`Exporting frames: ${percent}% (${progress.completedFrames}/${progress.totalFrames})`);
+      },
+    );
+
+    if (!result.ok || result.payload === null) {
+      setExportStatus(result.error ?? "Frame sequence export failed.");
+      return;
+    }
+
+    setExportStatus(`Exported ${result.payload.frameCount} frames to ${result.payload.outputDirectory}`);
+  };
+
   const openPixelEditor = (input?: { characterTarget?: { characterId: string; kind: "expression" | "eye" | "mouth" | "motion"; state: string } }): void => {
     const snapshot = project.toSnapshot();
     compositionRootRef.current?.editorLauncher.openPixelEditor({
@@ -737,10 +786,12 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     savedProjects,
     selectedSavedProjectId,
     projectPersistenceStatus,
+    exportStatus,
     onSaveProject: saveProjectFromToolbar,
     onSaveProjectAsNew: saveProjectAsNewFromToolbar,
     onOpenProject: openSavedProjectFromToolbar,
     onOpenPixelEditor: openPixelEditor,
+    onExportFrameSequence: exportSelectedSceneAsFrameSequence,
     onSetTimelinePlayhead: seekTimelineAndPreview,
     onSetTimelineScale: (timeScale) => timelineUseCase.setTimeScale({ timeScale }),
     onMoveTimelineItem: timelineUseCase.moveItem,
