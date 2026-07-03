@@ -96,9 +96,13 @@ function toViewState(state: TimelineState): TimelineViewState {
 function toTrackViewState(track: TimelineTrack): TimelineViewState["tracks"][number] {
   return {
     trackId: track.trackId,
+    kind: track.kind,
     label: track.label,
     purpose: track.purpose,
     acceptedActionTypes: track.acceptedActionTypes,
+    characterInstanceId: track.characterInstanceId,
+    characterId: track.characterId,
+    iconAssetId: track.iconAssetId,
     itemCount: track.items.length,
     emptyText: `${track.label} actions will appear here.`,
     items: track.items.map((item) => toItemViewState(track, item)),
@@ -108,14 +112,21 @@ function toTrackViewState(track: TimelineTrack): TimelineViewState["tracks"][num
 function toItemViewState(track: TimelineTrack, item: TimelineItem): TimelineItemViewState {
   return {
     ...item,
-    label: `${track.label}: ${formatActionType(item.actionType)} ${item.startTime.toFixed(1)}-${item.endTime.toFixed(1)}s`,
+    label: `${formatActionType(item.actionType)} ${item.startTime.toFixed(1)}-${item.endTime.toFixed(1)}s`,
     summary: createItemSummary(track, item),
   };
 }
 
 function createItemSummary(track: TimelineTrack, item: TimelineItem): string {
-  const targetLabel = item.targetId === null ? "no target" : item.targetId;
-  return `${track.label} track item for ${targetLabel}`;
+  if (track.kind === "character-instance") {
+    return `${track.label} action for ${track.characterInstanceId ?? item.targetId ?? "unknown character"}`;
+  }
+
+  if (track.kind === "unassigned-character") {
+    return item.targetId === null ? "Character action has no target yet" : `Character action target is not placed: ${item.targetId}`;
+  }
+
+  return `${track.label} track item`;
 }
 
 function formatActionType(actionType: string): string {

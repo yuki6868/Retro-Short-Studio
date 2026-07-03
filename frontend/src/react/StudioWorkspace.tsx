@@ -150,6 +150,8 @@ export function StudioWorkspace({
   const [saveProjectName, setSaveProjectName] = useState(projectName);
   const [importAssetType, setImportAssetType] = useState<ImportableAssetType>("background");
   const [openProjectId, setOpenProjectId] = useState(selectedSavedProjectId ?? savedProjects[0]?.projectId ?? "");
+  const selectedTimelineCharacterId = sceneCharacters?.selectedInstanceId ?? "";
+  const placedTimelineCharacters = sceneCharacters?.placedCharacters ?? [];
 
   useEffect(() => {
     if (!isSeekEditing) {
@@ -920,10 +922,39 @@ export function StudioWorkspace({
               />
             </label>
             <div className="rss-timeline__actions" aria-label="Action creation">
+              <label>
+                Character target
+                <select
+                  aria-label="Timeline character target"
+                  disabled={
+                    timelineView.sceneId === null ||
+                    placedTimelineCharacters.length === 0 ||
+                    onSelectSceneCharacter === undefined
+                  }
+                  onChange={(event) =>
+                    onSelectSceneCharacter?.({
+                      sceneId: timelineView.sceneId ?? "",
+                      instanceId: event.currentTarget.value.length === 0 ? null : event.currentTarget.value,
+                    })
+                  }
+                  value={selectedTimelineCharacterId}
+                >
+                  <option value="">Select placed character</option>
+                  {placedTimelineCharacters.map((character) => (
+                    <option key={character.instanceId} value={character.instanceId}>
+                      {character.characterName} / {character.instanceId}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button disabled={timelineView.sceneId === null} onClick={() => onCreateAction?.("talk")} type="button">
                 Add Talk
               </button>
-              <button disabled={timelineView.sceneId === null} onClick={() => onCreateAction?.("character")} type="button">
+              <button
+                disabled={timelineView.sceneId === null || selectedTimelineCharacterId.length === 0}
+                onClick={() => onCreateAction?.("character")}
+                type="button"
+              >
                 Add Character
               </button>
               <button disabled={timelineView.sceneId === null} onClick={() => onCreateAction?.("effect")} type="button">
@@ -937,6 +968,7 @@ export function StudioWorkspace({
               {timelineView.tracks.map((track) => (
                 <section className="rss-timeline__track" key={track.trackId} aria-label={`${track.label} track`}>
                   <h3>{track.label}</h3>
+                  {track.kind === "character-instance" ? <p>CharacterInstance: {track.characterInstanceId}</p> : null}
                   <p>{track.purpose}</p>
                   {track.items.length === 0 ? <p>{track.emptyText}</p> : null}
                   <div className="rss-timeline__lane" role="list">

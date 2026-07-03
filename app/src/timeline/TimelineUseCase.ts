@@ -1,13 +1,19 @@
-import type { ActionSnapshot, Project, SceneSnapshot } from "../../../core/src";
+import type { ActionSnapshot, CharacterModelSnapshot, Project, SceneSnapshot } from "../../../core/src";
 import type { ActionDto } from "../../../shared";
 
-export type TimelineTrackId = "talk" | "character" | "effect" | "camera";
+export type TimelineTrackId = string;
+
+export type TimelineTrackKind = "character-instance" | "unassigned-character" | "effect" | "camera";
 
 export type TimelineTrackDefinition = {
   trackId: TimelineTrackId;
+  kind: TimelineTrackKind;
   label: string;
   purpose: string;
   acceptedActionTypes: string[];
+  characterInstanceId: string | null;
+  characterId: string | null;
+  iconAssetId: string | null;
 };
 
 export type TimelineTrack = TimelineTrackDefinition & {
@@ -73,32 +79,38 @@ export type ResizeTimelineItemEndInput = {
 const DEFAULT_TIME_SCALE = 80;
 const DEFAULT_MIN_ACTION_DURATION = 0.1;
 
-const ACTION_TIMELINE_TRACKS: readonly TimelineTrackDefinition[] = [
-  {
-    trackId: "talk",
-    label: "Talk",
-    purpose: "Talk actions that drive voice, subtitles, and lip-sync timing.",
-    acceptedActionTypes: ["talk"],
-  },
-  {
-    trackId: "character",
-    label: "Character",
-    purpose: "Character actions such as movement, pose, expression, and simple motion.",
-    acceptedActionTypes: ["move", "character_move", "character_pose", "character_expression", "expression", "motion"],
-  },
-  {
-    trackId: "effect",
-    label: "Effect",
-    purpose: "Scene effects such as fade, flash, emphasis, and screen effects.",
-    acceptedActionTypes: ["fade", "fade_in", "fade_out", "flash", "effect"],
-  },
-  {
-    trackId: "camera",
-    label: "Camera",
-    purpose: "Camera actions such as zoom, pan, and camera movement.",
-    acceptedActionTypes: ["camera_move", "camera_zoom", "camera_pan", "camera_shake"],
-  },
-] as const;
+const UNASSIGNED_CHARACTER_TRACK: TimelineTrackDefinition = {
+  trackId: "character:unassigned",
+  kind: "unassigned-character",
+  label: "Unassigned Character",
+  purpose: "Character actions that do not have a CharacterInstance target yet.",
+  acceptedActionTypes: ["talk", "move", "character_move", "character_pose", "character_expression", "expression", "motion"],
+  characterInstanceId: null,
+  characterId: null,
+  iconAssetId: null,
+};
+
+const EFFECT_TRACK: TimelineTrackDefinition = {
+  trackId: "effect",
+  kind: "effect",
+  label: "Effect",
+  purpose: "Scene effects such as fade, flash, emphasis, and screen effects.",
+  acceptedActionTypes: ["fade", "fade_in", "fade_out", "flash", "effect"],
+  characterInstanceId: null,
+  characterId: null,
+  iconAssetId: null,
+};
+
+const CAMERA_TRACK: TimelineTrackDefinition = {
+  trackId: "camera",
+  kind: "camera",
+  label: "Camera",
+  purpose: "Camera actions such as zoom, pan, and camera movement.",
+  acceptedActionTypes: ["camera_move", "camera_zoom", "camera_pan", "camera_shake"],
+  characterInstanceId: null,
+  characterId: null,
+  iconAssetId: null,
+};
 
 export class TimelineUseCase {
   private selectedSceneId: string | null;
@@ -199,7 +211,7 @@ export class TimelineUseCase {
       duration: scene.duration,
       timeScale: this.timeScale,
       playhead: clampTime(this.playhead, scene.duration),
-      tracks: createTracks(scene, this.timeScale),
+      tracks: createTracks(scene, this.config.project.toSnapshot().characters, this.timeScale),
     };
   }
 
@@ -237,31 +249,78 @@ export class TimelineUseCase {
 }
 
 function createEmptyTracks(): TimelineTrack[] {
-  return ACTION_TIMELINE_TRACKS.map((track) => ({
-    ...track,
-    acceptedActionTypes: [...track.acceptedActionTypes],
-    items: [],
-  }));
+  return [createTrack(UNASSIGNED_CHARACTER_TRACK), createTrack(EFFECT_TRACK), createTrack(CAMERA_TRACK)];
 }
 
-function createTracks(scene: SceneSnapshot, timeScale: number): TimelineTrack[] {
-  const tracks = createEmptyTracks();
+function createTracks(scene: SceneSnapshot, characters: CharacterModelSnapshot[], timeScale: number): TimelineTrack[] {
+  const characterNameById = new Map(characters.map((character) => [character.characterId, character.characterName]));
+  const iconAssetByCharacterId = new Map(characters.map((character) => [character.characterId, character.imageMap?.expression?.[character.defaultExpression] ?? null]));
+  const tracks: TimelineTrack[] = scene.characters.map((character) =>
+    createTrack({
+      trackId: createCharacterTrackId(character.instanceId),
+      kind: "character-instance",
+      label: characterNameById.get(character.characterId) ?? character.characterId,
+      purpose: `Actions targeted at ${characterNameById.get(character.characterId) ?? character.characterId}.`,
+      acceptedActionTypes: ["talk", "move", "character_move", "character_pose", "character_expression", "expression", "motion"],
+      characterInstanceId: character.instanceId,
+      characterId: character.characterId,
+      iconAssetId: iconAssetByCharacterId.get(character.characterId) ?? null,
+    }),
+  );
+  const unassignedTrack = createTrack(UNASSIGNED_CHARACTER_TRACK);
+  const effectTrack = createTrack(EFFECT_TRACK);
+  const cameraTrack = createTrack(CAMERA_TRACK);
 
   for (const action of scene.actions) {
-    const trackId = resolveTrackId(action.actionType);
-    const track = tracks.find((candidate) => candidate.trackId === trackId);
-
-    if (track === undefined) {
-      continue;
-    }
-
+    const track = resolveTrack(action, tracks, unassignedTrack, effectTrack, cameraTrack);
     track.items.push(toTimelineItem(scene.sceneId, action, timeScale));
   }
 
-  return tracks.map((track) => ({
+  const characterTracksWithActionsOrScenePresence = tracks.map(sortTrackItems);
+  const tailTracks = [unassignedTrack, effectTrack, cameraTrack]
+    .filter((track) => track.kind !== "unassigned-character" || track.items.length > 0)
+    .map(sortTrackItems);
+
+  return [...characterTracksWithActionsOrScenePresence, ...tailTracks];
+}
+
+function createTrack(definition: TimelineTrackDefinition): TimelineTrack {
+  return {
+    ...definition,
+    acceptedActionTypes: [...definition.acceptedActionTypes],
+    items: [],
+  };
+}
+
+function sortTrackItems(track: TimelineTrack): TimelineTrack {
+  return {
     ...track,
     items: [...track.items].sort((left, right) => left.startTime - right.startTime),
-  }));
+  };
+}
+
+function resolveTrack(
+  action: ActionSnapshot,
+  characterTracks: TimelineTrack[],
+  unassignedTrack: TimelineTrack,
+  effectTrack: TimelineTrack,
+  cameraTrack: TimelineTrack,
+): TimelineTrack {
+  const actionTrackKind = resolveTrackKind(action.actionType);
+
+  if (actionTrackKind === "effect") {
+    return effectTrack;
+  }
+
+  if (actionTrackKind === "camera") {
+    return cameraTrack;
+  }
+
+  if (action.targetId !== null) {
+    return characterTracks.find((track) => track.characterInstanceId === action.targetId) ?? unassignedTrack;
+  }
+
+  return unassignedTrack;
 }
 
 function toTimelineItem(sceneId: string, action: ActionSnapshot, timeScale: number): TimelineItem {
@@ -282,11 +341,11 @@ function toTimelineItem(sceneId: string, action: ActionSnapshot, timeScale: numb
   };
 }
 
-function resolveTrackId(actionType: string): TimelineTrackId {
+function resolveTrackKind(actionType: string): TimelineTrackKind {
   const normalizedActionType = actionType.trim().toLowerCase();
 
   if (normalizedActionType === "talk") {
-    return "talk";
+    return "unassigned-character";
   }
 
   if (normalizedActionType.startsWith("camera_")) {
@@ -303,7 +362,11 @@ function resolveTrackId(actionType: string): TimelineTrackId {
     return "effect";
   }
 
-  return "character";
+  return "unassigned-character";
+}
+
+function createCharacterTrackId(instanceId: string): string {
+  return `character:${instanceId}`;
 }
 
 function normalizeSceneId(sceneId: string): string {

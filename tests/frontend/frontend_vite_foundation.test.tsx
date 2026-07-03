@@ -72,10 +72,10 @@ describe("Frontend Vite foundation", () => {
     const html = renderToStaticMarkup(<StudioApp />);
 
     expect(html).toContain("Scene: Opening");
-    expect(html).toContain("Talk: Talk 0.5-2.5s");
-    expect(html).toContain("Character: Move 2.5-4.0s");
-    expect(html).toContain("Effect: Flash 4.2-4.8s");
-    expect(html).toContain("Camera: Camera Zoom 5.0-7.0s");
+    expect(html).toContain("Talk 0.5-2.5s");
+    expect(html).toContain("Move 2.5-4.0s");
+    expect(html).toContain("Flash 4.2-4.8s");
+    expect(html).toContain("Camera Zoom 5.0-7.0s");
     expect(html).toContain('class="rss-timeline__item"');
     expect(html).not.toContain("Talk actions will appear here.");
   });
@@ -83,9 +83,9 @@ describe("Frontend Vite foundation", () => {
   it("renders explicit timeline drag and resize handles for visible actions", () => {
     const html = renderToStaticMarkup(<StudioApp />);
 
-    expect(html).toContain("Move Talk: Talk 0.5-2.5s");
-    expect(html).toContain("Resize start Talk: Talk 0.5-2.5s");
-    expect(html).toContain("Resize end Talk: Talk 0.5-2.5s");
+    expect(html).toContain("Move Talk 0.5-2.5s");
+    expect(html).toContain("Resize start Talk 0.5-2.5s");
+    expect(html).toContain("Resize end Talk 0.5-2.5s");
     expect(html).toContain("rss-timeline__resize-handle--start");
     expect(html).toContain("rss-timeline__resize-handle--end");
   });
@@ -98,6 +98,8 @@ describe("Frontend Vite foundation", () => {
     expect(html).toContain("Add Effect");
     expect(html).toContain("Add Camera");
     expect(html).toContain('aria-label="Action creation"');
+    expect(html).toContain('aria-label="Timeline character target"');
+    expect(html).toContain("Select placed character");
   });
 
   it("renders Generate Voice for talk actions without exposing VOICEVOX details", () => {

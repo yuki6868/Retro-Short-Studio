@@ -10,8 +10,8 @@ describe("Timeline", () => {
     const view = timeline.render();
 
     expect(view.emptyText).toBe("Select a scene to show its actions on the timeline.");
-    expect(view.tracks.map((track) => track.label)).toEqual(["Talk", "Character", "Effect", "Camera"]);
-    expect(view.tracks.map((track) => track.purpose)).toEqual(["Talk purpose", "Character purpose", "Effect purpose", "Camera purpose"]);
+    expect(view.tracks.map((track) => track.label)).toEqual(["Unassigned Character", "Effect", "Camera"]);
+    expect(view.tracks.map((track) => track.purpose)).toEqual(["Unassigned purpose", "Effect purpose", "Camera purpose"]);
     expect(Object.keys(view)).not.toContain("project");
   });
 
@@ -23,8 +23,8 @@ describe("Timeline", () => {
     expect(view.sceneName).toBe("Opening");
     expect(view.playheadLeft).toBe(160);
     expect(view.tracks[0]?.items[0]).toMatchObject({
-      label: "Talk: Talk 1.0-3.0s",
-      summary: "Talk track item for character-1",
+      label: "Talk 1.0-3.0s",
+      summary: "Zundamon action for character-1",
       left: 80,
       width: 160,
     });
@@ -118,10 +118,9 @@ function emptyState(): TimelineState {
     timeScale: 80,
     playhead: 0,
     tracks: [
-      { trackId: "talk", label: "Talk", purpose: "Talk purpose", acceptedActionTypes: ["talk"], items: [] },
-      { trackId: "character", label: "Character", purpose: "Character purpose", acceptedActionTypes: ["move"], items: [] },
-      { trackId: "effect", label: "Effect", purpose: "Effect purpose", acceptedActionTypes: ["fade"], items: [] },
-      { trackId: "camera", label: "Camera", purpose: "Camera purpose", acceptedActionTypes: ["camera_zoom"], items: [] },
+      trackState({ trackId: "character:unassigned", kind: "unassigned-character", label: "Unassigned Character", purpose: "Unassigned purpose", acceptedActionTypes: ["talk"] }),
+      trackState({ trackId: "effect", kind: "effect", label: "Effect", purpose: "Effect purpose", acceptedActionTypes: ["fade"] }),
+      trackState({ trackId: "camera", kind: "camera", label: "Camera", purpose: "Camera purpose", acceptedActionTypes: ["camera_zoom"] }),
     ],
   };
 }
@@ -135,11 +134,14 @@ function sceneState(overrides: Partial<TimelineState> = {}): TimelineState {
     timeScale: overrides.timeScale ?? 80,
     playhead: overrides.playhead ?? 2,
     tracks: [
-      {
-        trackId: "talk",
-        label: "Talk",
-        purpose: "Talk purpose",
+      trackState({
+        trackId: "character:character-1",
+        kind: "character-instance",
+        label: "Zundamon",
+        purpose: "Zundamon purpose",
         acceptedActionTypes: ["talk"],
+        characterInstanceId: "character-1",
+        characterId: "character-model-1",
         items: [
           {
             itemId: "timeline-item-action-1",
@@ -155,12 +157,35 @@ function sceneState(overrides: Partial<TimelineState> = {}): TimelineState {
             payload: { text: "Hello" },
           },
         ],
-      },
-      { trackId: "character", label: "Character", purpose: "Character purpose", acceptedActionTypes: ["move"], items: [] },
-      { trackId: "effect", label: "Effect", purpose: "Effect purpose", acceptedActionTypes: ["fade"], items: [] },
-      { trackId: "camera", label: "Camera", purpose: "Camera purpose", acceptedActionTypes: ["camera_zoom"], items: [] },
+      }),
+      trackState({ trackId: "effect", kind: "effect", label: "Effect", purpose: "Effect purpose", acceptedActionTypes: ["fade"] }),
+      trackState({ trackId: "camera", kind: "camera", label: "Camera", purpose: "Camera purpose", acceptedActionTypes: ["camera_zoom"] }),
     ],
     ...overrides,
+  };
+}
+
+function trackState(input: {
+  trackId: string;
+  kind: TimelineState["tracks"][number]["kind"];
+  label: string;
+  purpose: string;
+  acceptedActionTypes: string[];
+  characterInstanceId?: string | null;
+  characterId?: string | null;
+  iconAssetId?: string | null;
+  items?: TimelineState["tracks"][number]["items"];
+}): TimelineState["tracks"][number] {
+  return {
+    trackId: input.trackId,
+    kind: input.kind,
+    label: input.label,
+    purpose: input.purpose,
+    acceptedActionTypes: input.acceptedActionTypes,
+    characterInstanceId: input.characterInstanceId ?? null,
+    characterId: input.characterId ?? null,
+    iconAssetId: input.iconAssetId ?? null,
+    items: input.items ?? [],
   };
 }
 

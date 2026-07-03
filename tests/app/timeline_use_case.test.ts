@@ -1,15 +1,28 @@
 import { describe, expect, it } from "vitest";
 
 import { TimelineUseCase } from "../../app/src";
-import { Action, Project, Scene } from "../../core/src";
+import { Action, CharacterInstance, CharacterModel, Project, Scene } from "../../core/src";
 
 function createProjectWithScene(): Project {
   const project = Project.create({ projectId: "project-1", projectName: "Timeline Short" });
+  project.addCharacterModel(
+    CharacterModel.create({
+      characterId: "character-model-1",
+      characterName: "Zundamon",
+      imageMap: { expression: { neutral: "asset-zundamon-neutral" } },
+    }),
+  );
   project.addScene(
     Scene.create({
       sceneId: "scene-1",
       sceneName: "Opening",
       duration: 10,
+      characters: [
+        CharacterInstance.create({
+          instanceId: "character-instance-1",
+          characterId: "character-model-1",
+        }).toSnapshot(),
+      ],
       actions: [
         Action.create({
           actionId: "action-talk-1",
@@ -57,10 +70,9 @@ describe("TimelineUseCase", () => {
     const state = useCase.state;
 
     expect(state.sceneId).toBeNull();
-    expect(state.tracks.map((track) => track.trackId)).toEqual(["talk", "character", "effect", "camera"]);
+    expect(state.tracks.map((track) => track.trackId)).toEqual(["character:unassigned", "effect", "camera"]);
     expect(state.tracks.map((track) => track.purpose)).toEqual([
-      "Talk actions that drive voice, subtitles, and lip-sync timing.",
-      "Character actions such as movement, pose, expression, and simple motion.",
+      "Character actions that do not have a CharacterInstance target yet.",
       "Scene effects such as fade, flash, emphasis, and screen effects.",
       "Camera actions such as zoom, pan, and camera movement.",
     ]);
@@ -74,25 +86,24 @@ describe("TimelineUseCase", () => {
     const state = useCase.showScene("scene-1");
 
     expect(state.sceneName).toBe("Opening");
-    expect(state.tracks.find((track) => track.trackId === "talk")?.items).toMatchObject([
-      {
-        actionId: "action-talk-1",
-        actionType: "talk",
-        startTime: 1,
-        endTime: 3,
-        duration: 2,
-        left: 100,
-        width: 200,
-      },
-    ]);
-    expect(state.tracks.find((track) => track.trackId === "character")?.items).toMatchObject([
-      {
-        actionId: "action-move-1",
-        actionType: "move",
-        left: 400,
-        width: 200,
-      },
-    ]);
+    const characterTrack = state.tracks.find((track) => track.trackId === "character:character-instance-1");
+    expect(characterTrack?.label).toBe("Zundamon");
+    expect(characterTrack?.characterInstanceId).toBe("character-instance-1");
+    expect(characterTrack?.items.find((item) => item.actionId === "action-talk-1")).toMatchObject({
+      actionId: "action-talk-1",
+      actionType: "talk",
+      startTime: 1,
+      endTime: 3,
+      duration: 2,
+      left: 100,
+      width: 200,
+    });
+    expect(characterTrack?.items.find((item) => item.actionId === "action-move-1")).toMatchObject({
+      actionId: "action-move-1",
+      actionType: "move",
+      left: 400,
+      width: 200,
+    });
     expect(state.tracks.find((track) => track.trackId === "effect")?.items).toMatchObject([
       {
         actionId: "action-fade-1",
@@ -116,8 +127,8 @@ describe("TimelineUseCase", () => {
 
     const state = useCase.showScene("scene-1");
 
-    expect(state.tracks.find((track) => track.trackId === "talk")?.acceptedActionTypes).toContain("talk");
-    expect(state.tracks.find((track) => track.trackId === "character")?.acceptedActionTypes).toContain("move");
+    expect(state.tracks.find((track) => track.trackId === "character:character-instance-1")?.acceptedActionTypes).toContain("talk");
+    expect(state.tracks.find((track) => track.trackId === "character:character-instance-1")?.acceptedActionTypes).toContain("move");
     expect(state.tracks.find((track) => track.trackId === "effect")?.acceptedActionTypes).toContain("flash");
     expect(state.tracks.find((track) => track.trackId === "camera")?.acceptedActionTypes).toContain("camera_zoom");
   });
@@ -140,7 +151,7 @@ describe("TimelineUseCase", () => {
     const state = useCase.setTimeScale({ timeScale: 120 });
 
     expect(state.timeScale).toBe(120);
-    expect(state.tracks.find((track) => track.trackId === "talk")?.items[0].left).toBe(120);
+    expect(state.tracks.find((track) => track.trackId === "character:character-instance-1")?.items[0].left).toBe(120);
     expect(project.toSnapshot().scenes[0]?.actions[0]?.startTime).toBe(1);
   });
 
@@ -161,7 +172,7 @@ describe("TimelineUseCase drag and resize", () => {
 
     const state = useCase.moveItem({ sceneId: "scene-1", actionId: "action-talk-1", nextStartTime: 2.5 });
 
-    expect(state.tracks.find((track) => track.trackId === "talk")?.items[0]).toMatchObject({
+    expect(state.tracks.find((track) => track.trackId === "character:character-instance-1")?.items[0]).toMatchObject({
       actionId: "action-talk-1",
       startTime: 2.5,
       endTime: 4.5,
@@ -180,7 +191,7 @@ describe("TimelineUseCase drag and resize", () => {
 
     const state = useCase.resizeItemStart({ sceneId: "scene-1", actionId: "action-move-1", nextStartTime: 3.25 });
 
-    expect(state.tracks.find((track) => track.trackId === "character")?.items[0]).toMatchObject({
+    expect(state.tracks.find((track) => track.trackId === "character:character-instance-1")?.items.find((item) => item.actionId === "action-move-1")).toMatchObject({
       actionId: "action-move-1",
       startTime: 3.25,
       endTime: 6,
