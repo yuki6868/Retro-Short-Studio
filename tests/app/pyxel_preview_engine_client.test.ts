@@ -102,6 +102,54 @@ describe("PyxelPreviewEngineClient", () => {
     expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/variant-happy-open.png");
   });
 
+  it("uses CharacterImageMap.findAsset through the current variant selection", () => {
+    const request = createPreviewRequest(1);
+    request.assets = [
+      ...(request.assets ?? []),
+      {
+        assetId: "asset-expression-happy",
+        assetName: "Expression happy",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/expression-happy.png",
+      },
+      {
+        assetId: "asset-variant-angry-closed-open",
+        assetName: "Variant angry closed open",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/variant-angry-closed-open.png",
+      },
+    ];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        defaultExpression: "happy",
+        defaultEye: "open",
+        defaultMouth: "closed",
+        defaultMotion: "idle",
+        currentVariant: {
+          expression: "angry",
+          eye: "closed",
+          mouth: "open",
+        },
+        imageMap: {
+          expression: { happy: "asset-expression-happy" },
+          eye: {},
+          mouth: {},
+          motion: {},
+          variant: {
+            "expression=angry|eye=closed|mouth=open|motion=idle": "asset-variant-angry-closed-open",
+          },
+        },
+        imageMapId: "character-zundamon",
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/variant-angry-closed-open.png");
+  });
+
 });
 
 class RecordingTransport implements PreviewFrameTransport {

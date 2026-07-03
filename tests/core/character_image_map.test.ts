@@ -120,4 +120,73 @@ describe("Character Image Mapping", () => {
       "expression=happy|eye=closed|mouth=open|motion=idle": "asset-happy-closed-open",
     });
   });
+
+    it("finds the best asset for the current CharacterVariantSelection", () => {
+    const imageMap = CharacterImageMap.empty()
+      .setExpressionImage("happy", "asset-expression-happy")
+      .setEyeImage("closed", "asset-eye-closed")
+      .setMouthImage("open", "asset-mouth-open")
+      .setMotionImage("idle", "asset-motion-idle")
+      .setVariantImage({ expression: "happy", eye: "closed", mouth: "open", motion: "idle" }, "asset-exact-variant");
+
+    expect(
+      imageMap.findAsset({
+        selection: { expression: "happy", eye: "closed", mouth: "open" },
+        motion: "idle",
+      }),
+    ).toBe("asset-exact-variant");
+  });
+
+  it("falls back from exact variant to expression, mouth, eye, then motion", () => {
+    expect(
+      CharacterImageMap.empty()
+        .setExpressionImage("happy", "asset-expression-happy")
+        .setMouthImage("open", "asset-mouth-open")
+        .findAsset({
+          selection: { expression: "happy", eye: "closed", mouth: "open" },
+          motion: "idle",
+        }),
+    ).toBe("asset-expression-happy");
+
+    expect(
+      CharacterImageMap.empty()
+        .setMouthImage("open", "asset-mouth-open")
+        .setEyeImage("closed", "asset-eye-closed")
+        .findAsset({
+          selection: { expression: "happy", eye: "closed", mouth: "open" },
+          motion: "idle",
+        }),
+    ).toBe("asset-mouth-open");
+
+    expect(
+      CharacterImageMap.empty()
+        .setEyeImage("closed", "asset-eye-closed")
+        .setMotionImage("idle", "asset-motion-idle")
+        .findAsset({
+          selection: { expression: "happy", eye: "closed", mouth: "open" },
+          motion: "idle",
+        }),
+    ).toBe("asset-eye-closed");
+
+    expect(
+      CharacterImageMap.empty()
+        .setMotionImage("idle", "asset-motion-idle")
+        .findAsset({
+          selection: { expression: "happy", eye: "closed", mouth: "open" },
+          motion: "idle",
+        }),
+    ).toBe("asset-motion-idle");
+  });
+
+  it("returns null when no CharacterImageMap asset matches the selection", () => {
+    const imageMap = CharacterImageMap.empty();
+
+    expect(
+      imageMap.findAsset({
+        selection: { expression: "happy", eye: "closed", mouth: "open" },
+        motion: "idle",
+      }),
+    ).toBeNull();
+  });
+  
 });

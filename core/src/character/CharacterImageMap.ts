@@ -1,5 +1,6 @@
 import { AssetId } from "../asset";
 import { CharacterVariant, type CharacterVariantSnapshot } from "./CharacterVariant";
+import { CharacterVariantSelection, type CharacterVariantSelectionSnapshot } from "./CharacterVariantSelection";
 import { ExpressionState, EyeState, MotionState, MouthState } from "./valueObjects";
 
 export type CharacterImageMapSnapshot = {
@@ -24,6 +25,11 @@ export type CharacterImageMapStateValues = {
   eye: string;
   mouth: string;
   motion: string;
+};
+
+export type CharacterImageMapFindAssetInput = {
+  selection: CharacterVariantSelectionSnapshot;
+  motion?: string;
 };
 
 export class CharacterImageMap {
@@ -101,6 +107,26 @@ export class CharacterImageMap {
     return this.mapByKind(kind).get(normalizedState)?.toString() ?? null;
   }
 
+  findAsset(input: CharacterImageMapFindAssetInput): string | null {
+    const selection = CharacterVariantSelection.restore(input.selection).toSnapshot();
+    const motion = MotionState.create(input.motion).toString();
+
+    const variantAssetId = this.resolveVariant({
+      expression: selection.expression,
+      eye: selection.eye,
+      mouth: selection.mouth,
+      motion,
+    });
+
+    return (
+      variantAssetId ??
+      this.getImage("expression", selection.expression) ??
+      this.getImage("mouth", selection.mouth) ??
+      this.getImage("eye", selection.eye) ??
+      this.getImage("motion", motion)
+    );
+  }
+
   resolve(states: CharacterImageMapStateValues): CharacterImageMapResolvedSnapshot {
     return {
       expressionAssetId: this.getImage("expression", states.expression),
@@ -142,27 +168,15 @@ export class CharacterImageMap {
 }
 
 function restoreMap(values: Record<string, string>, kind: CharacterImageMapStateKind): Map<string, AssetId> {
-  return new Map(
-    Object.entries(values).map(([state, assetId]) => [
-      normalizeState(kind, state),
-      AssetId.create(assetId),
-    ]),
-  );
+  return new Map(Object.entries(values).map(([state, assetId]) => [normalizeState(kind, state), AssetId.create(assetId)]));
 }
 
 function restoreVariantMap(values: Record<string, string>): Map<string, AssetId> {
-  return new Map(
-    Object.entries(values).map(([variantKey, assetId]) => [
-      assertVariantKey(variantKey),
-      AssetId.create(assetId),
-    ]),
-  );
+  return new Map(Object.entries(values).map(([variantKey, assetId]) => [assertVariantKey(variantKey), AssetId.create(assetId)]));
 }
 
 function mapToSnapshot(values: Map<string, AssetId>): Record<string, string> {
-  return Object.fromEntries(
-    [...values.entries()].map(([state, assetId]) => [state, assetId.toString()]),
-  );
+  return Object.fromEntries([...values.entries()].map(([state, assetId]) => [state, assetId.toString()]));
 }
 
 function assertVariantKey(variantKey: string): string {

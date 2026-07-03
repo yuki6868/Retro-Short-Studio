@@ -1,4 +1,4 @@
-import { ActionEvaluator, Scene } from "../../../core/src";
+import { ActionEvaluator, CharacterImageMap, Scene } from "../../../core/src";
 import type { AssetDto, CharacterDto, PreviewRequest } from "../../../shared";
 
 export type PreviewDrawablePayload = {
@@ -150,21 +150,17 @@ function resolveCharacterAsset(assets: AssetDto[], character: CharacterDto | nul
     return null;
   }
 
-  const imageMap = character.imageMap ?? { expression: {}, eye: {}, mouth: {}, motion: {} };
-  const defaultExpression = character.defaultExpression ?? "neutral";
-  const defaultMouth = character.defaultMouth ?? "closed";
-  const defaultEye = character.defaultEye ?? "open";
-  const variantKey = createCharacterVariantKey({
-    expression: defaultExpression,
-    eye: defaultEye,
-    mouth: defaultMouth,
+  const imageMap = CharacterImageMap.create(character.imageMap ?? { expression: {}, eye: {}, mouth: {}, motion: {} });
+  const selection = character.currentVariant ?? {
+    expression: character.defaultExpression ?? "neutral",
+    eye: character.defaultEye ?? "open",
+    mouth: character.defaultMouth ?? "closed",
+  };
+
+  const assetId = imageMap.findAsset({
+    selection,
     motion: character.defaultMotion ?? "idle",
   });
-  const variantAssetId = imageMap.variant?.[variantKey] ?? null;
-  const expressionAssetId = imageMap.expression[defaultExpression] ?? imageMap.expression.neutral ?? null;
-  const mouthAssetId = imageMap.mouth[defaultMouth] ?? null;
-  const eyeAssetId = imageMap.eye[defaultEye] ?? null;
-  const assetId = variantAssetId ?? expressionAssetId ?? mouthAssetId ?? eyeAssetId;
 
   if (assetId === null) {
     return null;
@@ -205,11 +201,3 @@ function toActionPayloadRecord(payload: Record<string, unknown>): Record<string,
   return JSON.parse(JSON.stringify(payload)) as Record<string, string | number | boolean | null | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null }>;
 }
 
-function createCharacterVariantKey(states: { expression: string; eye: string; mouth: string; motion: string }): string {
-  return [
-    `expression=${states.expression}`,
-    `eye=${states.eye}`,
-    `mouth=${states.mouth}`,
-    `motion=${states.motion}`,
-  ].join("|");
-}
