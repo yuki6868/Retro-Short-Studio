@@ -3,6 +3,7 @@ export type CharacterImageMapDto = {
   eye: Record<string, string>;
   mouth: Record<string, string>;
   motion: Record<string, string>;
+  variant?: Record<string, string>;
 };
 
 export type CharacterDto = {

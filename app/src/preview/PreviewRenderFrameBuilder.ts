@@ -3,6 +3,7 @@ import type { AssetDto, CharacterDto, PreviewRequest } from "../../../shared";
 
 export type PreviewDrawablePayload = {
   assetId: string;
+  assetName?: string;
   path: string;
   x: number;
   y: number;
@@ -71,6 +72,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
         : {
             background: {
               assetId: backgroundAsset.assetId,
+              assetName: backgroundAsset.assetName,
               path: toProjectAssetPath(request.projectId, backgroundAsset.assetPath),
               x: 0,
               y: 0,
@@ -86,6 +88,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
 
         return {
           assetId: characterAsset?.assetId ?? characterId,
+          assetName: characterAsset?.assetName ?? character?.characterName ?? characterId,
           path: toProjectAssetPath(request.projectId, characterAsset?.assetPath ?? "assets/characters/placeholder.png"),
           x: Math.round(request.width / 2 - 96 + moveX + index * 24),
           y: Math.round(request.height * 0.42 + moveY),
@@ -151,10 +154,17 @@ function resolveCharacterAsset(assets: AssetDto[], character: CharacterDto | nul
   const defaultExpression = character.defaultExpression ?? "neutral";
   const defaultMouth = character.defaultMouth ?? "closed";
   const defaultEye = character.defaultEye ?? "open";
+  const variantKey = createCharacterVariantKey({
+    expression: defaultExpression,
+    eye: defaultEye,
+    mouth: defaultMouth,
+    motion: character.defaultMotion ?? "idle",
+  });
+  const variantAssetId = imageMap.variant?.[variantKey] ?? null;
   const expressionAssetId = imageMap.expression[defaultExpression] ?? imageMap.expression.neutral ?? null;
   const mouthAssetId = imageMap.mouth[defaultMouth] ?? null;
   const eyeAssetId = imageMap.eye[defaultEye] ?? null;
-  const assetId = expressionAssetId ?? mouthAssetId ?? eyeAssetId;
+  const assetId = variantAssetId ?? expressionAssetId ?? mouthAssetId ?? eyeAssetId;
 
   if (assetId === null) {
     return null;
@@ -193,4 +203,13 @@ function readString(value: unknown, fallback: string): string {
 
 function toActionPayloadRecord(payload: Record<string, unknown>): Record<string, string | number | boolean | null | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null }> {
   return JSON.parse(JSON.stringify(payload)) as Record<string, string | number | boolean | null | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null }>;
+}
+
+function createCharacterVariantKey(states: { expression: string; eye: string; mouth: string; motion: string }): string {
+  return [
+    `expression=${states.expression}`,
+    `eye=${states.eye}`,
+    `mouth=${states.mouth}`,
+    `motion=${states.motion}`,
+  ].join("|");
 }

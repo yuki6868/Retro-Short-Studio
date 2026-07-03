@@ -58,6 +58,50 @@ describe("PyxelPreviewEngineClient", () => {
 
     expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/mapped-neutral.png");
   });
+
+  it("uses an exact CharacterVariant image before separated expression, mouth, or eye fallbacks", () => {
+    const request = createPreviewRequest(1);
+    request.assets = [
+      ...(request.assets ?? []),
+      {
+        assetId: "asset-expression-happy",
+        assetName: "Expression happy",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/expression-happy.png",
+      },
+      {
+        assetId: "asset-variant-happy-open",
+        assetName: "Variant happy open",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/variant-happy-open.png",
+      },
+    ];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        defaultExpression: "happy",
+        defaultEye: "open",
+        defaultMouth: "open",
+        defaultMotion: "idle",
+        imageMap: {
+          expression: { happy: "asset-expression-happy" },
+          eye: {},
+          mouth: {},
+          motion: {},
+          variant: {
+            "expression=happy|eye=open|mouth=open|motion=idle": "asset-variant-happy-open",
+          },
+        },
+        imageMapId: "character-zundamon",
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/variant-happy-open.png");
+  });
+
 });
 
 class RecordingTransport implements PreviewFrameTransport {

@@ -9,18 +9,27 @@ import {
   type PaletteSnapshot,
   type PixelCanvasSize,
   type PixelDocumentSnapshot,
+  type CharacterImageMapStateKind,
   type PixelToolId,
 } from "../../../core/src";
 import { PixelCanvas } from "./PixelCanvas";
 
+export type PixelEditorCharacterAssignment = {
+  characterId: string;
+  kind: CharacterImageMapStateKind;
+  state: string;
+};
+
 export type PixelEditorSaveInput = {
   document: PixelDocumentSnapshot;
   assetName: string;
+  assignToCharacterImageMap?: PixelEditorCharacterAssignment;
 };
 
 export type PixelEditorSaveResult = {
   assetName: string;
   assetPath: string;
+  assignedCharacterImageMap?: PixelEditorCharacterAssignment;
 };
 
 export type PixelEditorWindowProps = {
@@ -28,9 +37,10 @@ export type PixelEditorWindowProps = {
   projectName: string;
   initialSize?: PixelCanvasSize;
   onSaveDocument?: (input: PixelEditorSaveInput) => Promise<PixelEditorSaveResult>;
+  characterAssignment?: PixelEditorCharacterAssignment;
 };
 
-export function PixelEditorWindow({ projectId, projectName, initialSize = 32, onSaveDocument }: PixelEditorWindowProps): ReactElement {
+export function PixelEditorWindow({ projectId, projectName, initialSize = 32, onSaveDocument, characterAssignment }: PixelEditorWindowProps): ReactElement {
   const initialDocument = useMemo(
     () => PixelDocument.create({ documentId: `pixel-${projectId}`, projectId, size: initialSize }).toSnapshot(),
     [initialSize, projectId],
@@ -102,8 +112,15 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32, on
     setSaveStatus("Saving pixel asset...");
 
     try {
-      const result = await onSaveDocument({ document, assetName });
-      setSaveStatus(`Saved pixel asset: ${result.assetName} -> ${result.assetPath}`);
+      const result = await onSaveDocument({
+        document,
+        assetName,
+        ...(characterAssignment === undefined ? {} : { assignToCharacterImageMap: characterAssignment }),
+      });
+      const assignmentStatus = result.assignedCharacterImageMap === undefined
+        ? ""
+        : ` and assigned to ${result.assignedCharacterImageMap.kind}:${result.assignedCharacterImageMap.state}`;
+      setSaveStatus(`Saved pixel asset: ${result.assetName} -> ${result.assetPath}${assignmentStatus}`);
     } catch (error) {
       setSaveStatus(error instanceof Error ? error.message : "Pixel asset save failed.");
     }
@@ -120,6 +137,11 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32, on
       </header>
 
       <section className="rss-pixel-editor-window__save" aria-label="Pixel asset save">
+        {characterAssignment === undefined ? null : (
+          <p className="rss-pixel-editor-window__assignment">
+            Character target: {characterAssignment.characterId} / {characterAssignment.kind}:{characterAssignment.state}
+          </p>
+        )}
         <label>
           Asset name
           <input

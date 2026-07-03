@@ -1,4 +1,5 @@
 import { AssetId } from "../asset";
+import { CharacterVariant, type CharacterVariantSnapshot } from "./CharacterVariant";
 import { ExpressionState, EyeState, MotionState, MouthState } from "./valueObjects";
 
 export type CharacterImageMapSnapshot = {
@@ -6,9 +7,10 @@ export type CharacterImageMapSnapshot = {
   eye: Record<string, string>;
   mouth: Record<string, string>;
   motion: Record<string, string>;
+  variant?: Record<string, string>;
 };
 
-export type CharacterImageMapStateKind = keyof CharacterImageMapSnapshot;
+export type CharacterImageMapStateKind = "expression" | "eye" | "mouth" | "motion";
 
 export type CharacterImageMapResolvedSnapshot = {
   expressionAssetId: string | null;
@@ -30,10 +32,11 @@ export class CharacterImageMap {
     private readonly eye: Map<string, AssetId>,
     private readonly mouth: Map<string, AssetId>,
     private readonly motion: Map<string, AssetId>,
+    private readonly variant: Map<string, AssetId>,
   ) {}
 
   static empty(): CharacterImageMap {
-    return new CharacterImageMap(new Map(), new Map(), new Map(), new Map());
+    return new CharacterImageMap(new Map(), new Map(), new Map(), new Map(), new Map());
   }
 
   static create(snapshot: Partial<CharacterImageMapSnapshot> = {}): CharacterImageMap {
@@ -42,6 +45,7 @@ export class CharacterImageMap {
       restoreMap(snapshot.eye ?? {}, "eye"),
       restoreMap(snapshot.mouth ?? {}, "mouth"),
       restoreMap(snapshot.motion ?? {}, "motion"),
+      restoreVariantMap(snapshot.variant ?? {}),
     );
   }
 
@@ -63,6 +67,20 @@ export class CharacterImageMap {
 
   setMotionImage(motion: string, assetId: string): CharacterImageMap {
     return this.setImage("motion", motion, assetId);
+  }
+
+  setVariantImage(variant: Partial<CharacterVariantSnapshot>, assetId: string): CharacterImageMap {
+    const normalizedVariant = CharacterVariant.create(variant);
+    const normalizedAssetId = AssetId.create(assetId);
+    const snapshot = this.toSnapshot();
+
+    return CharacterImageMap.create({
+      ...snapshot,
+      variant: {
+        ...(snapshot.variant ?? {}),
+        [normalizedVariant.toKey()]: normalizedAssetId.toString(),
+      },
+    });
   }
 
   setImage(kind: CharacterImageMapStateKind, state: string, assetId: string): CharacterImageMap {
@@ -92,12 +110,20 @@ export class CharacterImageMap {
     };
   }
 
+  resolveVariant(states: CharacterImageMapStateValues): string | null {
+    const key = CharacterVariant.fromStateValues(states).toKey();
+    return this.variant.get(key)?.toString() ?? null;
+  }
+
   toSnapshot(): CharacterImageMapSnapshot {
+    const variant = mapToSnapshot(this.variant);
+
     return {
       expression: mapToSnapshot(this.expression),
       eye: mapToSnapshot(this.eye),
       mouth: mapToSnapshot(this.mouth),
       motion: mapToSnapshot(this.motion),
+      ...(Object.keys(variant).length === 0 ? {} : { variant }),
     };
   }
 
@@ -124,10 +150,29 @@ function restoreMap(values: Record<string, string>, kind: CharacterImageMapState
   );
 }
 
+function restoreVariantMap(values: Record<string, string>): Map<string, AssetId> {
+  return new Map(
+    Object.entries(values).map(([variantKey, assetId]) => [
+      assertVariantKey(variantKey),
+      AssetId.create(assetId),
+    ]),
+  );
+}
+
 function mapToSnapshot(values: Map<string, AssetId>): Record<string, string> {
   return Object.fromEntries(
     [...values.entries()].map(([state, assetId]) => [state, assetId.toString()]),
   );
+}
+
+function assertVariantKey(variantKey: string): string {
+  const normalized = variantKey.trim();
+
+  if (normalized.length === 0) {
+    throw new Error("CharacterVariant key is required.");
+  }
+
+  return normalized;
 }
 
 function normalizeState(kind: CharacterImageMapStateKind, state: string): string {

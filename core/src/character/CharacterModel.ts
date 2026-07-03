@@ -1,4 +1,5 @@
 import { CharacterImageMap, type CharacterImageMapSnapshot } from "./CharacterImageMap";
+import type { CharacterVariantSnapshot } from "./CharacterVariant";
 import {
   CharacterId,
   CharacterName,
@@ -92,6 +93,19 @@ export class CharacterModel {
 
   mapMotionImage(motion: string, assetId: string): void {
     this.imageMap = this.imageMap.setMotionImage(motion, assetId);
+  }
+
+  mapVariantImage(variant: Partial<CharacterVariantSnapshot>, assetId: string): void {
+    this.imageMap = this.imageMap.setVariantImage(variant, assetId);
+  }
+
+  resolveDefaultVariantImage(): string | null {
+    return this.imageMap.resolveVariant({
+      expression: this.defaultExpression.toString(),
+      eye: this.defaultEye.toString(),
+      mouth: this.defaultMouth.toString(),
+      motion: this.defaultMotion.toString(),
+    });
   }
 
   resolveDefaultImages(): {

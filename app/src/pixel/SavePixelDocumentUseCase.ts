@@ -1,11 +1,18 @@
-import { Asset, type IdGenerator, type PixelDocumentSnapshot, type Project } from "../../../core/src";
+import { Asset, type CharacterImageMapStateKind, type IdGenerator, type PixelDocumentSnapshot, type Project } from "../../../core/src";
 import type { AssetDto } from "../../../shared";
 import type { AssetFileStore } from "../asset";
 import { encodePixelDocumentToPng } from "./PixelPngEncoder";
 
+export type SavePixelDocumentCharacterAssignmentInput = {
+  characterId: string;
+  kind: CharacterImageMapStateKind;
+  state: string;
+};
+
 export type SavePixelDocumentInput = {
   document: PixelDocumentSnapshot;
   assetName: string;
+  assignToCharacterImageMap?: SavePixelDocumentCharacterAssignmentInput;
 };
 
 export type SavePixelDocumentResult = {
@@ -40,6 +47,10 @@ export class SavePixelDocumentUseCase {
     this.config.project.addAsset(asset);
     const assetSnapshot = asset.toSnapshot();
 
+    if (input.assignToCharacterImageMap !== undefined) {
+      this.assignAssetToCharacterImageMap(input.assignToCharacterImageMap, assetSnapshot.assetId);
+    }
+
     return {
       asset: {
         assetId: assetSnapshot.assetId,
@@ -49,6 +60,25 @@ export class SavePixelDocumentUseCase {
       },
       assetCount: this.config.project.toSnapshot().assets.length,
     };
+  }
+
+  private assignAssetToCharacterImageMap(input: SavePixelDocumentCharacterAssignmentInput, assetId: string): void {
+    this.config.project.updateCharacterModel(input.characterId, (character) => {
+      switch (input.kind) {
+        case "expression":
+          character.mapExpressionImage(input.state, assetId);
+          break;
+        case "eye":
+          character.mapEyeImage(input.state, assetId);
+          break;
+        case "mouth":
+          character.mapMouthImage(input.state, assetId);
+          break;
+        case "motion":
+          character.mapMotionImage(input.state, assetId);
+          break;
+      }
+    });
   }
 
   private async createUniqueRelativePath(fileName: string): Promise<string> {

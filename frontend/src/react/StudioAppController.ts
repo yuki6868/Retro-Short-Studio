@@ -605,11 +605,12 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     return nextTimeline;
   };
 
-  const openPixelEditor = (): void => {
+  const openPixelEditor = (input?: { characterTarget?: { characterId: string; kind: "expression" | "eye" | "mouth" | "motion"; state: string } }): void => {
     const snapshot = project.toSnapshot();
     compositionRootRef.current?.editorLauncher.openPixelEditor({
       projectId: snapshot.projectId,
       projectName: snapshot.projectName,
+      ...(input?.characterTarget === undefined ? {} : { characterTarget: input.characterTarget }),
     });
   };
 
@@ -681,7 +682,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
 }
 
 
-function isPixelAssetSavedMessage(value: unknown): value is { type: "retro-short-studio.pixel-asset-saved"; projectId: string } {
+function isPixelAssetSavedMessage(value: unknown): value is { type: "retro-short-studio.pixel-asset-saved"; projectId: string; assetId?: string; assignment?: unknown } {
   return (
     typeof value === "object" &&
     value !== null &&

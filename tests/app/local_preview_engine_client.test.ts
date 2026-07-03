@@ -27,6 +27,53 @@ describe("LocalPreviewEngineClient", () => {
     expect(svg).toContain("No active talk action");
   });
 
+
+  it("renders the same CharacterVariant asset selected by the shared preview frame", async () => {
+    const client = new LocalPreviewEngineClient();
+    const request = createPreviewRequest(1);
+    request.assets = [
+      ...(request.assets ?? []),
+      {
+        assetId: "asset-expression-happy",
+        assetName: "Expression happy",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/expression-happy.png",
+      },
+      {
+        assetId: "asset-variant-happy-open",
+        assetName: "Variant happy open",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/variant-happy-open.png",
+      },
+    ];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        defaultExpression: "happy",
+        defaultEye: "open",
+        defaultMouth: "open",
+        defaultMotion: "idle",
+        imageMap: {
+          expression: { happy: "asset-expression-happy" },
+          eye: {},
+          mouth: {},
+          motion: {},
+          variant: {
+            "expression=happy|eye=open|mouth=open|motion=idle": "asset-variant-happy-open",
+          },
+        },
+        imageMapId: "character-zundamon",
+      },
+    ];
+
+    const result = await client.preview(request);
+    const svg = decodeURIComponent(result.payload?.framePath?.split(",")[1] ?? "");
+
+    expect(svg).toContain("projects/project-1/assets/characters/zunda/variant-happy-open.png");
+    expect(svg).not.toContain("projects/project-1/assets/characters/zunda/expression-happy.png");
+  });
+
   it("keeps unsupported engine operations outside the local preview implementation", async () => {
     const client = new LocalPreviewEngineClient();
 

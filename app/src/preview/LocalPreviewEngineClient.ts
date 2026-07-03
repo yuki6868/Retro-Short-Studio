@@ -1,7 +1,4 @@
-import { ActionEvaluator, Scene } from "../../../core/src";
 import type {
-  AssetDto,
-  CharacterDto,
   EngineClient,
   EngineCommandRequest,
   EngineResult,
@@ -14,16 +11,20 @@ import type {
   VoiceRequest,
   VoiceResult,
 } from "../../../shared";
+import { DefaultPreviewRenderFrameBuilder, type PreviewDrawablePayload, type PreviewRenderFrameBuilder, type PreviewRenderFramePayload } from "./PreviewRenderFrameBuilder";
 
 type LocalPreviewEngineClientConfig = {
   commandId?: string;
+  frameBuilder?: PreviewRenderFrameBuilder;
 };
 
 export class LocalPreviewEngineClient implements EngineClient {
   private readonly commandId: string;
+  private readonly frameBuilder: PreviewRenderFrameBuilder;
 
   constructor(config: LocalPreviewEngineClientConfig = {}) {
     this.commandId = config.commandId ?? "local-preview";
+    this.frameBuilder = config.frameBuilder ?? new DefaultPreviewRenderFrameBuilder();
   }
 
   async execute(command: EngineCommandRequest): Promise<EngineResult> {
@@ -37,32 +38,17 @@ export class LocalPreviewEngineClient implements EngineClient {
 
   async preview(request: PreviewRequest): Promise<EngineResult<PreviewResult>> {
     try {
-      const scene = Scene.create({
-        sceneId: request.scene.sceneId,
-        sceneName: request.scene.sceneName,
-        duration: request.scene.duration,
-        backgroundAssetId: request.scene.backgroundAssetId,
-        actions: request.scene.actions.map((action) => ({
-          ...action,
-          payload: toActionPayloadRecord(action.payload),
-        })),
-      });
-      const evaluated = new ActionEvaluator().evaluate(scene, request.currentTime);
-      const framePath = buildPreviewSvgDataUrl({
-        request,
-        assets: request.assets ?? [],
-        characters: request.characters ?? [],
-        activeActions: evaluated.activeActions,
-      });
+      const frame = this.frameBuilder.build(request);
+      const framePath = buildPreviewSvgDataUrl(frame, request.scene.duration);
 
       return {
         commandId: this.commandId,
         ok: true,
         payload: {
           framePath,
-          currentTime: evaluated.currentTime,
-          width: request.width,
-          height: request.height,
+          currentTime: frame.currentTime,
+          width: frame.width,
+          height: frame.height,
         },
         error: null,
       };
@@ -89,65 +75,49 @@ export class LocalPreviewEngineClient implements EngineClient {
   }
 }
 
-type PreviewSvgInput = {
-  request: PreviewRequest;
-  assets: AssetDto[];
-  characters: CharacterDto[];
-  activeActions: Array<{
-    actionId: string;
-    actionType: string;
-    targetId: string | null;
-    payload: Record<string, unknown>;
-    progress: number;
-  }>;
-};
-
-function buildPreviewSvgDataUrl(input: PreviewSvgInput): string {
-  const { request, assets, characters, activeActions } = input;
-  const background = assets.find((asset) => asset.assetId === request.scene.backgroundAssetId) ?? null;
-  const talkAction = activeActions.find((action) => action.actionType === "talk") ?? null;
-  const moveAction = activeActions.find((action) => action.actionType === "move") ?? null;
-  const flashAction = activeActions.find((action) => action.actionType === "flash") ?? null;
-  const zoomAction = activeActions.find((action) => action.actionType === "camera_zoom") ?? null;
-  const moveX = readNumber(moveAction?.payload.x, 0) * (moveAction?.progress ?? 0);
-  const moveY = readNumber(moveAction?.payload.y, 0) * (moveAction?.progress ?? 0);
-  const zoom = readNumber(zoomAction?.payload.zoom, 1);
-  const flashOpacity = flashAction === null ? 0 : Math.min(0.75, Math.max(0, readNumber(flashAction.payload.intensity, 0.5)));
-  const speakerName = findCharacterName(characters, talkAction?.targetId ?? null);
-  const talkText = readString(talkAction?.payload.text, "");
-  const safeWidth = Math.max(1, request.width);
-  const safeHeight = Math.max(1, request.height);
-  const centerX = safeWidth / 2;
-  const characterX = centerX + moveX;
-  const characterY = safeHeight * 0.58 + moveY;
+function buildPreviewSvgDataUrl(frame: PreviewRenderFramePayload, duration: number): string {
+  const safeWidth = Math.max(1, frame.width);
+  const safeHeight = Math.max(1, frame.height);
+  const backgroundName = frame.background?.assetName ?? frame.background?.assetId ?? "none";
+  const backgroundPath = frame.background?.path ?? "No background asset selected";
+  const firstTalkOverlay = frame.textOverlays.find((overlay) => !overlay.text.endsWith("s") && overlay.y >= safeHeight - 64) ?? null;
+  const talkText = firstTalkOverlay?.text ?? "No active talk action";
+  const flashOpacity = frame.activeActionTypes.includes("flash") ? 0.5 : 0;
 
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}">
-  <rect width="100%" height="100%" fill="#10131f"/>
-  <rect x="24" y="24" width="${safeWidth - 48}" height="${safeHeight - 48}" rx="28" fill="#1c2233" stroke="#47506a" stroke-width="3"/>
-  <text x="48" y="70" fill="#f4f7ff" font-family="monospace" font-size="28">${escapeXml(request.scene.sceneName)}</text>
-  <text x="48" y="108" fill="#b8c0d8" font-family="monospace" font-size="18">${formatTime(request.currentTime)} / ${formatTime(request.scene.duration)}</text>
-  <text x="48" y="146" fill="#b8c0d8" font-family="monospace" font-size="18">Background: ${escapeXml(background?.assetName ?? "none")}</text>
-  <text x="48" y="174" fill="#8791b0" font-family="monospace" font-size="14">${escapeXml(background?.assetPath ?? "No background asset selected")}</text>
-  <g transform="translate(${characterX} ${characterY}) scale(${zoom})">
-    <circle cx="0" cy="-82" r="76" fill="#67d391" stroke="#f4f7ff" stroke-width="4"/>
-    <rect x="-92" y="-8" width="184" height="160" rx="34" fill="#8be7aa" stroke="#f4f7ff" stroke-width="4"/>
-    <circle cx="-28" cy="-96" r="8" fill="#10131f"/>
-    <circle cx="28" cy="-96" r="8" fill="#10131f"/>
-    <rect x="-30" y="-66" width="60" height="12" rx="6" fill="#10131f" opacity="${talkAction === null ? 0.35 : 1}"/>
-    <text x="0" y="188" text-anchor="middle" fill="#f4f7ff" font-family="monospace" font-size="18">${escapeXml(speakerName)}</text>
-  </g>
-  <rect x="60" y="${safeHeight - 156}" width="${safeWidth - 120}" height="96" rx="18" fill="#0d1020" stroke="#f4f7ff" stroke-width="2" opacity="${talkAction === null ? 0.2 : 0.94}"/>
-  <text x="92" y="${safeHeight - 100}" fill="#f4f7ff" font-family="monospace" font-size="26">${escapeXml(talkText || "No active talk action")}</text>
-  <text x="48" y="${safeHeight - 28}" fill="#b8c0d8" font-family="monospace" font-size="16">Active actions: ${escapeXml(activeActions.map((action) => action.actionType).join(", ") || "none")}</text>
+  <rect width="100%" height="100%" fill="${toSvgColor(frame.clearColor)}"/>
+  ${frame.background === undefined ? "" : renderSvgImage(frame.background)}
+  <rect x="24" y="24" width="${safeWidth - 48}" height="${safeHeight - 48}" rx="28" fill="#1c2233" stroke="#47506a" stroke-width="3" opacity="0.82"/>
+  ${frame.textOverlays.map((overlay) => `<text x="${overlay.x}" y="${overlay.y}" fill="${toSvgColor(overlay.color ?? 7)}" font-family="monospace" font-size="${overlay.y <= 32 ? 18 : 28}">${escapeXml(overlay.text)}</text>`).join("\n  ")}
+  <text x="48" y="108" fill="#b8c0d8" font-family="monospace" font-size="18">${formatTime(frame.currentTime)} / ${formatTime(duration)}</text>
+  <text x="48" y="146" fill="#b8c0d8" font-family="monospace" font-size="18">Background: ${escapeXml(backgroundName)}</text>
+  <text x="48" y="174" fill="#8791b0" font-family="monospace" font-size="14">${escapeXml(backgroundPath)}</text>
+  ${frame.characters.map((character) => renderSvgCharacter(character)).join("\n  ")}
+  <rect x="60" y="${safeHeight - 156}" width="${safeWidth - 120}" height="96" rx="18" fill="#0d1020" stroke="#f4f7ff" stroke-width="2" opacity="${talkText === "No active talk action" ? 0.2 : 0.94}"/>
+  <text x="92" y="${safeHeight - 100}" fill="#f4f7ff" font-family="monospace" font-size="26">${escapeXml(talkText)}</text>
+  <text x="48" y="${safeHeight - 28}" fill="#b8c0d8" font-family="monospace" font-size="16">Active actions: ${escapeXml(frame.activeActionTypes.join(", ") || "none")}</text>
   <rect width="100%" height="100%" fill="#ffffff" opacity="${flashOpacity}"/>
 </svg>`;
 
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function toActionPayloadRecord(payload: Record<string, unknown>): Record<string, string | number | boolean | null | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null }> {
-  return JSON.parse(JSON.stringify(payload)) as Record<string, string | number | boolean | null | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null }>;
+function renderSvgImage(drawable: PreviewDrawablePayload): string {
+  return `<image href="${escapeXml(drawable.path)}" x="${drawable.x}" y="${drawable.y}" width="${drawable.width}" height="${drawable.height}" preserveAspectRatio="xMidYMid slice"/>`;
+}
+
+function renderSvgCharacter(character: PreviewDrawablePayload): string {
+  const scale = character.scale ?? 1;
+  const centerX = character.x + character.width / 2;
+  const centerY = character.y + character.height / 2;
+  const transform = `translate(${centerX} ${centerY}) rotate(${character.rotation ?? 0}) scale(${scale}) translate(${-character.width / 2} ${-character.height / 2})`;
+
+  return `
+  <g transform="${transform}" data-asset-id="${escapeXml(character.assetId)}">
+    <image href="${escapeXml(character.path)}" x="0" y="0" width="${character.width}" height="${character.height}" preserveAspectRatio="xMidYMid meet"/>
+    <rect x="0" y="0" width="${character.width}" height="${character.height}" fill="none" stroke="#f4f7ff" stroke-width="2" opacity="0.3"/>
+  </g>`;
 }
 
 function unsupportedResult<TPayload>(commandName: string): EngineResult<TPayload> {
@@ -159,24 +129,19 @@ function unsupportedResult<TPayload>(commandName: string): EngineResult<TPayload
   };
 }
 
-function readNumber(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function readString(value: unknown, fallback: string): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function findCharacterName(characters: CharacterDto[], characterId: string | null): string {
-  if (characterId === null) {
-    return "Character";
-  }
-
-  return characters.find((character) => character.characterId === characterId)?.characterName ?? characterId;
-}
-
 function formatTime(time: number): string {
   return `${time.toFixed(1)}s`;
+}
+
+function toSvgColor(color: number): string {
+  const palette: Record<number, string> = {
+    0: "#000000",
+    1: "#10131f",
+    6: "#b8c0d8",
+    7: "#f4f7ff",
+  };
+
+  return palette[color] ?? "#f4f7ff";
 }
 
 function escapeXml(value: string): string {

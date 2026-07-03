@@ -64,7 +64,7 @@ export type StudioWorkspaceProps = {
   onSaveProjectAsNew?: (projectName: string) => void;
   onOpenProject?: (projectId: string) => void;
   onChooseProjectFolder?: () => Promise<void>;
-  onOpenPixelEditor?: () => void;
+  onOpenPixelEditor?: (input?: { characterTarget?: { characterId: string; kind: AssignCharacterImageInput["kind"]; state: string } }) => void;
   projectFolderStatus?: string | null;
   projectPersistenceStatus?: string | null;
 };
@@ -462,32 +462,49 @@ export function StudioWorkspace({
                     </select>
                   </label>
                   {characterModelEditor.selectedCharacter.imageSlots.map((slot) => (
-                    <label key={slot.key}>
-                      {slot.label}
-                      <select
-                        aria-label={slot.label}
-                        onChange={(event) => {
-                          if (event.currentTarget.value.length === 0) {
-                            return;
-                          }
+                    <div className="rss-character-editor__image-slot" key={slot.key}>
+                      <label>
+                        {slot.label}
+                        <select
+                          aria-label={slot.label}
+                          onChange={(event) => {
+                            if (event.currentTarget.value.length === 0) {
+                              return;
+                            }
 
-                          onAssignCharacterImage?.({
-                            characterId: characterModelEditor.selectedCharacter!.characterId,
-                            kind: slot.kind,
-                            state: slot.state,
-                            assetId: event.currentTarget.value,
-                          });
-                        }}
-                        value={slot.assetId ?? ""}
+                            onAssignCharacterImage?.({
+                              characterId: characterModelEditor.selectedCharacter!.characterId,
+                              kind: slot.kind,
+                              state: slot.state,
+                              assetId: event.currentTarget.value,
+                            });
+                          }}
+                          value={slot.assetId ?? ""}
+                        >
+                          <option value="">No image</option>
+                          {characterModelEditor.characterImageAssets.map((asset) => (
+                            <option key={asset.assetId} value={asset.assetId}>
+                              {asset.assetName}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        disabled={onOpenPixelEditor === undefined}
+                        onClick={() =>
+                          onOpenPixelEditor?.({
+                            characterTarget: {
+                              characterId: characterModelEditor.selectedCharacter!.characterId,
+                              kind: slot.kind,
+                              state: slot.state,
+                            },
+                          })
+                        }
+                        type="button"
                       >
-                        <option value="">No image</option>
-                        {characterModelEditor.characterImageAssets.map((asset) => (
-                          <option key={asset.assetId} value={asset.assetId}>
-                            {asset.assetName}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        Edit Pixel
+                      </button>
+                    </div>
                   ))}
                 </div>
               ) : null}

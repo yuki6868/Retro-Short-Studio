@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { SavePixelDocumentUseCase, encodePixelDocumentToPng, type AssetFileStore, type AssetFileWriteInput } from "../../app/src";
-import { DeterministicIdGenerator, PixelDocument, Project } from "../../core/src";
+import { CharacterModel, DeterministicIdGenerator, PixelDocument, Project } from "../../core/src";
 
 class MemoryAssetFileStore implements AssetFileStore {
   readonly writes: AssetFileWriteInput[] = [];
@@ -63,6 +63,27 @@ describe("SavePixelDocumentUseCase", () => {
     expect(result.asset.assetPath).toBe("assets/characters/zundamon-1.png");
     expect(fileStore.writes[0]?.relativePath).toBe("assets/characters/zundamon-1.png");
   });
+  it("can assign the saved PNG asset directly to a CharacterImageMap slot", async () => {
+    const project = Project.create({ projectId: "project-1", projectName: "Pixel Short" });
+    project.addCharacterModel(CharacterModel.create({ characterId: "character-1", characterName: "Zundamon" }));
+    const fileStore = new MemoryAssetFileStore();
+    const useCase = new SavePixelDocumentUseCase({
+      project,
+      idGenerator: new DeterministicIdGenerator(),
+      fileStore,
+    });
+    const document = PixelDocument.create({ documentId: "pixel-1", projectId: "project-1", size: 16 }).toSnapshot();
+
+    const result = await useCase.save({
+      document,
+      assetName: "zundamon_mouth_open",
+      assignToCharacterImageMap: { characterId: "character-1", kind: "mouth", state: "open" },
+    });
+
+    expect(result.asset.assetId).toBe("asset-1");
+    expect(project.toSnapshot().characters[0]?.imageMap?.mouth.open).toBe("asset-1");
+  });
+
 });
 
 describe("encodePixelDocumentToPng", () => {

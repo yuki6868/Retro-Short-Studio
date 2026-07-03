@@ -1,6 +1,15 @@
+import type { CharacterImageMapStateKind } from "../../../core/src";
+
+export type PixelEditorCharacterTargetInput = {
+  characterId: string;
+  kind: CharacterImageMapStateKind;
+  state: string;
+};
+
 export type PixelEditorLaunchInput = {
   projectId: string;
   projectName: string;
+  characterTarget?: PixelEditorCharacterTargetInput;
 };
 
 export type PixelEditorLaunchResult = {
@@ -34,6 +43,12 @@ export class EditorLauncher {
       projectId: input.projectId,
       projectName: input.projectName,
     });
+
+    if (input.characterTarget !== undefined) {
+      params.set("characterId", input.characterTarget.characterId);
+      params.set("characterImageKind", input.characterTarget.kind);
+      params.set("characterImageState", input.characterTarget.state);
+    }
 
     return `${this.resolveBaseUrl()}#pixel-editor?${params.toString()}`;
   }

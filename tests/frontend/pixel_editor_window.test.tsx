@@ -28,6 +28,19 @@ describe("Pixel Editor Window", () => {
     expect(html).toContain('aria-label="Pixel palette"');
   });
 
+  it("renders the optional CharacterImageMap assignment target", () => {
+    const html = renderToStaticMarkup(
+      <PixelEditorWindow
+        projectId="project-1"
+        projectName="Accounting Short"
+        initialSize={16}
+        characterAssignment={{ characterId: "character-zundamon", kind: "mouth", state: "open" }}
+      />,
+    );
+
+    expect(html).toContain("Character target: character-zundamon / mouth:open");
+  });
+
   it("builds a dedicated browser window URL without coupling Studio to the editor UI", () => {
     const opened: Array<{ url: string; target: string; features: string }> = [];
     const launcher = new EditorLauncher({
@@ -46,5 +59,21 @@ describe("Pixel Editor Window", () => {
     expect(result.url).toContain("projectName=Accounting+Short");
     expect(opened[0].target).toBe("retro-short-studio-pixel-editor");
     expect(opened[0].features).toContain("width=980");
+  });
+
+  it("can open the pixel editor for a specific CharacterImageMap slot", () => {
+    const launcher = new EditorLauncher({
+      open: () => ({ focus: () => undefined }) as Window,
+    });
+
+    const result = launcher.openPixelEditor({
+      projectId: "project-1",
+      projectName: "Accounting Short",
+      characterTarget: { characterId: "character-zundamon", kind: "mouth", state: "open" },
+    });
+
+    expect(result.url).toContain("characterId=character-zundamon");
+    expect(result.url).toContain("characterImageKind=mouth");
+    expect(result.url).toContain("characterImageState=open");
   });
 });

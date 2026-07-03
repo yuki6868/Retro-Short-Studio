@@ -104,4 +104,20 @@ describe("Character Image Mapping", () => {
     );
     expect(() => CharacterImageMap.empty().setEyeImage("open", "   ")).toThrow("AssetId is required.");
   });
+
+  it("maps an exact CharacterVariant before separated fallback images", () => {
+    const imageMap = CharacterImageMap.empty()
+      .setExpressionImage("happy", "asset-expression-happy")
+      .setVariantImage({ expression: "happy", eye: "closed", mouth: "open", motion: "idle" }, "asset-happy-closed-open");
+
+    expect(
+      imageMap.resolveVariant({ expression: "happy", eye: "closed", mouth: "open", motion: "idle" }),
+    ).toBe("asset-happy-closed-open");
+    expect(
+      imageMap.resolveVariant({ expression: "happy", eye: "open", mouth: "open", motion: "idle" }),
+    ).toBeNull();
+    expect(imageMap.toSnapshot().variant).toEqual({
+      "expression=happy|eye=closed|mouth=open|motion=idle": "asset-happy-closed-open",
+    });
+  });
 });

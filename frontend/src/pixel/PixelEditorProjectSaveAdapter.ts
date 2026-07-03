@@ -11,8 +11,10 @@ export type PixelEditorProjectSaveAdapterInput = {
 };
 
 export type PixelEditorProjectSaveAdapterResult = {
+  assetId: string;
   assetName: string;
   assetPath: string;
+  assignedCharacterImageMap?: SavePixelDocumentInput["assignToCharacterImageMap"];
 };
 
 export async function savePixelDocumentToProject(
@@ -33,18 +35,28 @@ export async function savePixelDocumentToProject(
 
   const serializer = new ProjectJsonSerializer();
   await fileStore.writeProjectJson(serializer.serialize(projectSnapshotToProjectDto(project.toSnapshot())));
-  notifyStudioPixelAssetSaved(context.projectId);
+  notifyStudioPixelAssetSaved(context.projectId, {
+    assetId: result.asset.assetId,
+    assignment: input.assignToCharacterImageMap,
+  });
 
   return {
+    assetId: result.asset.assetId,
     assetName: result.asset.assetName,
     assetPath: result.asset.assetPath,
+    ...(input.assignToCharacterImageMap === undefined ? {} : { assignedCharacterImageMap: input.assignToCharacterImageMap }),
   };
 }
 
-function notifyStudioPixelAssetSaved(projectId: string): void {
+function notifyStudioPixelAssetSaved(
+  projectId: string,
+  detail: { assetId: string; assignment?: SavePixelDocumentInput["assignToCharacterImageMap"] },
+): void {
   const message = {
     type: "retro-short-studio.pixel-asset-saved",
     projectId,
+    assetId: detail.assetId,
+    assignment: detail.assignment,
   };
 
   if (typeof window === "undefined") {

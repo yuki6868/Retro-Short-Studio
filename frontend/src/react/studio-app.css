@@ -367,3 +367,15 @@ input {
   margin: 0;
   opacity: 0.8;
 }
+
+.rss-character-editor__image-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rss-pixel-editor-window__assignment {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.8;
+}
