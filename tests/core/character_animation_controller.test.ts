@@ -29,6 +29,38 @@ describe("CharacterAnimationController", () => {
     expect(mouth.resolve({ currentTime: 1.41, baseMouth: "closed", talk: { startTime: 1, endTime: 2 } })).toBe("closed");
   });
 
+
+  it("uses stored mouth cues instead of cyclic mouth animation when cues are present", () => {
+    const mouth = new MouthAnimationController({ cycleSeconds: 0.2 });
+
+    expect(
+      mouth.resolve({
+        currentTime: 1.15,
+        baseMouth: "closed",
+        talk: {
+          startTime: 1,
+          endTime: 2,
+          mouthCues: [
+            { startTime: 0, endTime: 0.1, mouth: "closed" },
+            { startTime: 0.1, endTime: 0.3, mouth: "open" },
+          ],
+        },
+      }),
+    ).toBe("open");
+  });
+
+  it("keeps the base mouth for voiced Talk Actions when no cue covers the current time", () => {
+    const mouth = new MouthAnimationController({ cycleSeconds: 0.2 });
+
+    expect(
+      mouth.resolve({
+        currentTime: 1.8,
+        baseMouth: "closed",
+        talk: { startTime: 1, endTime: 2, mouthCues: [{ startTime: 0, endTime: 0.2, mouth: "open" }] },
+      }),
+    ).toBe("closed");
+  });
+
   it("combines expression, blink eye, and talk mouth into one variant selection", () => {
     const controller = new CharacterAnimationController(
       new BlinkController({ intervalSeconds: 4, closedSeconds: 0.12 }),

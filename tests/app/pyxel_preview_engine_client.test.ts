@@ -203,6 +203,62 @@ describe("PyxelPreviewEngineClient", () => {
     expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/happy-blink-talking.png");
   });
 
+
+  it("uses Talk Action mouthCues to switch the mouth during preview", () => {
+    const request = createPreviewRequest(1.15);
+    request.scene.actions = [
+      {
+        actionId: "action-talk-1",
+        actionType: "talk",
+        startTime: 1,
+        endTime: 2,
+        targetId: "character-zundamon",
+        payload: {
+          text: "Hello Pyxel",
+          generatedVoicePath: "projects/project-1/voices/action-talk-1.wav",
+          mouthCues: [
+            { startTime: 0, endTime: 0.1, mouth: "closed" },
+            { startTime: 0.1, endTime: 0.3, mouth: "open" },
+          ],
+        },
+      },
+    ];
+    request.assets = [
+      ...(request.assets ?? []),
+      {
+        assetId: "asset-cue-open",
+        assetName: "Cue open mouth",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/cue-open.png",
+      },
+    ];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        defaultExpression: "happy",
+        defaultEye: "open",
+        defaultMouth: "closed",
+        defaultMotion: "idle",
+        currentVariant: { expression: "happy", eye: "open", mouth: "closed" },
+        imageMap: {
+          expression: {},
+          eye: {},
+          mouth: {},
+          motion: {},
+          variant: {
+            "expression=happy|eye=open|mouth=open|motion=idle": "asset-cue-open",
+          },
+        },
+        imageMapId: "character-zundamon",
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/cue-open.png");
+  });
+
   it("emits explicit placeholders when background or character image is missing", () => {
     const request = createPreviewRequest(4);
     request.scene.backgroundAssetId = "missing-background";

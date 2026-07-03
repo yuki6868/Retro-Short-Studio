@@ -91,7 +91,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
           assets,
           character,
           currentTime: evaluated.currentTime,
-          talkAction: talkAction?.targetId === characterInstance.instanceId || talkAction?.targetId === characterInstance.characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime } : null,
+          talkAction: talkAction?.targetId === characterInstance.instanceId || talkAction?.targetId === characterInstance.characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime, mouthCues: readMouthCues(talkAction.payload.mouthCues) } : null,
           animationController: characterAnimationController,
         }) ?? findFirstCharacterAsset(assets);
         const characterPlaceholder = characterAsset === null ? resolveCharacterPlaceholder(characterInstance.characterId, character) : null;
@@ -123,7 +123,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
             assets,
             character,
             currentTime: evaluated.currentTime,
-            talkAction: talkAction?.targetId === characterInstance.instanceId || talkAction?.targetId === characterInstance.characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime } : null,
+            talkAction: talkAction?.targetId === characterInstance.instanceId || talkAction?.targetId === characterInstance.characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime, mouthCues: readMouthCues(talkAction.payload.mouthCues) } : null,
             animationController: characterAnimationController,
           }) === null && findFirstCharacterAsset(assets) === null;
         }).map((characterInstance) => characterInstance.instanceId),
@@ -241,7 +241,7 @@ type ResolveCharacterAssetInput = {
   assets: AssetDto[];
   character: CharacterDto | null;
   currentTime: number;
-  talkAction: { startTime: number; endTime: number } | null;
+  talkAction: { startTime: number; endTime: number; mouthCues?: import("../../../core/src").MouthCueSnapshot[] } | null;
   animationController: CharacterAnimationController;
 };
 
@@ -310,3 +310,30 @@ function toActionPayloadRecord(payload: Record<string, unknown>): Record<string,
   return JSON.parse(JSON.stringify(payload)) as Record<string, string | number | boolean | null | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null }>;
 }
 
+
+
+function readMouthCues(value: unknown): import("../../../core/src").MouthCueSnapshot[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const cues = value.filter((cue): cue is import("../../../core/src").MouthCueSnapshot => {
+    if (typeof cue !== "object" || cue === null || Array.isArray(cue)) {
+      return false;
+    }
+
+    const candidate = cue as Record<string, unknown>;
+    return (
+      typeof candidate.startTime === "number" &&
+      Number.isFinite(candidate.startTime) &&
+      candidate.startTime >= 0 &&
+      typeof candidate.endTime === "number" &&
+      Number.isFinite(candidate.endTime) &&
+      candidate.endTime >= candidate.startTime &&
+      typeof candidate.mouth === "string" &&
+      candidate.mouth.trim().length > 0
+    );
+  });
+
+  return cues;
+}

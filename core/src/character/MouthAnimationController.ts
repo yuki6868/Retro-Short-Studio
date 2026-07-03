@@ -2,12 +2,15 @@ export type MouthAnimationControllerConfig = {
   cycleSeconds?: number;
 };
 
+import type { MouthCueSnapshot } from "../lipsync";
+
 export type MouthAnimationControllerInput = {
   currentTime: number;
   baseMouth: string;
   talk?: {
     startTime: number;
     endTime: number;
+    mouthCues?: MouthCueSnapshot[];
   } | null;
 };
 
@@ -31,6 +34,16 @@ export class MouthAnimationController {
     }
 
     const elapsed = Math.max(0, currentTime - input.talk.startTime);
+    const cue = input.talk.mouthCues?.find((candidate) => elapsed >= candidate.startTime && elapsed < candidate.endTime);
+
+    if (cue !== undefined) {
+      return normalizeState(cue.mouth, "MouthCue mouth");
+    }
+
+    if (input.talk.mouthCues !== undefined) {
+      return baseMouth;
+    }
+
     const phase = Math.floor(elapsed / this.cycleSeconds) % 3;
 
     if (phase === 0) {

@@ -1,5 +1,6 @@
 import { AssetId } from "../asset";
 import { CharacterInstanceId } from "../character";
+import { isMouthCueSnapshot, normalizeMouthCues, type MouthCueSnapshot } from "../lipsync";
 import { assertNonEmptyString } from "../validation";
 import { Action, type ActionSnapshot } from "./Action";
 import type { ActionPayloadRecord, ActionPayloadValue } from "./valueObjects";
@@ -12,6 +13,7 @@ export type TalkActionPayload = ActionPayloadRecord & {
   generatedVoicePath: string | null;
   generatedVoiceDuration: number | null;
   lipSyncEnabled: boolean;
+  mouthCues: MouthCueSnapshot[];
 };
 
 export type TalkActionSnapshot = Omit<ActionSnapshot, "actionType" | "targetId" | "payload"> & {
@@ -34,6 +36,7 @@ export class TalkAction {
     generatedVoicePath?: string | null;
     generatedVoiceDuration?: number | null;
     lipSyncEnabled?: boolean;
+    mouthCues?: MouthCueSnapshot[];
   }): TalkAction {
     const payload = createTalkActionPayload({
       text: params.text,
@@ -43,6 +46,7 @@ export class TalkAction {
       generatedVoicePath: params.generatedVoicePath ?? null,
       generatedVoiceDuration: params.generatedVoiceDuration ?? null,
       lipSyncEnabled: params.lipSyncEnabled ?? true,
+      mouthCues: params.mouthCues ?? [],
     });
 
     return new TalkAction(
@@ -69,6 +73,7 @@ export class TalkAction {
       generatedVoicePath: snapshot.payload.generatedVoicePath,
       generatedVoiceDuration: snapshot.payload.generatedVoiceDuration,
       lipSyncEnabled: snapshot.payload.lipSyncEnabled,
+      mouthCues: snapshot.payload.mouthCues,
     });
   }
 
@@ -121,6 +126,16 @@ export class TalkAction {
     this.action.replacePayload(payload);
   }
 
+  updateMouthCues(mouthCues: MouthCueSnapshot[]): void {
+    const snapshot = this.toSnapshot();
+    const payload = createTalkActionPayload({
+      ...snapshot.payload,
+      mouthCues,
+    });
+
+    this.action.replacePayload(payload);
+  }
+
   toAction(): Action {
     return Action.restore(this.action.toSnapshot());
   }
@@ -164,6 +179,7 @@ function hydrateTalkActionPayload(payload: ActionPayloadRecord, fallbackSpeakerC
     generatedVoicePath: readOptionalString(payload.generatedVoicePath),
     generatedVoiceDuration: readOptionalNumber(payload.generatedVoiceDuration),
     lipSyncEnabled: typeof payload.lipSyncEnabled === "boolean" ? payload.lipSyncEnabled : true,
+    mouthCues: readMouthCues(payload.mouthCues),
   });
 }
 
@@ -183,6 +199,22 @@ function readOptionalNumber(value: ActionPayloadValue | undefined): number | nul
   return typeof value === "number" ? value : null;
 }
 
+function readMouthCues(value: ActionPayloadValue | undefined): MouthCueSnapshot[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error("TalkAction mouthCues must be an array.");
+  }
+
+  if (!value.every(isMouthCueSnapshot)) {
+    throw new Error("TalkAction mouthCues must contain valid MouthCue values.");
+  }
+
+  return normalizeMouthCues(value);
+}
+
 function createTalkActionPayload(params: TalkActionPayload): TalkActionPayload {
   const text = assertNonEmptyString(params.text, "TalkAction text");
   const speakerId = assertNonEmptyString(params.speakerId, "TalkAction speakerId");
@@ -190,6 +222,7 @@ function createTalkActionPayload(params: TalkActionPayload): TalkActionPayload {
   const voiceAssetId = normalizeVoiceAssetId(params.voiceAssetId);
   const generatedVoicePath = normalizeGeneratedVoicePath(params.generatedVoicePath);
   const generatedVoiceDuration = normalizeGeneratedVoiceDuration(params.generatedVoiceDuration);
+  const mouthCues = normalizeMouthCues(params.mouthCues);
 
   if (typeof params.lipSyncEnabled !== "boolean") {
     throw new Error("TalkAction lipSyncEnabled must be a boolean.");
@@ -207,6 +240,7 @@ function createTalkActionPayload(params: TalkActionPayload): TalkActionPayload {
     generatedVoicePath,
     generatedVoiceDuration,
     lipSyncEnabled: params.lipSyncEnabled,
+    mouthCues,
   };
 }
 
@@ -246,7 +280,9 @@ function isTalkActionPayload(payload: ActionPayloadRecord): payload is TalkActio
     isStringOrNullPayloadValue(payload.voiceAssetId) &&
     isStringOrNullPayloadValue(payload.generatedVoicePath) &&
     isNumberOrNullPayloadValue(payload.generatedVoiceDuration) &&
-    typeof payload.lipSyncEnabled === "boolean"
+    typeof payload.lipSyncEnabled === "boolean" &&
+    Array.isArray(payload.mouthCues) &&
+    payload.mouthCues.every(isMouthCueSnapshot)
   );
 }
 

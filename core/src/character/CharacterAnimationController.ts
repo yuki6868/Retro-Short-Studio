@@ -1,3 +1,4 @@
+import type { MouthCueSnapshot } from "../lipsync";
 import { BlinkController } from "./BlinkController";
 import { CharacterVariantSelection, type CharacterVariantSelectionSnapshot } from "./CharacterVariantSelection";
 import { MouthAnimationController } from "./MouthAnimationController";
@@ -8,6 +9,7 @@ export type CharacterAnimationControllerInput = {
   talk?: {
     startTime: number;
     endTime: number;
+    mouthCues?: MouthCueSnapshot[];
   } | null;
 };
 

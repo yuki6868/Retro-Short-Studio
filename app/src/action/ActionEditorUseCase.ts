@@ -104,6 +104,7 @@ function createActionDefaults(kind: CreateActionKind): ActionDefaults {
           generatedVoicePath: null,
           generatedVoiceDuration: null,
           lipSyncEnabled: true,
+          mouthCues: [],
         },
       };
     case "character":

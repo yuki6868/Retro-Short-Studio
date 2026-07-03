@@ -12,6 +12,7 @@ describe("TalkAction", () => {
       speakerCharacterId: " character-instance-1 ",
       voiceAssetId: " voice-1 ",
       lipSyncEnabled: true,
+      mouthCues: [],
     });
 
     expect(talkAction.toSnapshot()).toEqual({
@@ -28,6 +29,7 @@ describe("TalkAction", () => {
         generatedVoicePath: null,
         generatedVoiceDuration: null,
         lipSyncEnabled: true,
+        mouthCues: [],
       },
     });
   });
@@ -49,6 +51,7 @@ describe("TalkAction", () => {
       generatedVoicePath: null,
       generatedVoiceDuration: null,
       lipSyncEnabled: true,
+      mouthCues: [],
     });
   });
 
@@ -101,6 +104,7 @@ describe("TalkAction", () => {
         generatedVoicePath: null,
         generatedVoiceDuration: null,
         lipSyncEnabled: true,
+        mouthCues: [],
       },
     });
 
@@ -161,6 +165,7 @@ describe("TalkAction", () => {
         generatedVoicePath: null,
         generatedVoiceDuration: null,
         lipSyncEnabled: true,
+        mouthCues: [],
       },
     });
 
