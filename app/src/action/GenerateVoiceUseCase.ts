@@ -49,7 +49,11 @@ export class GenerateVoiceUseCase {
 
     const text = normalizeText(action.payload.text);
     const speakerId = normalizeId(input.speakerId ?? readString(action.payload.speakerId) ?? this.config.defaultSpeakerId ?? "3", "speakerId");
-    const outputPath = buildVoiceOutputPath(input.outputDirectory ?? this.config.defaultOutputDirectory ?? "projects/voices", actionId);
+    const outputPath = buildVoiceOutputPath({
+      projectId: projectSnapshot.projectId,
+      outputDirectory: input.outputDirectory ?? this.config.defaultOutputDirectory,
+      actionId,
+    });
     const request: VoiceRequest = {
       projectId: projectSnapshot.projectId,
       talkActionId: actionId,
@@ -173,14 +177,19 @@ function readString(value: ActionPayloadRecord[string]): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
-function buildVoiceOutputPath(outputDirectory: string, actionId: string): string {
-  const normalizedDirectory = outputDirectory.trim().replace(/\/+$/u, "");
+function buildVoiceOutputPath(input: { projectId: string; outputDirectory?: string; actionId: string }): string {
+  const projectVoiceDirectory = `projects/${input.projectId}/voices`;
+  const normalizedDirectory = (input.outputDirectory ?? projectVoiceDirectory).trim().replace(/\/+$/u, "");
 
   if (normalizedDirectory.length === 0) {
     throw new Error("Voice outputDirectory is required.");
   }
 
-  return `${normalizedDirectory}/${actionId}.wav`;
+  if (normalizedDirectory === "projects/voices") {
+    return `${projectVoiceDirectory}/${input.actionId}.wav`;
+  }
+
+  return `${normalizedDirectory}/${input.actionId}.wav`;
 }
 
 function normalizeVoicePath(result: VoiceResult): string {

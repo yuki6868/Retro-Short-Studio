@@ -78,6 +78,26 @@ def generate_voice(body: dict[str, Any]) -> JSONResponse:
     )
 
 
+@app.post("/api/export/mp4")
+def export_mp4(body: dict[str, Any]) -> JSONResponse:
+    request = EngineRequest(
+        command_id=str(body.get("commandId", "mp4-export")),
+        command="export",
+        payload=_as_dict(body.get("payload", {})),
+    )
+    result = engine_app.execute(request)
+    status_code = 200 if result.ok else 500
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "commandId": result.command_id,
+            "ok": result.ok,
+            "payload": result.payload,
+            "error": result.error,
+        },
+    )
+
+
 @app.get("/api/projects/{project_id}/files/exists")
 def project_file_exists(project_id: str, relativePath: str) -> JSONResponse:
     resolved_file = _resolve_project_relative_file(project_id, relativePath)

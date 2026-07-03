@@ -77,7 +77,7 @@ export type StudioWorkspaceProps = {
   onOpenProject?: (projectId: string) => void;
   onChooseProjectFolder?: () => Promise<void>;
   onOpenPixelEditor?: (input?: { characterTarget?: { characterId: string; kind: AssignCharacterImageInput["kind"]; state: string } }) => void;
-  onExportFrameSequence?: () => Promise<void>;
+  onExportMp4?: () => Promise<void>;
   projectFolderStatus?: string | null;
   projectPersistenceStatus?: string | null;
   exportStatus?: string | null;
@@ -142,7 +142,7 @@ export function StudioWorkspace({
   onOpenProject,
   onChooseProjectFolder,
   onOpenPixelEditor,
-  onExportFrameSequence,
+  onExportMp4,
   projectFolderStatus,
   projectPersistenceStatus,
   exportStatus,
@@ -287,8 +287,8 @@ export function StudioWorkspace({
           <button disabled={onOpenPixelEditor === undefined} onClick={() => onOpenPixelEditor?.()} type="button">
             Open Pixel Editor
           </button>
-          <button disabled={onExportFrameSequence === undefined || view.layout.bottom.timeline === null} onClick={() => void onExportFrameSequence?.()} type="button">
-            Export Frames
+          <button disabled={onExportMp4 === undefined || view.layout.bottom.timeline === null} onClick={() => void onExportMp4?.()} type="button">
+            Export MP4
           </button>
           {projectFolderStatus !== null && projectFolderStatus !== undefined ? <output>{projectFolderStatus}</output> : null}
           {projectPersistenceStatus !== null ? <output>{projectPersistenceStatus}</output> : null}

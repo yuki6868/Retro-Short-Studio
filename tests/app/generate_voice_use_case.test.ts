@@ -99,27 +99,45 @@ describe("GenerateVoiceUseCase", () => {
         talkActionId: "action-talk-1",
         text: "テストなのだ",
         speakerId: "8",
-        outputPath: "projects/voices/action-talk-1.wav",
+        outputPath: "projects/project-1/voices/action-talk-1.wav",
       },
     ]);
     expect(result).toEqual({
       sceneId: "scene-1",
       actionId: "action-talk-1",
       voiceAssetId: "voice-asset-1",
-      voiceAssetPath: "projects/voices/action-talk-1.wav",
+      voiceAssetPath: "projects/project-1/voices/action-talk-1.wav",
       duration: 1.25,
     });
     expect(project.toSnapshot().assets).toContainEqual({
       assetId: "voice-asset-1",
       assetName: "Voice action-talk-1",
       assetType: "voice",
-      assetPath: "projects/voices/action-talk-1.wav",
+      assetPath: "projects/project-1/voices/action-talk-1.wav",
     });
     expect(project.toSnapshot().scenes[0].actions[0].payload).toMatchObject({
       voiceAssetId: "voice-asset-1",
       speakerId: "8",
-      generatedVoicePath: "projects/voices/action-talk-1.wav",
+      generatedVoicePath: "projects/project-1/voices/action-talk-1.wav",
       generatedVoiceDuration: 1.25,
+    });
+  });
+
+  it("stores generated voices under the current project folder when no output directory is configured", async () => {
+    const project = createProject();
+    const engineClient = new FakeVoiceEngineClient();
+    const useCase = new GenerateVoiceUseCase({
+      project,
+      engineClient,
+      idGenerator: new FixedIdGenerator(),
+    });
+
+    const result = await useCase.generateForTalkAction({ sceneId: "scene-1", actionId: "action-talk-1" });
+
+    expect(engineClient.requests[0].outputPath).toBe("projects/project-1/voices/action-talk-1.wav");
+    expect(result.voiceAssetPath).toBe("projects/project-1/voices/action-talk-1.wav");
+    expect(project.toSnapshot().scenes[0].actions[0].payload).toMatchObject({
+      generatedVoicePath: "projects/project-1/voices/action-talk-1.wav",
     });
   });
 
@@ -147,12 +165,12 @@ describe("GenerateVoiceUseCase", () => {
         assetId: "voice-asset-1",
         assetName: "Voice action-talk-1",
         assetType: "voice",
-        assetPath: "projects/voices/action-talk-1.wav",
+        assetPath: "projects/project-1/voices/action-talk-1.wav",
       },
     ]);
     expect(snapshot.scenes[0].actions[0].payload).toMatchObject({
       voiceAssetId: "voice-asset-1",
-      generatedVoicePath: "projects/voices/action-talk-1.wav",
+      generatedVoicePath: "projects/project-1/voices/action-talk-1.wav",
       generatedVoiceDuration: 1.25,
     });
   });
@@ -164,7 +182,7 @@ describe("GenerateVoiceUseCase", () => {
         assetId: "voice-existing-1",
         assetName: "Old Voice",
         assetType: "voice",
-        assetPath: "projects/voices/old.wav",
+        assetPath: "projects/project-1/voices/old.wav",
       }),
     );
     project.updateScene("scene-1", (scene) => {
@@ -172,7 +190,7 @@ describe("GenerateVoiceUseCase", () => {
         action.replacePayload({
           ...action.toSnapshot().payload,
           voiceAssetId: "voice-existing-1",
-          generatedVoicePath: "projects/voices/old.wav",
+          generatedVoicePath: "projects/project-1/voices/old.wav",
           generatedVoiceDuration: 0.5,
         });
       });
@@ -194,12 +212,12 @@ describe("GenerateVoiceUseCase", () => {
         assetId: "voice-existing-1",
         assetName: "Voice action-talk-1",
         assetType: "voice",
-        assetPath: "projects/voices/action-talk-1.wav",
+        assetPath: "projects/project-1/voices/action-talk-1.wav",
       },
     ]);
     expect(snapshot.scenes[0].actions[0].payload).toMatchObject({
       voiceAssetId: "voice-existing-1",
-      generatedVoicePath: "projects/voices/action-talk-1.wav",
+      generatedVoicePath: "projects/project-1/voices/action-talk-1.wav",
       generatedVoiceDuration: 1.25,
     });
   });
@@ -208,8 +226,8 @@ describe("GenerateVoiceUseCase", () => {
   it("keeps the existing voice asset id and replaces its path when regenerated wav output changes", async () => {
     const project = createProject();
     const engineClient = new FakeVoiceEngineClient([
-      "projects/voices/action-talk-1-v1.wav",
-      "projects/voices/action-talk-1-v2.wav",
+      "projects/project-1/voices/action-talk-1-v1.wav",
+      "projects/project-1/voices/action-talk-1-v2.wav",
     ]);
     const useCase = new GenerateVoiceUseCase({
       project,
@@ -226,7 +244,7 @@ describe("GenerateVoiceUseCase", () => {
       sceneId: "scene-1",
       actionId: "action-talk-1",
       voiceAssetId: "voice-asset-1",
-      voiceAssetPath: "projects/voices/action-talk-1-v2.wav",
+      voiceAssetPath: "projects/project-1/voices/action-talk-1-v2.wav",
       duration: 1.25,
     });
     expect(snapshot.assets.filter((asset) => asset.assetType === "voice")).toEqual([
@@ -234,12 +252,12 @@ describe("GenerateVoiceUseCase", () => {
         assetId: "voice-asset-1",
         assetName: "Voice action-talk-1",
         assetType: "voice",
-        assetPath: "projects/voices/action-talk-1-v2.wav",
+        assetPath: "projects/project-1/voices/action-talk-1-v2.wav",
       },
     ]);
     expect(snapshot.scenes[0].actions[0].payload).toMatchObject({
       voiceAssetId: "voice-asset-1",
-      generatedVoicePath: "projects/voices/action-talk-1-v2.wav",
+      generatedVoicePath: "projects/project-1/voices/action-talk-1-v2.wav",
       generatedVoiceDuration: 1.25,
     });
   });

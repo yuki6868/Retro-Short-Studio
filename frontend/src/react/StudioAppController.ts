@@ -34,6 +34,7 @@ import {
   type ResizeTimelineItemStartInput,
   type SceneCharacterPlacementState,
   DefaultFrameSequenceExporter,
+  Mp4ExportPipeline,
   type FrameSequenceFrameWriter,
   type AddCharacterInstanceInput,
   type UpdateCharacterInstanceInput,
@@ -44,6 +45,7 @@ import {
   type UpdateAssetInput,
 } from "../../../app/src";
 import { ProjectJsonSerializer } from "../../../storage/src/local/ProjectJsonSerializer";
+import { BackendVideoExporter } from "./BackendVideoExporter";
 import { findSelectedSceneDto, PreviewController } from "./PreviewController";
 import { createStudioCompositionRoot } from "./StudioCompositionRoot";
 import { projectSnapshotToProjectDto } from "./ProjectDtoMapper";
@@ -691,36 +693,59 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     const writer: FrameSequenceFrameWriter = {
       writeFrame: async (path, data) => projectFolderFileStore.write({ relativePath: path, data: new Uint8Array(data) }),
     };
-    const exporter = new DefaultFrameSequenceExporter({
-      engineClient: projectSession.engineClient,
-      frameWriter: writer,
+    const pipeline = new Mp4ExportPipeline({
+      frameSequenceExporter: new DefaultFrameSequenceExporter({
+        engineClient: projectSession.engineClient,
+        frameWriter: writer,
+      }),
+      videoExporter: new BackendVideoExporter(),
     });
 
-    setExportStatus("Exporting frames: 0%");
-    const result = await exporter.exportScene(
+    const result = await pipeline.exportScene(
       {
         projectId: projectDto.projectId,
         scene: selectedScene,
         assets: projectDto.assets,
         characters: projectDto.characters,
-        outputDirectory: `renders/${selectedScene.sceneId}`,
         fps: projectDto.settings.fps,
         width: projectDto.settings.width,
         height: projectDto.settings.height,
-        duration: selectedScene.duration,
+        outputPath: `outputs/${selectedScene.sceneId}.mp4`,
       },
       (progress) => {
-        const percent = Math.round((progress.completedFrames / progress.totalFrames) * 100);
-        setExportStatus(`Exporting frames: ${percent}% (${progress.completedFrames}/${progress.totalFrames})`);
+        if (progress.stage === "exporting_frames") {
+          const totalFrames = progress.totalFrames ?? 0;
+          const completedFrames = progress.completedFrames ?? 0;
+          const suffix = totalFrames > 0 ? ` ${Math.round((completedFrames / totalFrames) * 100)}% (${completedFrames}/${totalFrames})` : "";
+          setExportStatus(`Exporting frames${suffix}`);
+          return;
+        }
+
+        if (progress.stage === "checking_ffmpeg") {
+          setExportStatus("Checking FFmpeg");
+          return;
+        }
+
+        if (progress.stage === "building_audio") {
+          setExportStatus("Building audio");
+          return;
+        }
+
+        if (progress.stage === "encoding") {
+          setExportStatus("Encoding MP4");
+          return;
+        }
+
+        setExportStatus("Done");
       },
     );
 
     if (!result.ok || result.payload === null) {
-      setExportStatus(result.error ?? "Frame sequence export failed.");
+      setExportStatus(result.error ?? "MP4 export failed.");
       return;
     }
 
-    setExportStatus(`Exported ${result.payload.frameCount} frames to ${result.payload.outputDirectory}`);
+    setExportStatus(`Done: ${result.payload.outputPath}`);
   };
 
   const openPixelEditor = (input?: { characterTarget?: { characterId: string; kind: "expression" | "eye" | "mouth" | "motion"; state: string } }): void => {
@@ -791,7 +816,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     onSaveProjectAsNew: saveProjectAsNewFromToolbar,
     onOpenProject: openSavedProjectFromToolbar,
     onOpenPixelEditor: openPixelEditor,
-    onExportFrameSequence: exportSelectedSceneAsFrameSequence,
+    onExportMp4: exportSelectedSceneAsFrameSequence,
     onSetTimelinePlayhead: seekTimelineAndPreview,
     onSetTimelineScale: (timeScale) => timelineUseCase.setTimeScale({ timeScale }),
     onMoveTimelineItem: timelineUseCase.moveItem,

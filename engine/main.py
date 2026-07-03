@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from engine.api import EngineCommandDispatcher, EngineRequest, EngineResult
-from engine.exporter import StubExporter
+from engine.exporter import LocalFfmpegExporter
 from engine.renderer import PixelArtFrameCapture, PyxelRenderer, HeadlessPyxelApi
 from engine.voice import create_default_voice_provider
 
@@ -28,7 +30,7 @@ def create_engine_app() -> EngineApp:
         EngineCommandDispatcher(
             renderer=PyxelRenderer(pyxel_api=HeadlessPyxelApi(), frame_capture=PixelArtFrameCapture()),
             voice_provider=create_default_voice_provider(),
-            exporter=StubExporter(),
+            exporter=LocalFfmpegExporter(repository_root=Path(__file__).resolve().parents[1]),
         )
     )
 
