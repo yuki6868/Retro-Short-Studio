@@ -30,7 +30,7 @@ describe("LocalPreviewEngineClient", () => {
 
   it("renders the same CharacterVariant asset selected by the shared preview frame", async () => {
     const client = new LocalPreviewEngineClient();
-    const request = createPreviewRequest(1);
+    const request = createPreviewRequest(4);
     request.assets = [
       ...(request.assets ?? []),
       {

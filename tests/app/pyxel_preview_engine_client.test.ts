@@ -60,7 +60,7 @@ describe("PyxelPreviewEngineClient", () => {
   });
 
   it("uses an exact CharacterVariant image before separated expression, mouth, or eye fallbacks", () => {
-    const request = createPreviewRequest(1);
+    const request = createPreviewRequest(4);
     request.assets = [
       ...(request.assets ?? []),
       {
@@ -103,7 +103,7 @@ describe("PyxelPreviewEngineClient", () => {
   });
 
   it("uses CharacterImageMap.findAsset through the current variant selection", () => {
-    const request = createPreviewRequest(1);
+    const request = createPreviewRequest(4);
     request.assets = [
       ...(request.assets ?? []),
       {
@@ -148,6 +148,59 @@ describe("PyxelPreviewEngineClient", () => {
     const frame = new DefaultPreviewRenderFrameBuilder().build(request);
 
     expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/variant-angry-closed-open.png");
+  });
+
+
+  it("applies talk mouth and blink eye animation before resolving CharacterImageMap assets", () => {
+    const request = createPreviewRequest(3.89);
+    request.scene.actions = [
+      {
+        actionId: "action-talk-1",
+        actionType: "talk",
+        startTime: 3,
+        endTime: 5,
+        targetId: "character-zundamon",
+        payload: { text: "Hello Pyxel" },
+      },
+    ];
+    request.assets = [
+      ...(request.assets ?? []),
+      {
+        assetId: "asset-happy-closed-open",
+        assetName: "Happy blink talking",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/happy-blink-talking.png",
+      },
+    ];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        defaultExpression: "happy",
+        defaultEye: "open",
+        defaultMouth: "closed",
+        defaultMotion: "idle",
+        currentVariant: {
+          expression: "happy",
+          eye: "open",
+          mouth: "closed",
+        },
+        imageMap: {
+          expression: {},
+          eye: {},
+          mouth: {},
+          motion: {},
+          variant: {
+            "expression=happy|eye=closed|mouth=half|motion=idle": "asset-happy-closed-open",
+          },
+        },
+        imageMapId: "character-zundamon",
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/happy-blink-talking.png");
   });
 
 });

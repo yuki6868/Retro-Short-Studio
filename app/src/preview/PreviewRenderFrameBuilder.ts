@@ -1,4 +1,4 @@
-import { ActionEvaluator, CharacterImageMap, Scene } from "../../../core/src";
+import { ActionEvaluator, CharacterAnimationController, CharacterImageMap, Scene, type CharacterVariantSelectionSnapshot } from "../../../core/src";
 import type { AssetDto, CharacterDto, PreviewRequest } from "../../../shared";
 
 export type PreviewDrawablePayload = {
@@ -57,6 +57,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
     const moveAction = evaluated.activeActions.find((action) => action.actionType === "move") ?? null;
     const zoomAction = evaluated.activeActions.find((action) => action.actionType === "camera_zoom") ?? null;
     const talkAction = evaluated.activeActions.find((action) => action.actionType === "talk") ?? null;
+    const characterAnimationController = new CharacterAnimationController();
     const moveX = readNumber(moveAction?.payload.x, 0) * (moveAction?.progress ?? 0);
     const moveY = readNumber(moveAction?.payload.y, 0) * (moveAction?.progress ?? 0);
     const zoom = readNumber(zoomAction?.payload.zoom, 1);
@@ -84,7 +85,13 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
           }),
       characters: characterIds.map((characterId, index) => {
         const character = characters.find((candidate) => candidate.characterId === characterId) ?? null;
-        const characterAsset = resolveCharacterAsset(assets, character) ?? findFirstCharacterAsset(assets);
+        const characterAsset = resolveCharacterAsset({
+          assets,
+          character,
+          currentTime: evaluated.currentTime,
+          talkAction: talkAction?.targetId === characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime } : null,
+          animationController: characterAnimationController,
+        }) ?? findFirstCharacterAsset(assets);
 
         return {
           assetId: characterAsset?.assetId ?? characterId,
@@ -145,28 +152,45 @@ function findAsset(assets: AssetDto[], assetId: string | null): AssetDto | null 
 }
 
 
-function resolveCharacterAsset(assets: AssetDto[], character: CharacterDto | null): AssetDto | null {
-  if (character === null) {
+type ResolveCharacterAssetInput = {
+  assets: AssetDto[];
+  character: CharacterDto | null;
+  currentTime: number;
+  talkAction: { startTime: number; endTime: number } | null;
+  animationController: CharacterAnimationController;
+};
+
+function resolveCharacterAsset(input: ResolveCharacterAssetInput): AssetDto | null {
+  if (input.character === null) {
     return null;
   }
 
-  const imageMap = CharacterImageMap.create(character.imageMap ?? { expression: {}, eye: {}, mouth: {}, motion: {} });
-  const selection = character.currentVariant ?? {
-    expression: character.defaultExpression ?? "neutral",
-    eye: character.defaultEye ?? "open",
-    mouth: character.defaultMouth ?? "closed",
-  };
+  const imageMap = CharacterImageMap.create(input.character.imageMap ?? { expression: {}, eye: {}, mouth: {}, motion: {} });
+  const baseSelection = resolveBaseVariantSelection(input.character);
+  const selection = input.animationController.resolve({
+    baseSelection,
+    currentTime: input.currentTime,
+    talk: input.talkAction,
+  });
 
   const assetId = imageMap.findAsset({
     selection,
-    motion: character.defaultMotion ?? "idle",
+    motion: input.character.defaultMotion ?? "idle",
   });
 
   if (assetId === null) {
     return null;
   }
 
-  return assets.find((asset) => asset.assetId === assetId && asset.assetType === "character_image") ?? null;
+  return input.assets.find((asset) => asset.assetId === assetId && asset.assetType === "character_image") ?? null;
+}
+
+function resolveBaseVariantSelection(character: CharacterDto): CharacterVariantSelectionSnapshot {
+  return character.currentVariant ?? {
+    expression: character.defaultExpression ?? "neutral",
+    eye: character.defaultEye ?? "open",
+    mouth: character.defaultMouth ?? "closed",
+  };
 }
 
 function findFirstCharacterAsset(assets: AssetDto[]): AssetDto | null {
