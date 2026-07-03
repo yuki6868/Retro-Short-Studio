@@ -1,6 +1,8 @@
 export { CharacterInstance, type CharacterInstanceSnapshot } from "./CharacterInstance";
 export { CharacterVariant, type CharacterVariantSnapshot } from "./CharacterVariant";
 export { CharacterVariantSelection, type CharacterVariantSelectionSnapshot } from "./CharacterVariantSelection";
+export { type AutoMotion, type AutoMotionDisableConditionSnapshot, type AutoMotionResolveInput, type AutoMotionSnapshot, type AutoMotionType } from "./AutoMotion";
+export { BlinkMotion, type BlinkMotionConfig } from "./BlinkMotion";
 export { BlinkController, type BlinkControllerConfig, type BlinkControllerInput } from "./BlinkController";
 export { MouthAnimationController, type MouthAnimationControllerConfig, type MouthAnimationControllerInput } from "./MouthAnimationController";
 export { CharacterAnimationController, type CharacterAnimationControllerInput } from "./CharacterAnimationController";

@@ -259,6 +259,85 @@ describe("PyxelPreviewEngineClient", () => {
     expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/cue-open.png");
   });
 
+
+  it("uses character AutoMotion blink cues to switch eye images during preview", () => {
+    const request = createPreviewRequest(1.9);
+    request.scene.actions = [];
+    request.assets = [
+      ...(request.assets ?? []),
+      {
+        assetId: "asset-blink-closed",
+        assetName: "Blink closed",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/blink-closed.png",
+      },
+    ];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        defaultExpression: "neutral",
+        defaultEye: "open",
+        defaultMouth: "closed",
+        defaultMotion: "idle",
+        autoMotions: [{ type: "blink", interval: 2, duration: 0.2 }],
+        imageMap: {
+          expression: {},
+          eye: {},
+          mouth: {},
+          motion: {},
+          variant: {
+            "expression=neutral|eye=closed|mouth=closed|motion=idle": "asset-blink-closed",
+          },
+        },
+        imageMapId: "character-zundamon",
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/blink-closed.png");
+  });
+
+  it("does not blink when AutoMotion disableCondition matches a closed-eye expression", () => {
+    const request = createPreviewRequest(1.9);
+    request.scene.actions = [];
+    request.assets = [
+      ...(request.assets ?? []),
+      {
+        assetId: "asset-closed-base",
+        assetName: "Closed base",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/closed-base.png",
+      },
+    ];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        defaultExpression: "sleepy",
+        defaultEye: "closed",
+        defaultMouth: "closed",
+        defaultMotion: "idle",
+        autoMotions: [{ type: "blink", interval: 2, duration: 0.2, disableCondition: { eye: ["closed"] } }],
+        imageMap: {
+          expression: {},
+          eye: {},
+          mouth: {},
+          motion: {},
+          variant: {
+            "expression=sleepy|eye=closed|mouth=closed|motion=idle": "asset-closed-base",
+          },
+        },
+        imageMapId: "character-zundamon",
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/closed-base.png");
+  });
+
   it("emits explicit placeholders when background or character image is missing", () => {
     const request = createPreviewRequest(4);
     request.scene.backgroundAssetId = "missing-background";

@@ -12,6 +12,20 @@ export type CharacterVariantSelectionDto = {
   mouth: string;
 };
 
+export type AutoMotionDisableConditionDto = {
+  expression?: string[];
+  eye?: string[];
+  mouth?: string[];
+};
+
+export type AutoMotionDto = {
+  type: "blink";
+  interval: number;
+  duration: number;
+  randomRange?: number;
+  disableCondition?: AutoMotionDisableConditionDto;
+};
+
 export type CharacterDto = {
   characterId: string;
   characterName: string;
@@ -21,5 +35,6 @@ export type CharacterDto = {
   defaultMotion?: string;
   imageMap?: CharacterImageMapDto;
   currentVariant?: CharacterVariantSelectionDto;
+  autoMotions?: AutoMotionDto[];
   imageMapId: string | null;
 };

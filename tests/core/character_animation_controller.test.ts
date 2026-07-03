@@ -75,4 +75,41 @@ describe("CharacterAnimationController", () => {
       }),
     ).toEqual({ expression: "happy", eye: "closed", mouth: "half" });
   });
+  it("uses BlinkMotion interval and duration to close eyes", () => {
+    const controller = new CharacterAnimationController();
+
+    expect(
+      controller.resolve({
+        baseSelection: { expression: "neutral", eye: "open", mouth: "closed" },
+        currentTime: 1.9,
+        autoMotions: [{ type: "blink", interval: 2, duration: 0.2 }],
+      }),
+    ).toEqual({ expression: "neutral", eye: "closed", mouth: "closed" });
+  });
+
+  it("stops blink when disableCondition matches the current eye state", () => {
+    const controller = new CharacterAnimationController();
+
+    expect(
+      controller.resolve({
+        baseSelection: { expression: "neutral", eye: "closed", mouth: "closed" },
+        currentTime: 1.9,
+        autoMotions: [{ type: "blink", interval: 2, duration: 0.2, disableCondition: { eye: ["closed"] } }],
+      }),
+    ).toEqual({ expression: "neutral", eye: "closed", mouth: "closed" });
+  });
+
+  it("keeps blink independent from Talk Action mouth animation", () => {
+    const controller = new CharacterAnimationController();
+
+    expect(
+      controller.resolve({
+        baseSelection: { expression: "happy", eye: "open", mouth: "closed" },
+        currentTime: 1.9,
+        talk: { startTime: 1.72, endTime: 3 },
+        autoMotions: [{ type: "blink", interval: 2, duration: 0.2 }],
+      }),
+    ).toEqual({ expression: "happy", eye: "closed", mouth: "open" });
+  });
+
 });

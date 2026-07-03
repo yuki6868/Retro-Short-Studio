@@ -1,4 +1,5 @@
 import type { MouthCueSnapshot } from "../lipsync";
+import type { AutoMotionSnapshot } from "./AutoMotion";
 import { BlinkController } from "./BlinkController";
 import { CharacterVariantSelection, type CharacterVariantSelectionSnapshot } from "./CharacterVariantSelection";
 import { MouthAnimationController } from "./MouthAnimationController";
@@ -11,6 +12,7 @@ export type CharacterAnimationControllerInput = {
     endTime: number;
     mouthCues?: MouthCueSnapshot[];
   } | null;
+  autoMotions?: AutoMotionSnapshot[];
 };
 
 export class CharacterAnimationController {
@@ -27,6 +29,8 @@ export class CharacterAnimationController {
       eye: this.blinkController.resolve({
         currentTime: input.currentTime,
         baseEye: baseSelection.eye,
+        baseSelection,
+        motions: input.autoMotions,
       }),
       mouth: this.mouthController.resolve({
         currentTime: input.currentTime,

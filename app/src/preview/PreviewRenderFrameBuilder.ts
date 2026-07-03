@@ -92,6 +92,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
           character,
           currentTime: evaluated.currentTime,
           talkAction: talkAction?.targetId === characterInstance.instanceId || talkAction?.targetId === characterInstance.characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime, mouthCues: readMouthCues(talkAction.payload.mouthCues) } : null,
+          autoMotions: readAutoMotions(character?.autoMotions),
           animationController: characterAnimationController,
         }) ?? findFirstCharacterAsset(assets);
         const characterPlaceholder = characterAsset === null ? resolveCharacterPlaceholder(characterInstance.characterId, character) : null;
@@ -124,6 +125,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
             character,
             currentTime: evaluated.currentTime,
             talkAction: talkAction?.targetId === characterInstance.instanceId || talkAction?.targetId === characterInstance.characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime, mouthCues: readMouthCues(talkAction.payload.mouthCues) } : null,
+            autoMotions: readAutoMotions(character?.autoMotions),
             animationController: characterAnimationController,
           }) === null && findFirstCharacterAsset(assets) === null;
         }).map((characterInstance) => characterInstance.instanceId),
@@ -242,6 +244,7 @@ type ResolveCharacterAssetInput = {
   character: CharacterDto | null;
   currentTime: number;
   talkAction: { startTime: number; endTime: number; mouthCues?: import("../../../core/src").MouthCueSnapshot[] } | null;
+  autoMotions?: import("../../../core/src").AutoMotionSnapshot[];
   animationController: CharacterAnimationController;
 };
 
@@ -256,6 +259,7 @@ function resolveCharacterAsset(input: ResolveCharacterAssetInput): AssetDto | nu
     baseSelection,
     currentTime: input.currentTime,
     talk: input.talkAction,
+    autoMotions: input.autoMotions,
   });
 
   const assetId = imageMap.findAsset({
@@ -336,4 +340,31 @@ function readMouthCues(value: unknown): import("../../../core/src").MouthCueSnap
   });
 
   return cues;
+}
+
+
+function readAutoMotions(value: unknown): import("../../../core/src").AutoMotionSnapshot[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const motions = value.filter((motion): motion is import("../../../core/src").AutoMotionSnapshot => {
+    if (typeof motion !== "object" || motion === null || Array.isArray(motion)) {
+      return false;
+    }
+
+    const candidate = motion as Record<string, unknown>;
+    return (
+      candidate.type === "blink" &&
+      typeof candidate.interval === "number" &&
+      Number.isFinite(candidate.interval) &&
+      candidate.interval > 0 &&
+      typeof candidate.duration === "number" &&
+      Number.isFinite(candidate.duration) &&
+      candidate.duration > 0 &&
+      (candidate.randomRange === undefined || (typeof candidate.randomRange === "number" && Number.isFinite(candidate.randomRange) && candidate.randomRange >= 0))
+    );
+  });
+
+  return motions;
 }
