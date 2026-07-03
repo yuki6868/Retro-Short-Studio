@@ -79,6 +79,28 @@ describe("ProjectJsonSerializer", () => {
     expect(serializer.deserialize(serializer.serialize(project))).toEqual(project);
   });
 
+  it("round-trips CharacterModel current variant selection", () => {
+    const project: ProjectDto = {
+      ...validProject,
+      characters: [
+        {
+          characterId: "character-zundamon",
+          characterName: "Zundamon",
+          defaultExpression: "neutral",
+          defaultEye: "open",
+          defaultMouth: "closed",
+          defaultMotion: "idle",
+          currentVariant: { expression: "happy", eye: "closed", mouth: "open" },
+          imageMapId: null,
+        },
+      ],
+    };
+
+    const serializer = new ProjectJsonSerializer();
+
+    expect(serializer.deserialize(serializer.serialize(project))).toEqual(project);
+  });
+
   it("throws for invalid JSON", () => {
     expect(() => new ProjectJsonSerializer().deserialize("not-json")).toThrow();
   });

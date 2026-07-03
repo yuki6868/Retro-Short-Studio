@@ -57,7 +57,18 @@ function assertCharacterDtos(value: unknown): void {
     assertPlainObject(character, label);
     assertNonEmptyString(character.characterId, `${label}.characterId`);
     assertNonEmptyString(character.characterName, `${label}.characterName`);
+
+    if (character.currentVariant !== undefined) {
+      assertCharacterVariantSelectionDto(character.currentVariant, `${label}.currentVariant`);
+    }
   });
+}
+
+function assertCharacterVariantSelectionDto(value: unknown, label: string): void {
+  assertPlainObject(value, label);
+  assertNonEmptyString(value.expression, `${label}.expression`);
+  assertNonEmptyString(value.eye, `${label}.eye`);
+  assertNonEmptyString(value.mouth, `${label}.mouth`);
 }
 
 function assertSceneDtos(value: unknown): void {

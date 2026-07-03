@@ -48,6 +48,30 @@ describe("CharacterModelEditorUseCase", () => {
     });
   });
 
+  it("changes the current variant selection without changing default states", () => {
+    const { project, useCase } = createUseCase();
+    useCase.createCharacterModel({ characterName: "Zundamon" });
+
+    const state = useCase.changeVariantSelection({
+      characterId: "character-1",
+      expression: "happy",
+      eye: "closed",
+      mouth: "open",
+    });
+
+    expect(state.characters[0]).toMatchObject({
+      defaultExpression: "neutral",
+      defaultEye: "open",
+      defaultMouth: "closed",
+      currentVariant: { expression: "happy", eye: "closed", mouth: "open" },
+    });
+    expect(project.toSnapshot().characters[0]?.currentVariant).toEqual({
+      expression: "happy",
+      eye: "closed",
+      mouth: "open",
+    });
+  });
+
   it("rejects mapping a background asset as a character image", () => {
     const { project, useCase } = createUseCase();
     project.addAsset(Asset.create({ assetId: "asset-bg", assetName: "Room", assetType: "background", assetPath: "assets/backgrounds/room.png" }));

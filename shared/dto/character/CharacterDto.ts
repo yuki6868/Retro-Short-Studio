@@ -6,6 +6,12 @@ export type CharacterImageMapDto = {
   variant?: Record<string, string>;
 };
 
+export type CharacterVariantSelectionDto = {
+  expression: string;
+  eye: string;
+  mouth: string;
+};
+
 export type CharacterDto = {
   characterId: string;
   characterName: string;
@@ -14,5 +20,6 @@ export type CharacterDto = {
   defaultMouth?: string;
   defaultMotion?: string;
   imageMap?: CharacterImageMapDto;
+  currentVariant?: CharacterVariantSelectionDto;
   imageMapId: string | null;
 };

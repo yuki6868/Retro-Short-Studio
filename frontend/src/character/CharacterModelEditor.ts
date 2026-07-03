@@ -1,6 +1,7 @@
 import type {
   AssignCharacterImageInput,
   ChangeCharacterDefaultsInput,
+  ChangeCharacterVariantSelectionInput,
   CharacterModelEditorState,
   CreateCharacterModelInput,
   RenameCharacterModelInput,
@@ -12,6 +13,7 @@ export type CharacterModelEditorUseCase = {
   selectCharacter(characterId: string): CharacterModelEditorState;
   renameCharacter(input: RenameCharacterModelInput): CharacterModelEditorState;
   changeDefaults(input: ChangeCharacterDefaultsInput): CharacterModelEditorState;
+  changeVariantSelection(input: ChangeCharacterVariantSelectionInput): CharacterModelEditorState;
   assignImage(input: AssignCharacterImageInput): CharacterModelEditorState;
 };
 
@@ -31,6 +33,7 @@ export type CharacterModelEditorCharacterViewState = {
   defaultEye: string;
   defaultMouth: string;
   defaultMotion: string;
+  currentVariant: CharacterModelEditorState["characters"][number]["currentVariant"] | null;
   imageSlots: CharacterImageMapEditorSlotViewState[];
 };
 
@@ -89,6 +92,11 @@ export class CharacterModelEditor {
     return this.render();
   }
 
+  changeVariantSelection(input: ChangeCharacterVariantSelectionInput): CharacterModelEditorViewState {
+    this.latestState = this.props.characters.changeVariantSelection(input);
+    return this.render();
+  }
+
   assignImage(input: AssignCharacterImageInput): CharacterModelEditorViewState {
     this.latestState = this.props.characters.assignImage(input);
     return this.render();
@@ -104,6 +112,7 @@ function toCharacterViewState(character: CharacterModelEditorState["characters"]
     defaultEye: character.defaultEye,
     defaultMouth: character.defaultMouth,
     defaultMotion: character.defaultMotion,
+    currentVariant: character.currentVariant ?? null,
     imageSlots: [
       { key: "expression:neutral", kind: "expression", state: "neutral", label: "Default expression", assetId: character.imageMap.expression.neutral ?? null },
       { key: "mouth:closed", kind: "mouth", state: "closed", label: "Mouth closed", assetId: character.imageMap.mouth.closed ?? null },

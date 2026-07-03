@@ -80,6 +80,54 @@ describe("Character Model Core", () => {
     expect(instance.toSnapshot().transform).toEqual({ x: 10, y: 20, scale: 1, rotation: 0 });
   });
 
+  it("keeps the current variant selection separately from default states", () => {
+    const character = CharacterModel.create({
+      characterId: "c-1",
+      characterName: "ずんだもん",
+      defaultExpression: "neutral",
+      defaultEye: "open",
+      defaultMouth: "closed",
+    });
+
+    character.changeVariantSelection({ expression: "happy", mouth: "open" });
+
+    expect(character.resolveCurrentVariantSelection()).toEqual({
+      expression: "happy",
+      eye: "open",
+      mouth: "open",
+    });
+    expect(character.toSnapshot()).toMatchObject({
+      defaultExpression: "neutral",
+      defaultEye: "open",
+      defaultMouth: "closed",
+      currentVariant: { expression: "happy", eye: "open", mouth: "open" },
+    });
+  });
+
+  it("restores the current variant selection from project snapshots", () => {
+    const restored = CharacterModel.restore({
+      characterId: "c-1",
+      characterName: "ずんだもん",
+      defaultExpression: "neutral",
+      defaultEye: "open",
+      defaultMouth: "closed",
+      defaultMotion: "idle",
+      currentVariant: { expression: "sad", eye: "closed", mouth: "half" },
+      imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} },
+    });
+
+    expect(restored.resolveCurrentVariantSelection()).toEqual({
+      expression: "sad",
+      eye: "closed",
+      mouth: "half",
+    });
+    expect(restored.toSnapshot().currentVariant).toEqual({
+      expression: "sad",
+      eye: "closed",
+      mouth: "half",
+    });
+  });
+
   it("rejects invalid character values", () => {
     expect(() => CharacterId.create("   ")).toThrow("CharacterId is required.");
     expect(() => CharacterInstanceId.create("   ")).toThrow("CharacterInstanceId is required.");

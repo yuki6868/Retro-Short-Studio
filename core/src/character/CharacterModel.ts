@@ -1,5 +1,6 @@
 import { CharacterImageMap, type CharacterImageMapSnapshot } from "./CharacterImageMap";
 import type { CharacterVariantSnapshot } from "./CharacterVariant";
+import { CharacterVariantSelection, type CharacterVariantSelectionSnapshot } from "./CharacterVariantSelection";
 import {
   CharacterId,
   CharacterName,
@@ -17,6 +18,7 @@ export type CharacterModelSnapshot = {
   defaultMouth: string;
   defaultMotion: string;
   imageMap?: CharacterImageMapSnapshot;
+  currentVariant?: CharacterVariantSelectionSnapshot;
 };
 
 export class CharacterModel {
@@ -28,6 +30,7 @@ export class CharacterModel {
     private defaultMouth: MouthState,
     private defaultMotion: MotionState,
     private imageMap: CharacterImageMap,
+    private currentVariant: CharacterVariantSelection | null,
   ) {}
 
   static create(params: {
@@ -47,11 +50,18 @@ export class CharacterModel {
       MouthState.create(params.defaultMouth),
       MotionState.create(params.defaultMotion),
       CharacterImageMap.create(params.imageMap),
+      null,
     );
   }
 
   static restore(snapshot: CharacterModelSnapshot): CharacterModel {
-    return CharacterModel.create(snapshot);
+    const character = CharacterModel.create(snapshot);
+
+    if (snapshot.currentVariant !== undefined) {
+      character.changeVariantSelection(snapshot.currentVariant);
+    }
+
+    return character;
   }
 
   rename(characterName: string): void {
@@ -78,6 +88,31 @@ export class CharacterModel {
     }
   }
 
+  changeVariantSelection(params: {
+    expression?: string;
+    eye?: string;
+    mouth?: string;
+  }): void {
+    const current = this.currentVariant ?? CharacterVariantSelection.create({
+      expression: this.defaultExpression.toString(),
+      eye: this.defaultEye.toString(),
+      mouth: this.defaultMouth.toString(),
+    });
+
+    this.currentVariant = current.change(params);
+  }
+
+  clearVariantSelection(): void {
+    this.currentVariant = null;
+  }
+
+  resolveCurrentVariantSelection(): CharacterVariantSelectionSnapshot {
+    return (this.currentVariant ?? CharacterVariantSelection.create({
+      expression: this.defaultExpression.toString(),
+      eye: this.defaultEye.toString(),
+      mouth: this.defaultMouth.toString(),
+    })).toSnapshot();
+  }
 
   mapExpressionImage(expression: string, assetId: string): void {
     this.imageMap = this.imageMap.setExpressionImage(expression, assetId);
@@ -123,6 +158,8 @@ export class CharacterModel {
   }
 
   toSnapshot(): CharacterModelSnapshot {
+    const currentVariant = this.currentVariant?.toSnapshot();
+
     return {
       characterId: this.id.toString(),
       characterName: this.name.toString(),
@@ -131,6 +168,7 @@ export class CharacterModel {
       defaultMouth: this.defaultMouth.toString(),
       defaultMotion: this.defaultMotion.toString(),
       imageMap: this.imageMap.toSnapshot(),
+      ...(currentVariant === undefined ? {} : { currentVariant }),
     };
   }
 }

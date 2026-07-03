@@ -79,6 +79,7 @@ function createUseCase(
     selectCharacter: overrides.selectCharacter ?? (() => state),
     renameCharacter: overrides.renameCharacter ?? (() => state),
     changeDefaults: overrides.changeDefaults ?? (() => state),
+    changeVariantSelection: overrides.changeVariantSelection ?? (() => state),
     assignImage: overrides.assignImage ?? (() => state),
   };
 }

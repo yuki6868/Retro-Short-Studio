@@ -381,6 +381,15 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
         persistCurrentProject();
         return next;
       },
+
+      changeVariantSelection(input: { characterId: string; expression?: string; eye?: string; mouth?: string }): CharacterModelEditorState {
+        const next = characterModelEditor.changeVariantSelection(input);
+        setCharacterModelState(next);
+        setInspectorState(inspector.selectCharacter(input.characterId));
+        void previewUseCase.seek(previewState.currentTime);
+        persistCurrentProject();
+        return next;
+      },
       assignImage(input: { characterId: string; kind: "expression" | "eye" | "mouth" | "motion"; state: string; assetId: string }): CharacterModelEditorState {
         const next = characterModelEditor.assignImage(input);
         setCharacterModelState(next);

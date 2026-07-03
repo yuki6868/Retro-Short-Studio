@@ -86,4 +86,21 @@ describe("projectSnapshotToProjectDto", () => {
     expect(dto.scenes[0]?.characterIds).toEqual([]);
     expect(() => new ProjectJsonSerializer().serialize(dto)).not.toThrow();
   });
+
+  it("includes CharacterModel current variant selection in ProjectDto", () => {
+    const project = createProjectWithSceneCharacters();
+
+    project.updateCharacterModel("character-zundamon", (character) => {
+      character.changeVariantSelection({ expression: "happy", eye: "closed", mouth: "open" });
+    });
+
+    const dto = projectSnapshotToProjectDto(project.toSnapshot());
+
+    expect(dto.characters[0]?.currentVariant).toEqual({
+      expression: "happy",
+      eye: "closed",
+      mouth: "open",
+    });
+    expect(() => new ProjectJsonSerializer().serialize(dto)).not.toThrow();
+  });
 });

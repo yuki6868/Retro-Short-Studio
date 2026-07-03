@@ -1,4 +1,4 @@
-import { CharacterModel, type CharacterImageMapSnapshot, type Project } from "../../../core/src";
+import { CharacterModel, type CharacterImageMapSnapshot, type CharacterVariantSelectionSnapshot, type Project } from "../../../core/src";
 import type { AssetDto } from "../../../shared";
 import type { IdGenerator } from "../../../core/src";
 
@@ -10,6 +10,7 @@ export type CharacterModelEditorCharacterState = {
   defaultMouth: string;
   defaultMotion: string;
   imageMap: CharacterImageMapSnapshot;
+  currentVariant?: CharacterVariantSelectionSnapshot;
   selected: boolean;
 };
 
@@ -38,6 +39,13 @@ export type ChangeCharacterDefaultsInput = {
   defaultEye?: string;
   defaultMouth?: string;
   defaultMotion?: string;
+};
+
+export type ChangeCharacterVariantSelectionInput = {
+  characterId: string;
+  expression?: string;
+  eye?: string;
+  mouth?: string;
 };
 
 export type AssignCharacterImageInput = {
@@ -104,6 +112,19 @@ export class CharacterModelEditorUseCase {
     return this.createState();
   }
 
+  changeVariantSelection(input: ChangeCharacterVariantSelectionInput): CharacterModelEditorState {
+    const characterId = normalizeText(input.characterId, "characterId");
+    this.config.project.updateCharacterModel(characterId, (character) =>
+      character.changeVariantSelection({
+        expression: input.expression,
+        eye: input.eye,
+        mouth: input.mouth,
+      }),
+    );
+    this.selectedCharacterId = characterId;
+    return this.createState();
+  }
+
   assignImage(input: AssignCharacterImageInput): CharacterModelEditorState {
     const characterId = normalizeText(input.characterId, "characterId");
     const state = normalizeText(input.state, "state");
@@ -153,6 +174,7 @@ export class CharacterModelEditorUseCase {
         defaultMouth: character.defaultMouth,
         defaultMotion: character.defaultMotion,
         imageMap: character.imageMap ?? { expression: {}, eye: {}, mouth: {}, motion: {} },
+        ...(character.currentVariant === undefined ? {} : { currentVariant: character.currentVariant }),
         selected: character.characterId === selectedCharacterId,
       })),
       selectedCharacterId,
