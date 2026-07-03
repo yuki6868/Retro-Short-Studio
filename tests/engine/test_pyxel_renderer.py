@@ -355,3 +355,32 @@ def test_pixel_art_frame_capture_errors_when_pillow_is_missing_for_text(monkeypa
         assert "requires Pillow" in str(error)
     else:
         raise AssertionError("PixelArtFrameCapture must fail instead of silently rendering unreadable placeholder text without Pillow.")
+
+
+def test_pyxel_renderer_forwards_basic_effects_to_frame_capture() -> None:
+    class RecordingCapture:
+        def __init__(self) -> None:
+            self.effects: list[dict[str, Any]] = []
+
+        def capture(self, *, width: int, height: int, clear_color: int, drawables: list[PyxelDrawable], text_overlays: list[dict[str, Any]], effects: list[dict[str, Any]]) -> str:
+            self.effects = effects
+            return "data:image/png;base64,AAAA"
+
+    capture = RecordingCapture()
+    renderer = PyxelRenderer(FakePyxel(), frame_capture=capture)
+
+    result = renderer.preview(
+        EngineRequest(
+            command_id="preview-effect",
+            command="preview",
+            payload={
+                "width": 320,
+                "height": 180,
+                "clearColor": 1,
+                "effects": [{"effectType": "flash", "alpha": 0.5, "intensity": 1}],
+            },
+        )
+    )
+
+    assert result.ok is True
+    assert capture.effects == [{"effectType": "flash", "alpha": 0.5, "intensity": 1}]

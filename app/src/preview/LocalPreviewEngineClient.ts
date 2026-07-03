@@ -82,7 +82,7 @@ function buildPreviewSvgDataUrl(frame: PreviewRenderFramePayload, duration: numb
   const backgroundPath = frame.background?.path ?? "No background asset selected";
   const firstTalkOverlay = frame.textOverlays.find((overlay) => !overlay.text.endsWith("s") && overlay.y >= safeHeight - 64) ?? null;
   const talkText = firstTalkOverlay?.text ?? "No active talk action";
-  const flashOpacity = frame.activeActionTypes.includes("flash") ? 0.5 : 0;
+  const effectOverlays = frame.effects.map(renderSvgEffect).join("\n  ");
 
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}">
@@ -97,10 +97,16 @@ function buildPreviewSvgDataUrl(frame: PreviewRenderFramePayload, duration: numb
   <rect x="60" y="${safeHeight - 156}" width="${safeWidth - 120}" height="96" rx="18" fill="#0d1020" stroke="#f4f7ff" stroke-width="2" opacity="${talkText === "No active talk action" ? 0.2 : 0.94}"/>
   <text x="92" y="${safeHeight - 100}" fill="#f4f7ff" font-family="monospace" font-size="26">${escapeXml(talkText)}</text>
   <text x="48" y="${safeHeight - 28}" fill="#b8c0d8" font-family="monospace" font-size="16">Active actions: ${escapeXml(frame.activeActionTypes.join(", ") || "none")}</text>
-  <rect width="100%" height="100%" fill="#ffffff" opacity="${flashOpacity}"/>
+  ${effectOverlays}
 </svg>`;
 
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function renderSvgEffect(effect: PreviewRenderFramePayload["effects"][number]): string {
+  const fill = effect.effectType === "flash" ? "#ffffff" : "#000000";
+  const opacity = Math.min(Math.max(effect.alpha, 0), 1);
+  return `<rect width="100%" height="100%" fill="${fill}" opacity="${opacity}" data-effect-type="${effect.effectType}"/>`;
 }
 
 function renderSvgImage(drawable: PreviewDrawablePayload): string {

@@ -23,6 +23,13 @@ export type PreviewTextOverlayPayload = {
   color?: number;
 };
 
+export type PreviewEffectPayload = {
+  effectType: "fade_in" | "fade_out" | "flash";
+  alpha: number;
+  intensity: number;
+  progress: number;
+};
+
 export type PreviewRenderFramePayload = {
   width: number;
   height: number;
@@ -31,6 +38,7 @@ export type PreviewRenderFramePayload = {
   background?: PreviewDrawablePayload;
   characters: PreviewDrawablePayload[];
   textOverlays: PreviewTextOverlayPayload[];
+  effects: PreviewEffectPayload[];
   activeActionTypes: string[];
 };
 
@@ -58,6 +66,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
     const moveAction = evaluated.activeActions.find((action) => action.actionType === "move") ?? null;
     const zoomAction = evaluated.activeActions.find((action) => action.actionType === "camera_zoom") ?? null;
     const talkAction = evaluated.activeActions.find((action) => action.actionType === "talk") ?? null;
+    const effects = evaluated.activeActions.map(toPreviewEffect).filter((effect): effect is PreviewEffectPayload => effect !== null);
     const characterAnimationController = new CharacterAnimationController();
     const moveX = readNumber(moveAction?.payload.x, 0) * (moveAction?.progress ?? 0);
     const moveY = readNumber(moveAction?.payload.y, 0) * (moveAction?.progress ?? 0);
@@ -130,6 +139,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
           }) === null && findFirstCharacterAsset(assets) === null;
         }).map((characterInstance) => characterInstance.instanceId),
       }),
+      effects,
       activeActionTypes: evaluated.activeActions.map((action) => action.actionType),
     };
   }
@@ -140,6 +150,54 @@ type PreviewCharacterInstance = {
   characterId: string;
   transform: { x: number; y: number; scale: number; rotation: number };
 };
+
+function toPreviewEffect(action: import("../../../core/src").ActiveAction): PreviewEffectPayload | null {
+  const effectType = resolveEffectType(action.actionType, action.payload.effectType ?? action.payload.kind ?? action.payload.type);
+
+  if (effectType === null) {
+    return null;
+  }
+
+  const intensity = clamp01(readNumber(action.payload.intensity, effectType === "flash" ? 1 : 0));
+  const payloadAlpha = readOptionalNumber(action.payload.alpha);
+  const maxAlpha = clamp01(payloadAlpha ?? (effectType === "flash" ? intensity : 1));
+  const progress = clamp01(action.progress);
+  const alpha = effectType === "fade_in"
+    ? maxAlpha * (1 - progress)
+    : effectType === "fade_out"
+      ? maxAlpha * progress
+      : maxAlpha * Math.max(0, 1 - progress);
+
+  return { effectType, alpha: Number(alpha.toFixed(6)), intensity, progress: Number(progress.toFixed(6)) };
+}
+
+function resolveEffectType(actionType: string, payloadType: unknown): PreviewEffectPayload["effectType"] | null {
+  const normalizedActionType = actionType.trim().toLowerCase();
+  const normalizedPayloadType = typeof payloadType === "string" ? payloadType.trim().toLowerCase() : "";
+  const candidate = normalizedActionType === "effect" || normalizedActionType === "fade" ? normalizedPayloadType : normalizedActionType;
+
+  if (candidate === "fade_in" || candidate === "fadein") {
+    return "fade_in";
+  }
+
+  if (candidate === "fade_out" || candidate === "fadeout") {
+    return "fade_out";
+  }
+
+  if (candidate === "flash") {
+    return "flash";
+  }
+
+  return null;
+}
+
+function readOptionalNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function clamp01(value: number): number {
+  return Math.min(Math.max(value, 0), 1);
+}
 
 function resolveCharacterInstances(input: {
   sceneCharacters: import("../../../shared").CharacterInstanceDto[] | undefined;

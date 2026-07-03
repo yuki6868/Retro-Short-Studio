@@ -70,7 +70,7 @@ class PixelArtFrameCapture:
                 PreviewSettingsRepository.default(),
             )
 
-    def capture(self, *, width: int, height: int, clear_color: int, drawables: Sequence[PyxelDrawable], text_overlays: Sequence[dict[str, Any]]) -> str:
+    def capture(self, *, width: int, height: int, clear_color: int, drawables: Sequence[PyxelDrawable], text_overlays: Sequence[dict[str, Any]], effects: Sequence[dict[str, Any]] = ()) -> str:
         low_width = max(1, width // self.scale)
         low_height = max(1, height // self.scale)
         pixels = [[self._color(clear_color) for _ in range(low_width)] for _ in range(low_height)]
@@ -78,6 +78,8 @@ class PixelArtFrameCapture:
         self._rect(pixels, 0, 0, low_width, low_height, self._color(clear_color))
         for drawable in drawables:
             self._draw_drawable(pixels, drawable)
+
+        self._apply_effects(pixels, effects)
 
         if text_overlays:
             self._ensure_pillow_text_renderer()
@@ -143,6 +145,17 @@ class PixelArtFrameCapture:
         if font is None:
             raise RuntimeError(f"Preview text font could not be loaded: {font_spec.name} ({font_spec.size}px).")
         return font
+
+
+    def _apply_effects(self, pixels: list[list[tuple[int, int, int, int]]], effects: Sequence[dict[str, Any]]) -> None:
+        for effect in effects:
+            effect_type = str(effect.get("effectType", "")).strip().lower()
+            alpha = _clamp01(effect.get("alpha", 0))
+            if alpha <= 0:
+                continue
+            overlay = (255, 255, 255, 255) if effect_type == "flash" else (0, 0, 0, 255)
+            for y, row in enumerate(pixels):
+                pixels[y] = [blend_pixel(pixel, overlay, alpha) for pixel in row]
 
     def _draw_drawable(self, pixels: list[list[tuple[int, int, int, int]]], drawable: PyxelDrawable) -> None:
         x = drawable.x // self.scale
@@ -372,3 +385,21 @@ def wrap_text_for_width(draw: Any, text: str, font: Any, max_width: int) -> list
     if current:
         lines.append(current)
     return lines
+
+
+def _clamp01(value: Any) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return min(max(number, 0.0), 1.0)
+
+
+def blend_pixel(base: tuple[int, int, int, int], overlay: tuple[int, int, int, int], alpha: float) -> tuple[int, int, int, int]:
+    inverse = 1.0 - alpha
+    return (
+        round(base[0] * inverse + overlay[0] * alpha),
+        round(base[1] * inverse + overlay[1] * alpha),
+        round(base[2] * inverse + overlay[2] * alpha),
+        base[3],
+    )

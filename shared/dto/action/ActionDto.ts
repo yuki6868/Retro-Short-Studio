@@ -2,7 +2,10 @@ export type ActionTypeDto =
   | "talk"
   | "move"
   | "fade"
+  | "fade_in"
+  | "fade_out"
   | "flash"
+  | "effect"
   | "camera_move"
   | "camera_zoom"
   | "custom";

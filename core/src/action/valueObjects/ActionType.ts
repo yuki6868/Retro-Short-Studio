@@ -4,7 +4,10 @@ const BUILT_IN_ACTION_TYPES = [
   "talk",
   "move",
   "fade",
+  "fade_in",
+  "fade_out",
   "flash",
+  "effect",
   "camera_move",
   "camera_zoom",
   "custom",
@@ -23,6 +26,9 @@ export class ActionType {
   static talk(): ActionType { return ActionType.create("talk"); }
   static move(): ActionType { return ActionType.create("move"); }
   static fade(): ActionType { return ActionType.create("fade"); }
+  static fadeIn(): ActionType { return ActionType.create("fade_in"); }
+  static fadeOut(): ActionType { return ActionType.create("fade_out"); }
+  static effect(): ActionType { return ActionType.create("effect"); }
   static flash(): ActionType { return ActionType.create("flash"); }
   static cameraMove(): ActionType { return ActionType.create("camera_move"); }
   static cameraZoom(): ActionType { return ActionType.create("camera_zoom"); }

@@ -45,6 +45,7 @@ function createFrame(): PreviewRenderFramePayload {
     clearColor: 1,
     characters: [],
     textOverlays: [],
+    effects: [],
     activeActionTypes: [],
   };
 }

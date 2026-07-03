@@ -15,7 +15,7 @@ class PyxelImage(Protocol):
 
 
 class FrameCapture(Protocol):
-    def capture(self, *, width: int, height: int, clear_color: int, drawables: Sequence["PyxelDrawable"], text_overlays: Sequence[dict[str, Any]]) -> str:
+    def capture(self, *, width: int, height: int, clear_color: int, drawables: Sequence["PyxelDrawable"], text_overlays: Sequence[dict[str, Any]], effects: Sequence[dict[str, Any]]) -> str:
         raise NotImplementedError
 
 
@@ -119,6 +119,7 @@ class PyxelRenderer:
                     clear_color=clear_color,
                     drawables=drawables,
                     text_overlays=self._collect_text_overlays(request.payload),
+                    effects=self._collect_effects(request.payload),
                 )
 
             return EngineResult.success(
@@ -165,6 +166,12 @@ class PyxelRenderer:
                     )
 
         return sorted(drawables, key=lambda drawable: drawable.z_index)
+
+    def _collect_effects(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
+        effects = payload.get("effects", [])
+        if not isinstance(effects, list):
+            return []
+        return [effect for effect in effects if isinstance(effect, dict)]
 
     def _collect_text_overlays(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         overlays = payload.get("textOverlays", [])
