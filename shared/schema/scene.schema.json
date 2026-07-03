@@ -11,6 +11,33 @@
     "duration": { "type": "number" },
     "backgroundAssetId": { "type": ["string", "null"] },
     "characterIds": { "type": "array", "items": { "type": "string" } },
+    "characters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["instanceId", "characterId", "transform", "expression", "eye", "mouth", "motion"],
+        "properties": {
+          "instanceId": { "type": "string" },
+          "characterId": { "type": "string" },
+          "transform": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y", "scale", "rotation"],
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "scale": { "type": "number", "exclusiveMinimum": 0 },
+              "rotation": { "type": "number" }
+            }
+          },
+          "expression": { "type": "string" },
+          "eye": { "type": "string" },
+          "mouth": { "type": "string" },
+          "motion": { "type": "string" }
+        }
+      }
+    },
     "actions": { "type": "array" }
   }
 }

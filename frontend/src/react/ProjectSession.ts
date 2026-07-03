@@ -1,6 +1,7 @@
 import {
   Action,
   Asset,
+  CharacterInstance,
   CharacterModel,
   CryptoRandomIdGenerator,
   DeterministicIdGenerator,
@@ -17,6 +18,7 @@ import {
   type AssetFileStore,
   InspectorUseCase,
   PyxelPreviewEngineClient,
+  SceneCharacterPlacementUseCase,
   SceneFlowUseCase,
   TimelineUseCase,
 } from "../../../app/src";
@@ -36,6 +38,7 @@ import {
 export type StudioUseCases = {
   assetLibrary: AssetLibraryUseCase;
   sceneFlow: SceneFlowUseCase;
+  sceneCharacterPlacement: SceneCharacterPlacementUseCase;
   inspector: InspectorUseCase;
   timeline: TimelineUseCase;
   actionEditor: ActionEditorUseCase;
@@ -66,6 +69,7 @@ export class ProjectSession {
     this.useCases = {
       assetLibrary: new AssetLibraryUseCase({ project: this.project, idGenerator }),
       sceneFlow: new SceneFlowUseCase({ project: this.project, idGenerator }),
+      sceneCharacterPlacement: new SceneCharacterPlacementUseCase({ project: this.project, idGenerator }),
       inspector: new InspectorUseCase({ project: this.project }),
       timeline: new TimelineUseCase({ project: this.project }),
       actionEditor: new ActionEditorUseCase({ project: this.project, idGenerator }),
@@ -93,6 +97,7 @@ export class ProjectSession {
     if (firstSceneId !== null) {
       this.useCases.sceneFlow.selectScene(firstSceneId);
       this.useCases.timeline.showScene(firstSceneId);
+      this.useCases.sceneCharacterPlacement.showScene(firstSceneId);
       this.useCases.inspector.selectScene(firstSceneId);
     }
 
@@ -166,17 +171,24 @@ export function createDefaultStudioProject(): Project {
       sceneName: "Opening",
       duration: 8,
       backgroundAssetId: "asset-background-room",
+      characters: [
+        CharacterInstance.create({
+          instanceId: "character-instance-zundamon-main",
+          characterId: "character-zundamon",
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+        }).toSnapshot(),
+      ],
       actions: [
         Action.create({
           actionId: "action-talk-opening",
           actionType: "talk",
           startTime: 0.5,
           endTime: 2.5,
-          targetId: "character-zundamon",
+          targetId: "character-instance-zundamon-main",
           payload: {
             text: "今日のテーマを説明するのだ。",
             speakerId: "3",
-            speakerCharacterId: "character-zundamon",
+            speakerCharacterId: "character-instance-zundamon-main",
             voiceAssetId: null,
             generatedVoicePath: null,
             generatedVoiceDuration: null,
@@ -188,7 +200,7 @@ export function createDefaultStudioProject(): Project {
           actionType: "move",
           startTime: 2.5,
           endTime: 4,
-          targetId: "character-zundamon",
+          targetId: "character-instance-zundamon-main",
           payload: { x: 80, y: 0 },
         }).toSnapshot(),
         Action.create({

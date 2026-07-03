@@ -79,12 +79,11 @@ class PixelArtFrameCapture:
         for drawable in drawables:
             self._draw_drawable(pixels, drawable)
 
-        font = self._resolve_font() if text_overlays else None
-        if Image is not None and ImageDraw is not None:
+        if text_overlays:
+            self._ensure_pillow_text_renderer()
+            font = self._resolve_font()
             png_bytes = self._encode_with_text_overlays(pixels, text_overlays, font)
         else:
-            for overlay in text_overlays:
-                self._draw_text_bar(pixels, overlay)
             png_bytes = encode_png_rgba(pixels, self.scale)
         return "data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii")
 
@@ -130,13 +129,20 @@ class PixelArtFrameCapture:
         image.save(output, format="PNG")
         return output.getvalue()
 
+    def _ensure_pillow_text_renderer(self) -> None:
+        if Image is None or ImageDraw is None:
+            raise RuntimeError("Preview text rendering requires Pillow. Install Pillow instead of falling back to unreadable placeholder text.")
+
     def _resolve_font(self) -> Any:
         settings = self.settings_repository.load()
         font_spec = self.font_spec or FontSpec(
             name=settings.default_font,
             size=settings.font_size,
         )
-        return self.font_repository.get(font_spec)
+        font = self.font_repository.get(font_spec)
+        if font is None:
+            raise RuntimeError(f"Preview text font could not be loaded: {font_spec.name} ({font_spec.size}px).")
+        return font
 
     def _draw_drawable(self, pixels: list[list[tuple[int, int, int, int]]], drawable: PyxelDrawable) -> None:
         x = drawable.x // self.scale

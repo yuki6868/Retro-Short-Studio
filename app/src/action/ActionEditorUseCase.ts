@@ -40,19 +40,20 @@ export class ActionEditorUseCase {
     const sceneId = normalizeId(input.sceneId, "sceneId");
     const scene = this.findSceneOrThrow(sceneId);
     const defaults = createActionDefaults(input.kind);
-    const startTime = normalizeFiniteTime(input.startTime, "Action startTime");
-    const duration = normalizeDuration(input.duration ?? defaults.duration);
-    const endTime = roundActionTime(startTime + duration);
-
-    validateActionFitsScene({ scene, startTime, endTime });
+    const timeRange = resolveCreateActionTimeRange({
+      scene,
+      requestedStartTime: input.startTime,
+      requestedDuration: input.duration,
+      defaultDuration: defaults.duration,
+    });
 
     const action = Action.create({
       actionId: this.config.idGenerator.generate("action"),
       actionType: defaults.actionType,
-      startTime,
-      endTime,
+      startTime: timeRange.startTime,
+      endTime: timeRange.endTime,
       targetId: input.targetId ?? defaults.targetId,
-      payload: input.payload ?? defaults.payload,
+      payload: { ...defaults.payload, ...(input.payload ?? {}) },
     });
 
     this.config.project.updateScene(sceneId, (editableScene) => editableScene.addAction(action));
@@ -155,7 +156,31 @@ function normalizeDuration(value: number): number {
   return roundActionTime(value);
 }
 
-function validateActionFitsScene(input: { scene: SceneSnapshot; startTime: number; endTime: number }): void {
+function resolveCreateActionTimeRange(input: {
+  scene: SceneSnapshot;
+  requestedStartTime: number;
+  requestedDuration: number | undefined;
+  defaultDuration: number;
+}): { startTime: number; endTime: number } {
+  const requestedStartTime = normalizeFiniteTime(input.requestedStartTime, "Action startTime");
+
+  if (input.requestedDuration !== undefined) {
+    const duration = normalizeDuration(input.requestedDuration);
+    const endTime = roundActionTime(requestedStartTime + duration);
+    validateActionFitsScene({ scene: input.scene, endTime });
+    return { startTime: requestedStartTime, endTime };
+  }
+
+  const duration = normalizeDuration(Math.min(input.defaultDuration, input.scene.duration));
+  const latestStartTime = roundActionTime(input.scene.duration - duration);
+  const startTime = roundActionTime(Math.min(requestedStartTime, latestStartTime));
+  const endTime = roundActionTime(startTime + duration);
+
+  validateActionFitsScene({ scene: input.scene, endTime });
+  return { startTime, endTime };
+}
+
+function validateActionFitsScene(input: { scene: SceneSnapshot; endTime: number }): void {
   if (input.endTime > input.scene.duration) {
     throw new Error(`Action cannot end after the scene duration: ${input.scene.sceneId}.`);
   }

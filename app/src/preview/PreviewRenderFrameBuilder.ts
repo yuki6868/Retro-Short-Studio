@@ -54,6 +54,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
     const assets = request.assets ?? [];
     const characters = request.characters ?? [];
     const backgroundAsset = findAsset(assets, request.scene.backgroundAssetId);
+    const backgroundPlaceholder = backgroundAsset === null ? resolveBackgroundPlaceholder(request.scene.backgroundAssetId) : null;
     const moveAction = evaluated.activeActions.find((action) => action.actionType === "move") ?? null;
     const zoomAction = evaluated.activeActions.find((action) => action.actionType === "camera_zoom") ?? null;
     const talkAction = evaluated.activeActions.find((action) => action.actionType === "talk") ?? null;
@@ -61,70 +62,154 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
     const moveX = readNumber(moveAction?.payload.x, 0) * (moveAction?.progress ?? 0);
     const moveY = readNumber(moveAction?.payload.y, 0) * (moveAction?.progress ?? 0);
     const zoom = readNumber(zoomAction?.payload.zoom, 1);
-    const characterIds = request.scene.characterIds.length > 0 ? request.scene.characterIds : fallbackCharacterIds(characters, talkAction?.targetId ?? null);
+    const characterInstances = resolveCharacterInstances({
+      sceneCharacters: request.scene.characters,
+      characterIds: request.scene.characterIds,
+      characters,
+      targetId: talkAction?.targetId ?? null,
+    });
 
     return {
       width: request.width,
       height: request.height,
       currentTime: evaluated.currentTime,
       clearColor: 1,
-      ...(backgroundAsset === null
-        ? {}
-        : {
-            background: {
-              assetId: backgroundAsset.assetId,
-              assetName: backgroundAsset.assetName,
-              path: toProjectAssetPath(request.projectId, backgroundAsset.assetPath),
-              x: 0,
-              y: 0,
-              width: request.width,
-              height: request.height,
-              imageBank: 0,
-              zIndex: -10_000,
-            },
-          }),
-      characters: characterIds.map((characterId, index) => {
-        const character = characters.find((candidate) => candidate.characterId === characterId) ?? null;
+      background: {
+        assetId: backgroundAsset?.assetId ?? "preview-background-placeholder",
+        assetName: backgroundAsset?.assetName ?? backgroundPlaceholder?.label ?? "No background asset selected",
+        path: backgroundAsset === null ? "assets/placeholders/background-missing.png" : toProjectAssetPath(request.projectId, backgroundAsset.assetPath),
+        x: 0,
+        y: 0,
+        width: request.width,
+        height: request.height,
+        imageBank: 0,
+        zIndex: -10_000,
+      },
+      characters: characterInstances.map((characterInstance, index) => {
+        const character = characters.find((candidate) => candidate.characterId === characterInstance.characterId) ?? null;
         const characterAsset = resolveCharacterAsset({
           assets,
           character,
           currentTime: evaluated.currentTime,
-          talkAction: talkAction?.targetId === characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime } : null,
+          talkAction: talkAction?.targetId === characterInstance.instanceId || talkAction?.targetId === characterInstance.characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime } : null,
           animationController: characterAnimationController,
         }) ?? findFirstCharacterAsset(assets);
+        const characterPlaceholder = characterAsset === null ? resolveCharacterPlaceholder(characterInstance.characterId, character) : null;
 
         return {
-          assetId: characterAsset?.assetId ?? characterId,
-          assetName: characterAsset?.assetName ?? character?.characterName ?? characterId,
-          path: toProjectAssetPath(request.projectId, characterAsset?.assetPath ?? "assets/characters/placeholder.png"),
-          x: Math.round(request.width / 2 - 96 + moveX + index * 24),
-          y: Math.round(request.height * 0.42 + moveY),
+          assetId: characterAsset?.assetId ?? `preview-character-placeholder:${characterInstance.instanceId}`,
+          assetName: characterAsset?.assetName ?? characterPlaceholder?.label ?? character?.characterName ?? characterInstance.characterId,
+          path: characterAsset === null ? "assets/placeholders/character-missing.png" : toProjectAssetPath(request.projectId, characterAsset.assetPath),
+          x: Math.round(request.width / 2 - 96 + characterInstance.transform.x + moveX + index * 24),
+          y: Math.round(request.height * 0.42 + characterInstance.transform.y + moveY),
           width: 192,
           height: 192,
           imageBank: index + 1,
           zIndex: index,
-          scale: zoom,
+          scale: zoom * characterInstance.transform.scale,
+          rotation: characterInstance.transform.rotation,
           transparentColor: 0,
         };
       }),
-      textOverlays: buildTextOverlays(request, characters, talkAction?.targetId ?? null, readString(talkAction?.payload.text, "")),
+      textOverlays: buildTextOverlays({
+        request,
+        characters,
+        speakerId: talkAction?.targetId ?? null,
+        talkText: readString(talkAction?.payload.text, ""),
+        backgroundPlaceholder,
+        missingCharacterIds: characterInstances.filter((characterInstance) => {
+          const character = characters.find((candidate) => candidate.characterId === characterInstance.characterId) ?? null;
+          return resolveCharacterAsset({
+            assets,
+            character,
+            currentTime: evaluated.currentTime,
+            talkAction: talkAction?.targetId === characterInstance.instanceId || talkAction?.targetId === characterInstance.characterId ? { startTime: talkAction.startTime, endTime: talkAction.endTime } : null,
+            animationController: characterAnimationController,
+          }) === null && findFirstCharacterAsset(assets) === null;
+        }).map((characterInstance) => characterInstance.instanceId),
+      }),
       activeActionTypes: evaluated.activeActions.map((action) => action.actionType),
     };
   }
 }
 
-function buildTextOverlays(request: PreviewRequest, characters: CharacterDto[], speakerId: string | null, talkText: string): PreviewTextOverlayPayload[] {
-  const speakerName = findCharacterName(characters, speakerId);
+type PreviewCharacterInstance = {
+  instanceId: string;
+  characterId: string;
+  transform: { x: number; y: number; scale: number; rotation: number };
+};
+
+function resolveCharacterInstances(input: {
+  sceneCharacters: import("../../../shared").CharacterInstanceDto[] | undefined;
+  characterIds: string[];
+  characters: CharacterDto[];
+  targetId: string | null;
+}): PreviewCharacterInstance[] {
+  if (input.sceneCharacters !== undefined && input.sceneCharacters.length > 0) {
+    return input.sceneCharacters.map((character) => ({
+      instanceId: character.instanceId,
+      characterId: character.characterId,
+      transform: character.transform,
+    }));
+  }
+
+  const characterIds = input.characterIds.length > 0 ? input.characterIds : fallbackCharacterIds(input.characters, input.targetId);
+
+  return characterIds.map((characterId) => ({
+    instanceId: characterId,
+    characterId,
+    transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+  }));
+}
+
+type PreviewPlaceholder = {
+  label: string;
+  reason: string;
+};
+
+type BuildTextOverlaysInput = {
+  request: PreviewRequest;
+  characters: CharacterDto[];
+  speakerId: string | null;
+  talkText: string;
+  backgroundPlaceholder: PreviewPlaceholder | null;
+  missingCharacterIds: string[];
+};
+
+function buildTextOverlays(input: BuildTextOverlaysInput): PreviewTextOverlayPayload[] {
+  const speakerName = findCharacterName(input.characters, input.speakerId);
   const overlays: PreviewTextOverlayPayload[] = [
-    { text: request.scene.sceneName, x: 16, y: 16, color: 7 },
-    { text: `${request.currentTime.toFixed(1)}s`, x: 16, y: 32, color: 6 },
+    { text: input.request.scene.sceneName, x: 16, y: 16, color: 7 },
+    { text: `${input.request.currentTime.toFixed(1)}s`, x: 16, y: 32, color: 6 },
   ];
 
-  if (talkText.trim().length > 0) {
-    overlays.push({ text: `${speakerName}: ${talkText}`, x: 16, y: request.height - 32, color: 7 });
+  if (input.backgroundPlaceholder !== null) {
+    overlays.push({ text: `Preview placeholder: ${input.backgroundPlaceholder.reason}`, x: 48, y: 64, color: 10 });
+  }
+
+  input.missingCharacterIds.forEach((characterId, index) => {
+    overlays.push({ text: `Character placeholder: ${characterId} has no character_image asset`, x: 48, y: 88 + index * 24, color: 10 });
+  });
+
+  if (input.talkText.trim().length > 0) {
+    overlays.push({ text: `${speakerName}: ${input.talkText}`, x: 16, y: input.request.height - 32, color: 7 });
   }
 
   return overlays;
+}
+
+function resolveBackgroundPlaceholder(backgroundAssetId: string | null): PreviewPlaceholder {
+  return backgroundAssetId === null
+    ? { label: "No background asset selected", reason: "Scene background is not set" }
+    : { label: "Missing background asset", reason: `Background asset ${backgroundAssetId} was not found` };
+}
+
+function resolveCharacterPlaceholder(characterId: string, character: CharacterDto | null): PreviewPlaceholder {
+  if (character === null) {
+    return { label: "Missing character", reason: `Character ${characterId} was not found in Project.characters` };
+  }
+
+  return { label: "Missing character image", reason: `Character ${character.characterName} has no resolved character_image asset` };
 }
 
 function toProjectAssetPath(projectId: string, assetPath: string): string {

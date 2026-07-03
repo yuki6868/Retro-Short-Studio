@@ -56,6 +56,7 @@ export function projectSnapshotToProjectDto(snapshot: ProjectSnapshot): ProjectD
       duration: scene.duration,
       backgroundAssetId: scene.backgroundAssetId,
       characterIds: scene.characters.map((character) => character.characterId),
+      characters: scene.characters.map((character) => ({ ...character, transform: { ...character.transform } })),
       actions: scene.actions.map((action): ActionDto => ({
         actionId: action.actionId,
         actionType: normalizeActionType(action.actionType),

@@ -17,6 +17,11 @@ import type {
   AssignCharacterImageInput,
   ChangeCharacterVariantSelectionInput,
   CharacterModelEditorState,
+  AddCharacterInstanceInput,
+  RemoveCharacterInstanceInput,
+  SceneCharacterPlacementState,
+  SelectCharacterInstanceInput,
+  UpdateCharacterInstanceInput,
 } from "../../../app/src";
 import { TalkActionInspector, TimelineInteractionMapper, type BrowserProjectSummary, type StudioLayoutViewState, type TimelineItemViewState, type CharacterModelEditorViewState } from "../index";
 
@@ -40,6 +45,11 @@ export type StudioWorkspaceProps = {
   onChangeCharacterDefaults?(input: { characterId: string; defaultExpression?: string; defaultEye?: string; defaultMouth?: string; defaultMotion?: string }): CharacterModelEditorState;
   onChangeCharacterVariantSelection?(input: ChangeCharacterVariantSelectionInput): CharacterModelEditorState;
   onAssignCharacterImage?(input: AssignCharacterImageInput): CharacterModelEditorState;
+  sceneCharacters?: SceneCharacterPlacementState;
+  onAddSceneCharacter?(input: AddCharacterInstanceInput): SceneCharacterPlacementState;
+  onUpdateSceneCharacter?(input: UpdateCharacterInstanceInput): SceneCharacterPlacementState;
+  onRemoveSceneCharacter?(input: RemoveCharacterInstanceInput): SceneCharacterPlacementState;
+  onSelectSceneCharacter?(input: SelectCharacterInstanceInput): SceneCharacterPlacementState;
   onEditSceneName(sceneId: string, sceneName: string): InspectorState;
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
   onEditSceneBackground?: (sceneId: string, backgroundAssetId: string | null) => InspectorState;
@@ -98,6 +108,11 @@ export function StudioWorkspace({
   onChangeCharacterDefaults,
   onChangeCharacterVariantSelection,
   onAssignCharacterImage,
+  sceneCharacters,
+  onAddSceneCharacter,
+  onUpdateSceneCharacter,
+  onRemoveSceneCharacter,
+  onSelectSceneCharacter,
   onEditSceneName,
   onEditSceneDuration,
   onEditSceneBackground,
@@ -737,6 +752,74 @@ export function StudioWorkspace({
                     ))}
                   </select>
                 </label>
+                {sceneCharacters !== undefined && sceneCharacters.sceneId === sceneInspector.sceneId ? (
+                  <section className="rss-scene-characters" aria-label="Scene characters">
+                    <h3>Scene Characters</h3>
+                    <label>
+                      Add character
+                      <select
+                        aria-label="Add scene character"
+                        defaultValue=""
+                        disabled={sceneCharacters.availableCharacters.length === 0 || onAddSceneCharacter === undefined}
+                        onChange={(event) => {
+                          const characterId = event.currentTarget.value;
+                          if (characterId.length > 0) {
+                            onAddSceneCharacter?.({ sceneId: sceneInspector.sceneId, characterId });
+                            event.currentTarget.value = "";
+                          }
+                        }}
+                      >
+                        <option value="">Select CharacterModel</option>
+                        {sceneCharacters.availableCharacters.map((character) => (
+                          <option key={character.characterId} value={character.characterId}>
+                            {character.characterName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {sceneCharacters.placedCharacters.length === 0 ? <p>No characters placed in this scene.</p> : null}
+                    <ul aria-label="Placed character list">
+                      {sceneCharacters.placedCharacters.map((character) => (
+                        <li key={character.instanceId}>
+                          <button
+                            aria-pressed={sceneCharacters.selectedInstanceId === character.instanceId}
+                            onClick={() => onSelectSceneCharacter?.({ sceneId: sceneInspector.sceneId, instanceId: character.instanceId })}
+                            type="button"
+                          >
+                            {character.characterName} / {character.instanceId}
+                          </button>
+                          <label>
+                            X
+                            <input
+                              aria-label={`Character X ${character.instanceId}`}
+                              defaultValue={character.transform.x}
+                              onBlur={(event) =>
+                                onUpdateSceneCharacter?.({ sceneId: sceneInspector.sceneId, instanceId: character.instanceId, transform: { x: Number(event.currentTarget.value) } })
+                              }
+                              step={1}
+                              type="number"
+                            />
+                          </label>
+                          <label>
+                            Y
+                            <input
+                              aria-label={`Character Y ${character.instanceId}`}
+                              defaultValue={character.transform.y}
+                              onBlur={(event) =>
+                                onUpdateSceneCharacter?.({ sceneId: sceneInspector.sceneId, instanceId: character.instanceId, transform: { y: Number(event.currentTarget.value) } })
+                              }
+                              step={1}
+                              type="number"
+                            />
+                          </label>
+                          <button onClick={() => onRemoveSceneCharacter?.({ sceneId: sceneInspector.sceneId, instanceId: character.instanceId })} type="button">
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
               </div>
             ) : null}
             {characterInspector !== null ? (
@@ -748,6 +831,7 @@ export function StudioWorkspace({
             {actionInspector !== null && actionInspector.actionType === "talk" ? (
               <TalkActionInspector
                 action={actionInspector}
+                targetOptions={sceneCharacters?.placedCharacters.map((character) => ({ instanceId: character.instanceId, characterName: character.characterName }))}
                 voiceStatus={voiceStatus}
                 onEditActionTimeRange={(input) =>
                   onEditActionTimeRange?.(input.sceneId, input.actionId, input.startTime, input.endTime)
@@ -766,17 +850,24 @@ export function StudioWorkspace({
                 <p>{actionInspector.actionType}</p>
                 <label>
                   Target
-                  <input
+                  <select
                     aria-label="Action target"
-                    defaultValue={actionInspector.targetId ?? ""}
-                    onBlur={(event) =>
+                    onChange={(event) =>
                       onEditActionTarget?.(
                         actionInspector.sceneId,
                         actionInspector.actionId,
-                        event.currentTarget.value.trim().length === 0 ? null : event.currentTarget.value,
+                        event.currentTarget.value.length === 0 ? null : event.currentTarget.value,
                       )
                     }
-                  />
+                    value={actionInspector.targetId ?? ""}
+                  >
+                    <option value="">No target</option>
+                    {(sceneCharacters?.placedCharacters ?? []).map((character) => (
+                      <option key={character.instanceId} value={character.instanceId}>
+                        {character.characterName}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Payload JSON

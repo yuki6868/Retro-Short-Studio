@@ -97,39 +97,42 @@ class PyxelRenderer:
         self._loaded_assets: set[tuple[int, str]] = set()
 
     def preview(self, request: EngineRequest) -> EngineResult:
-        width = int(request.payload.get("width", 1280))
-        height = int(request.payload.get("height", 720))
-        current_time = float(request.payload.get("currentTime", 0))
+        try:
+            width = int(request.payload.get("width", 1280))
+            height = int(request.payload.get("height", 720))
+            current_time = float(request.payload.get("currentTime", 0))
 
-        self._pyxel.init(width, height, title="Retro Short Studio Preview")
-        clear_color = int(request.payload.get("clearColor", 0))
-        self._pyxel.cls(clear_color)
+            self._pyxel.init(width, height, title="Retro Short Studio Preview")
+            clear_color = int(request.payload.get("clearColor", 0))
+            self._pyxel.cls(clear_color)
 
-        drawables = self._collect_drawables(request.payload)
-        for drawable in drawables:
-            self._load_image(drawable)
-            self._draw_image(drawable)
+            drawables = self._collect_drawables(request.payload)
+            for drawable in drawables:
+                self._load_image(drawable)
+                self._draw_image(drawable)
 
-        frame_path = None
-        if self._frame_capture is not None:
-            frame_path = self._frame_capture.capture(
-                width=width,
-                height=height,
-                clear_color=clear_color,
-                drawables=drawables,
-                text_overlays=self._collect_text_overlays(request.payload),
+            frame_path = None
+            if self._frame_capture is not None:
+                frame_path = self._frame_capture.capture(
+                    width=width,
+                    height=height,
+                    clear_color=clear_color,
+                    drawables=drawables,
+                    text_overlays=self._collect_text_overlays(request.payload),
+                )
+
+            return EngineResult.success(
+                request.command_id,
+                {
+                    "framePath": frame_path,
+                    "currentTime": current_time,
+                    "width": width,
+                    "height": height,
+                    "drawableCount": len(drawables),
+                },
             )
-
-        return EngineResult.success(
-            request.command_id,
-            {
-                "framePath": frame_path,
-                "currentTime": current_time,
-                "width": width,
-                "height": height,
-                "drawableCount": len(drawables),
-            },
-        )
+        except (RuntimeError, ValueError, OSError) as error:
+            return EngineResult.failure(request.command_id, str(error))
 
     def render(self, request: EngineRequest) -> EngineResult:
         preview_result = self.preview(request)

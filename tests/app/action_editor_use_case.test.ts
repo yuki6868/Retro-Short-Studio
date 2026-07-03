@@ -90,11 +90,24 @@ describe("ActionEditorUseCase", () => {
     expect(project.toSnapshot().scenes[0]?.actions).toEqual([]);
   });
 
-  it("rejects invalid creation ranges before mutating the project", () => {
+  it("moves default-created actions left when the playhead is too close to the scene end", () => {
     const project = createProject();
     const useCase = new ActionEditorUseCase({ project, idGenerator: new SequentialIdGenerator() });
 
-    expect(() => useCase.createAction({ sceneId: "scene-1", kind: "talk", startTime: 6 })).toThrow(
+    const result = useCase.createAction({ sceneId: "scene-1", kind: "talk", startTime: 8 });
+
+    expect(result.action).toMatchObject({
+      startTime: 5,
+      endTime: 8,
+    });
+    expect(project.toSnapshot().scenes[0]?.actions).toHaveLength(1);
+  });
+
+  it("keeps explicit action durations strict before mutating the project", () => {
+    const project = createProject();
+    const useCase = new ActionEditorUseCase({ project, idGenerator: new SequentialIdGenerator() });
+
+    expect(() => useCase.createAction({ sceneId: "scene-1", kind: "talk", startTime: 6, duration: 3 })).toThrow(
       "Action cannot end after the scene duration: scene-1.",
     );
     expect(() => useCase.createAction({ sceneId: "scene-1", kind: "talk", startTime: -1 })).toThrow(

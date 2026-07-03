@@ -82,7 +82,30 @@ function assertSceneDtos(value: unknown): void {
     assertNonNegativeNumber(scene.duration, `${label}.duration`);
     assertNullableString(scene.backgroundAssetId, `${label}.backgroundAssetId`);
     assertStringArray(scene.characterIds, `${label}.characterIds`);
+    if (scene.characters !== undefined) {
+      assertCharacterInstanceDtos(scene.characters, `${label}.characters`);
+    }
     assertActionDtos(scene.actions, `${label}.actions`);
+  });
+}
+
+function assertCharacterInstanceDtos(value: unknown, label: string): void {
+  assertArray(value, label);
+
+  value.forEach((character, index) => {
+    const characterLabel = `${label}[${index}]`;
+    assertPlainObject(character, characterLabel);
+    assertNonEmptyString(character.instanceId, `${characterLabel}.instanceId`);
+    assertNonEmptyString(character.characterId, `${characterLabel}.characterId`);
+    assertPlainObject(character.transform, `${characterLabel}.transform`);
+    assertFiniteNumber(character.transform.x, `${characterLabel}.transform.x`);
+    assertFiniteNumber(character.transform.y, `${characterLabel}.transform.y`);
+    assertPositiveNumber(character.transform.scale, `${characterLabel}.transform.scale`);
+    assertFiniteNumber(character.transform.rotation, `${characterLabel}.transform.rotation`);
+    assertNonEmptyString(character.expression, `${characterLabel}.expression`);
+    assertNonEmptyString(character.eye, `${characterLabel}.eye`);
+    assertNonEmptyString(character.mouth, `${characterLabel}.mouth`);
+    assertNonEmptyString(character.motion, `${characterLabel}.motion`);
   });
 }
 
@@ -163,6 +186,18 @@ function assertPositiveInteger(value: unknown, label: string): void {
 function assertNonNegativeNumber(value: unknown, label: string): void {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new Error(`${label} must be a non-negative number.`);
+  }
+}
+
+function assertFiniteNumber(value: unknown, label: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number.`);
+  }
+}
+
+function assertPositiveNumber(value: unknown, label: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${label} must be a positive number.`);
   }
 }
 

@@ -1,4 +1,4 @@
-import { CharacterModel, type CharacterImageMapSnapshot, type CharacterVariantSelectionSnapshot, type Project } from "../../../core/src";
+import { CharacterModel, type CharacterImageMapSnapshot, type CharacterImageMapStateKind, type CharacterVariantSelectionSnapshot, type Project } from "../../../core/src";
 import type { AssetDto } from "../../../shared";
 import type { IdGenerator } from "../../../core/src";
 
@@ -50,7 +50,7 @@ export type ChangeCharacterVariantSelectionInput = {
 
 export type AssignCharacterImageInput = {
   characterId: string;
-  kind: keyof CharacterImageMapSnapshot;
+  kind: CharacterImageMapStateKind;
   state: string;
   assetId: string;
 };

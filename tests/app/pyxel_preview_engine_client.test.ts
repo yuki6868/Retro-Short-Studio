@@ -203,6 +203,48 @@ describe("PyxelPreviewEngineClient", () => {
     expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/happy-blink-talking.png");
   });
 
+  it("emits explicit placeholders when background or character image is missing", () => {
+    const request = createPreviewRequest(4);
+    request.scene.backgroundAssetId = "missing-background";
+    request.assets = [];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        imageMapId: null,
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.background?.assetId).toBe("preview-background-placeholder");
+    expect(frame.background?.assetName).toBe("Missing background asset");
+    expect(frame.background?.path).toBe("assets/placeholders/background-missing.png");
+    expect(frame.characters[0]?.assetId).toBe("preview-character-placeholder:character-zundamon");
+    expect(frame.characters[0]?.path).toBe("assets/placeholders/character-missing.png");
+    expect(frame.textOverlays.some((overlay) => overlay.text.includes("Background asset missing-background was not found"))).toBe(true);
+    expect(frame.textOverlays.some((overlay) => overlay.text.includes("Character placeholder: character-zundamon"))).toBe(true);
+  });
+
+  it("keeps Japanese talk text in preview overlays for engine-side font rendering", () => {
+    const request = createPreviewRequest(1);
+    request.scene.actions = [
+      {
+        actionId: "action-talk-japanese",
+        actionType: "talk",
+        startTime: 0,
+        endTime: 2,
+        targetId: "character-zundamon",
+        payload: { text: "こんにちは、ずんだもんなのだ" },
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.textOverlays.some((overlay) => overlay.text.includes("こんにちは、ずんだもんなのだ"))).toBe(true);
+    expect(JSON.stringify(frame.textOverlays)).not.toContain("????");
+  });
+
 });
 
 class RecordingTransport implements PreviewFrameTransport {

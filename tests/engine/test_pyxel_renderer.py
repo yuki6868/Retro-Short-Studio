@@ -267,8 +267,10 @@ def test_pixel_art_frame_capture_routes_japanese_text_through_font_repository() 
             self.requests: list[FontSpec] = []
 
         def get(self, spec: FontSpec):
+            from PIL import ImageFont
+
             self.requests.append(spec)
-            return None
+            return ImageFont.load_default()
 
     repository = SpyFontRepository()
     capture = PixelArtFrameCapture(scale=8, font_repository=repository, font_spec=FontSpec(name="AkazukiPOP", size=18))
@@ -330,3 +332,26 @@ def test_pixel_art_frame_capture_draws_saved_background_image_pixels() -> None:
             assert rendered.convert("RGBA").getpixel((2, 2)) == (255, 0, 0, 255)
     finally:
         image_path.unlink(missing_ok=True)
+
+
+def test_pixel_art_frame_capture_errors_when_pillow_is_missing_for_text(monkeypatch) -> None:
+    import engine.renderer.pixel_art_frame_capture as capture_module
+    from engine.renderer import PixelArtFrameCapture
+
+    monkeypatch.setattr(capture_module, "Image", None)
+    monkeypatch.setattr(capture_module, "ImageDraw", None)
+
+    capture = PixelArtFrameCapture(scale=8)
+
+    try:
+        capture.capture(
+            width=160,
+            height=80,
+            clear_color=1,
+            drawables=[],
+            text_overlays=[{"text": "こんにちは", "x": 8, "y": 8, "color": 7}],
+        )
+    except RuntimeError as error:
+        assert "requires Pillow" in str(error)
+    else:
+        raise AssertionError("PixelArtFrameCapture must fail instead of silently rendering unreadable placeholder text without Pillow.")

@@ -1,1 +1,1 @@
-export type { SceneDto } from "./SceneDto";
+export type { CharacterInstanceDto, SceneDto } from "./SceneDto";

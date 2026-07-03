@@ -22,4 +22,4 @@ export type {
 } from "./engine";
 export { CURRENT_PROJECT_SCHEMA_VERSION } from "./project";
 export type { ProjectDto, ProjectSchemaVersionDto, ProjectSettingsDto } from "./project";
-export type { SceneDto } from "./scene";
+export type { CharacterInstanceDto, SceneDto } from "./scene";

@@ -55,6 +55,36 @@ export class Scene {
     this.background = Background.create(backgroundAssetId);
   }
 
+  addCharacterInstance(character: CharacterInstance): void {
+    const snapshot = character.toSnapshot();
+
+    if (this.characters.some((currentCharacter) => currentCharacter.toSnapshot().instanceId === snapshot.instanceId)) {
+      throw new Error(`Character instance already exists in scene: ${snapshot.instanceId}.`);
+    }
+
+    this.characters.push(CharacterInstance.restore(snapshot));
+  }
+
+  updateCharacterInstance(instanceId: string, updater: (character: CharacterInstance) => void): void {
+    const character = this.characters.find((currentCharacter) => currentCharacter.toSnapshot().instanceId === instanceId);
+
+    if (character === undefined) {
+      throw new Error(`Character instance does not exist in scene: ${instanceId}.`);
+    }
+
+    updater(character);
+  }
+
+  removeCharacterInstance(instanceId: string): void {
+    const characterIndex = this.characters.findIndex((currentCharacter) => currentCharacter.toSnapshot().instanceId === instanceId);
+
+    if (characterIndex === -1) {
+      throw new Error(`Character instance does not exist in scene: ${instanceId}.`);
+    }
+
+    this.characters.splice(characterIndex, 1);
+  }
+
   addAction(action: Action): void {
     const actionId = action.toSnapshot().actionId;
 

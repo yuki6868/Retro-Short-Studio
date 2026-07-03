@@ -322,6 +322,7 @@ function toSceneDto(scene: SceneSnapshot): SceneDto {
     duration: scene.duration,
     backgroundAssetId: scene.backgroundAssetId,
     characterIds: scene.characters.map((character) => character.characterId),
+    characters: scene.characters.map((character) => ({ ...character, transform: { ...character.transform } })),
     actions: scene.actions.map(toActionDto),
   };
 }

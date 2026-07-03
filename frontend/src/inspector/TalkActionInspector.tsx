@@ -13,8 +13,14 @@ export type TalkActionPayload = {
   generatedVoiceDuration: number | null;
 };
 
+export type TalkActionTargetOption = {
+  instanceId: string;
+  characterName: string;
+};
+
 export type TalkActionInspectorProps = {
   action: ActionInspectorViewState;
+  targetOptions?: TalkActionTargetOption[];
   voiceStatus?: string | null;
   onEditActionTimeRange?: (input: ChangeActionTimeRangeInput) => unknown;
   onEditActionTarget?: (sceneId: string, actionId: string, targetId: string | null) => InspectorState;
@@ -31,6 +37,7 @@ export type TalkActionInspectorProps = {
 
 export function TalkActionInspector({
   action,
+  targetOptions = [],
   voiceStatus,
   onEditActionTimeRange,
   onEditActionTarget,
@@ -41,6 +48,9 @@ export function TalkActionInspector({
   onDeleteAction,
 }: TalkActionInspectorProps): ReactElement {
   const payload = createTalkActionPayload(action.payload, action.targetId);
+  const normalizedTargetOptions = targetOptions.some((target) => target.instanceId === payload.speakerCharacterId) || payload.speakerCharacterId.length === 0
+    ? targetOptions
+    : [{ instanceId: payload.speakerCharacterId, characterName: payload.speakerCharacterId }, ...targetOptions];
 
   const updatePayload = (patch: Partial<TalkActionPayload>): void => {
     const nextPayload = { ...payload, ...patch };
@@ -68,16 +78,23 @@ export function TalkActionInspector({
         />
       </label>
       <label>
-        Speaker character ID
-        <input
+        Speaker character
+        <select
           aria-label="Talk speaker character ID"
-          defaultValue={payload.speakerCharacterId}
-          onBlur={(event) => {
-            const speakerCharacterId = event.currentTarget.value.trim();
+          onChange={(event) => {
+            const speakerCharacterId = event.currentTarget.value;
             updatePayload({ speakerCharacterId });
             onEditActionTarget?.(action.sceneId, action.actionId, speakerCharacterId.length === 0 ? null : speakerCharacterId);
           }}
-        />
+          value={payload.speakerCharacterId}
+        >
+          <option value="">No character target</option>
+          {normalizedTargetOptions.map((character) => (
+            <option key={character.instanceId} value={character.instanceId}>
+              {character.characterName}
+            </option>
+          ))}
+        </select>
       </label>
       <label>
         Start time

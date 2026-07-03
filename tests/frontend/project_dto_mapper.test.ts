@@ -62,12 +62,16 @@ function createProjectWithSceneCharacters(): Project {
 }
 
 describe("projectSnapshotToProjectDto", () => {
-  it("converts core scene character instances to ProjectDto.characterIds before serialization", () => {
+  it("converts core scene character instances to ProjectDto characters before serialization", () => {
     const project = createProjectWithSceneCharacters();
     const dto = projectSnapshotToProjectDto(project.toSnapshot());
 
     expect(dto.scenes[0]?.characterIds).toEqual(["character-zundamon"]);
-    expect("characters" in (dto.scenes[0] as Record<string, unknown>)).toBe(false);
+    expect(dto.scenes[0]?.characters?.[0]).toMatchObject({
+      instanceId: "character-instance-1",
+      characterId: "character-zundamon",
+      transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+    });
     expect(() => new ProjectJsonSerializer().serialize(dto)).not.toThrow();
   });
 

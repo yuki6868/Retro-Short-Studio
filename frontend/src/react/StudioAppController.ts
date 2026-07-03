@@ -32,6 +32,11 @@ import {
   type RenameSceneInput,
   type ResizeTimelineItemEndInput,
   type ResizeTimelineItemStartInput,
+  type SceneCharacterPlacementState,
+  type AddCharacterInstanceInput,
+  type UpdateCharacterInstanceInput,
+  type RemoveCharacterInstanceInput,
+  type SelectCharacterInstanceInput,
   type SceneFlowState,
   type TimelineState,
   type UpdateAssetInput,
@@ -61,7 +66,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   const projectFolderFileStore = compositionRootRef.current.projectFolderFileStore;
   const voicePreviewController = compositionRootRef.current.voicePreviewController;
   const project = projectSession.project;
-  const { assetLibrary, importAsset, sceneFlow, inspector, timeline, actionEditor, characterModelEditor } = projectSession.useCases;
+  const { assetLibrary, importAsset, sceneFlow, sceneCharacterPlacement, inspector, timeline, actionEditor, characterModelEditor } = projectSession.useCases;
 
   projectSession.bootstrapSelection();
 
@@ -158,6 +163,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
   const [characterModelState, setCharacterModelState] = useState<CharacterModelEditorState>(characterModelEditor.state);
+  const [sceneCharacterState, setSceneCharacterState] = useState<SceneCharacterPlacementState>(sceneCharacterPlacement.state);
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
   const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
@@ -413,6 +419,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
         const selectedSceneId = next.selectedSceneId ?? next.scenes[next.scenes.length - 1]?.sceneId ?? null;
         setInspectorState(selectedSceneId === null ? inspector.clearSelection() : inspector.selectScene(selectedSceneId));
         setTimelineState(timeline.showScene(selectedSceneId));
+        setSceneCharacterState(sceneCharacterPlacement.showScene(selectedSceneId));
         return next;
       },
       deleteScene(sceneId: string): SceneFlowState {
@@ -420,6 +427,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
         setSceneState(next);
         setInspectorState(next.selectedSceneId === null ? inspector.clearSelection() : inspector.selectScene(next.selectedSceneId));
         setTimelineState(timeline.showScene(next.selectedSceneId));
+        setSceneCharacterState(sceneCharacterPlacement.showScene(next.selectedSceneId));
         return next;
       },
       moveScene(input: MoveSceneInput): SceneFlowState {
@@ -427,6 +435,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
         setSceneState(next);
         setInspectorState(inspector.selectScene(input.sceneId));
         setTimelineState(timeline.showScene(input.sceneId));
+        setSceneCharacterState(sceneCharacterPlacement.showScene(input.sceneId));
         return next;
       },
       selectScene(sceneId: string): SceneFlowState {
@@ -434,10 +443,56 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
         setSceneState(next);
         setInspectorState(inspector.selectScene(sceneId));
         setTimelineState(timeline.showScene(sceneId));
+        setSceneCharacterState(sceneCharacterPlacement.showScene(sceneId));
         return next;
       },
     }),
-    [inspector, sceneFlow, sceneState, timeline],
+    [inspector, sceneCharacterPlacement, sceneFlow, sceneState, timeline],
+  );
+
+  const sceneCharacterPlacementUseCase = useMemo(
+    () => ({
+      get state() {
+        return sceneCharacterState;
+      },
+      showScene(sceneId: string | null): SceneCharacterPlacementState {
+        const next = sceneCharacterPlacement.showScene(sceneId);
+        setSceneCharacterState(next);
+        return next;
+      },
+      addCharacterInstance(input: AddCharacterInstanceInput): SceneCharacterPlacementState {
+        const next = sceneCharacterPlacement.addCharacterInstance(input);
+        setSceneCharacterState(next);
+        setSceneState(sceneFlow.state);
+        setTimelineState(timeline.state);
+        void previewUseCase.seek(previewState.currentTime);
+        persistCurrentProject();
+        return next;
+      },
+      updateCharacterInstance(input: UpdateCharacterInstanceInput): SceneCharacterPlacementState {
+        const next = sceneCharacterPlacement.updateCharacterInstance(input);
+        setSceneCharacterState(next);
+        setSceneState(sceneFlow.state);
+        void previewUseCase.seek(previewState.currentTime);
+        persistCurrentProject();
+        return next;
+      },
+      removeCharacterInstance(input: RemoveCharacterInstanceInput): SceneCharacterPlacementState {
+        const next = sceneCharacterPlacement.removeCharacterInstance(input);
+        setSceneCharacterState(next);
+        setSceneState(sceneFlow.state);
+        setTimelineState(timeline.state);
+        void previewUseCase.seek(previewState.currentTime);
+        persistCurrentProject();
+        return next;
+      },
+      selectCharacterInstance(input: SelectCharacterInstanceInput): SceneCharacterPlacementState {
+        const next = sceneCharacterPlacement.selectCharacterInstance(input);
+        setSceneCharacterState(next);
+        return next;
+      },
+    }),
+    [previewState.currentTime, previewUseCase, sceneCharacterPlacement, sceneCharacterState, sceneFlow, timeline],
   );
 
   const inspectorUseCase = useMemo(
@@ -573,10 +628,15 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
       throw new Error("Select a scene before creating an action.");
     }
 
+    const selectedInstanceId = sceneCharacterPlacement.state.selectedInstanceId;
+    const targetId = kind === "talk" || kind === "character" ? selectedInstanceId : undefined;
+    const payload = kind === "talk" && selectedInstanceId !== null ? { speakerCharacterId: selectedInstanceId } : undefined;
     const result = actionEditor.createAction({
       sceneId,
       kind,
       startTime: timeline.state.playhead,
+      targetId,
+      payload,
     });
     const nextTimeline = timeline.showScene(sceneId);
     setTimelineState(nextTimeline);
@@ -653,6 +713,11 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     onChangeCharacterDefaults: characterModelEditorUseCase.changeDefaults,
     onChangeCharacterVariantSelection: characterModelEditorUseCase.changeVariantSelection,
     onAssignCharacterImage: characterModelEditorUseCase.assignImage,
+    sceneCharacters: sceneCharacterPlacementUseCase.state,
+    onAddSceneCharacter: sceneCharacterPlacementUseCase.addCharacterInstance,
+    onUpdateSceneCharacter: sceneCharacterPlacementUseCase.updateCharacterInstance,
+    onRemoveSceneCharacter: sceneCharacterPlacementUseCase.removeCharacterInstance,
+    onSelectSceneCharacter: sceneCharacterPlacementUseCase.selectCharacterInstance,
     onEditSceneName: (sceneId, sceneName) => inspectorUseCase.renameSelectedScene({ sceneId, sceneName }),
     onEditSceneDuration: (sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration }),
     onEditSceneBackground: (sceneId, backgroundAssetId) =>
