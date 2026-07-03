@@ -8,6 +8,7 @@ export type ActionTypeDto =
   | "effect"
   | "camera_move"
   | "camera_zoom"
+  | "camera_pan"
   | "custom";
 
 export type ActionDto = {

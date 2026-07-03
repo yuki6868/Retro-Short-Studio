@@ -380,6 +380,50 @@ describe("PyxelPreviewEngineClient", () => {
     expect(JSON.stringify(frame.textOverlays)).not.toContain("????");
   });
 
+  it("applies CameraZoomAction to preview drawables", () => {
+    const request = createPreviewRequest(1);
+    request.scene.actions = [
+      {
+        actionId: "camera-zoom-1",
+        actionType: "camera_zoom",
+        startTime: 0,
+        endTime: 2,
+        targetId: null,
+        payload: { fromZoom: 1, toZoom: 2, easing: "linear" },
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.camera).toEqual({ x: 0, y: 0, zoom: 1.5 });
+    expect(frame.background?.width).toBe(1920);
+    expect(frame.background?.height).toBe(1080);
+    expect(frame.characters[0]?.scale).toBe(1.5);
+    expect(frame.activeActionTypes).toEqual(["camera_zoom"]);
+  });
+
+  it("applies CameraMoveAction to preview and therefore to exported frames through the same preview boundary", () => {
+    const request = createPreviewRequest(1);
+    request.scene.actions = [
+      {
+        actionId: "camera-move-1",
+        actionType: "camera_move",
+        startTime: 0,
+        endTime: 2,
+        targetId: null,
+        payload: { fromX: 0, fromY: 0, toX: 100, toY: -40, easing: "linear" },
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.camera).toEqual({ x: 50, y: -20, zoom: 1 });
+    expect(frame.background?.x).toBe(-50);
+    expect(frame.background?.y).toBe(20);
+    expect(frame.activeActionTypes).toEqual(["camera_move"]);
+  });
+
+
 });
 
 class RecordingTransport implements PreviewFrameTransport {

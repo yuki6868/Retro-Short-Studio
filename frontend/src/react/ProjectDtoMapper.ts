@@ -22,8 +22,12 @@ const SUPPORTED_ACTION_TYPES = new Set<ActionTypeDto>([
   "move",
   "fade",
   "flash",
+  "fade_in",
+  "fade_out",
+  "effect",
   "camera_move",
   "camera_zoom",
+  "camera_pan",
   "custom",
 ]);
 

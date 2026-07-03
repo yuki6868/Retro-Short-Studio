@@ -1,4 +1,13 @@
-import { ActionEvaluator, CharacterAnimationController, CharacterImageMap, Scene, type CharacterVariantSelectionSnapshot } from "../../../core/src";
+import {
+  ActionEvaluator,
+  CharacterAnimationController,
+  CharacterImageMap,
+  Scene,
+  interpolateCameraState,
+  type ActiveAction,
+  type CameraStateSnapshot,
+  type CharacterVariantSelectionSnapshot,
+} from "../../../core/src";
 import type { AssetDto, CharacterDto, PreviewRequest } from "../../../shared";
 
 export type PreviewDrawablePayload = {
@@ -30,6 +39,12 @@ export type PreviewEffectPayload = {
   progress: number;
 };
 
+export type PreviewCameraStatePayload = {
+  x: number;
+  y: number;
+  zoom: number;
+};
+
 export type PreviewRenderFramePayload = {
   width: number;
   height: number;
@@ -39,6 +54,7 @@ export type PreviewRenderFramePayload = {
   characters: PreviewDrawablePayload[];
   textOverlays: PreviewTextOverlayPayload[];
   effects: PreviewEffectPayload[];
+  camera: PreviewCameraStatePayload;
   activeActionTypes: string[];
 };
 
@@ -64,13 +80,13 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
     const backgroundAsset = findAsset(assets, request.scene.backgroundAssetId);
     const backgroundPlaceholder = backgroundAsset === null ? resolveBackgroundPlaceholder(request.scene.backgroundAssetId) : null;
     const moveAction = evaluated.activeActions.find((action) => action.actionType === "move") ?? null;
-    const zoomAction = evaluated.activeActions.find((action) => action.actionType === "camera_zoom") ?? null;
+    const camera = resolveCameraState(evaluated.activeActions);
     const talkAction = evaluated.activeActions.find((action) => action.actionType === "talk") ?? null;
     const effects = evaluated.activeActions.map(toPreviewEffect).filter((effect): effect is PreviewEffectPayload => effect !== null);
     const characterAnimationController = new CharacterAnimationController();
     const moveX = readNumber(moveAction?.payload.x, 0) * (moveAction?.progress ?? 0);
     const moveY = readNumber(moveAction?.payload.y, 0) * (moveAction?.progress ?? 0);
-    const zoom = readNumber(zoomAction?.payload.zoom, 1);
+
     const characterInstances = resolveCharacterInstances({
       sceneCharacters: request.scene.characters,
       characterIds: request.scene.characterIds,
@@ -83,17 +99,22 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
       height: request.height,
       currentTime: evaluated.currentTime,
       clearColor: 1,
-      background: {
-        assetId: backgroundAsset?.assetId ?? "preview-background-placeholder",
-        assetName: backgroundAsset?.assetName ?? backgroundPlaceholder?.label ?? "No background asset selected",
-        path: backgroundAsset === null ? "assets/placeholders/background-missing.png" : toProjectAssetPath(request.projectId, backgroundAsset.assetPath),
-        x: 0,
-        y: 0,
-        width: request.width,
-        height: request.height,
-        imageBank: 0,
-        zIndex: -10_000,
-      },
+      background: applyCameraToDrawable(
+        {
+          assetId: backgroundAsset?.assetId ?? "preview-background-placeholder",
+          assetName: backgroundAsset?.assetName ?? backgroundPlaceholder?.label ?? "No background asset selected",
+          path: backgroundAsset === null ? "assets/placeholders/background-missing.png" : toProjectAssetPath(request.projectId, backgroundAsset.assetPath),
+          x: 0,
+          y: 0,
+          width: request.width,
+          height: request.height,
+          imageBank: 0,
+          zIndex: -10_000,
+        },
+        camera,
+        request.width,
+        request.height,
+      ),
       characters: characterInstances.map((characterInstance, index) => {
         const character = characters.find((candidate) => candidate.characterId === characterInstance.characterId) ?? null;
         const characterAsset = resolveCharacterAsset({
@@ -106,20 +127,25 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
         }) ?? findFirstCharacterAsset(assets);
         const characterPlaceholder = characterAsset === null ? resolveCharacterPlaceholder(characterInstance.characterId, character) : null;
 
-        return {
-          assetId: characterAsset?.assetId ?? `preview-character-placeholder:${characterInstance.instanceId}`,
-          assetName: characterAsset?.assetName ?? characterPlaceholder?.label ?? character?.characterName ?? characterInstance.characterId,
-          path: characterAsset === null ? "assets/placeholders/character-missing.png" : toProjectAssetPath(request.projectId, characterAsset.assetPath),
-          x: Math.round(request.width / 2 - 96 + characterInstance.transform.x + moveX + index * 24),
-          y: Math.round(request.height * 0.42 + characterInstance.transform.y + moveY),
-          width: 192,
-          height: 192,
-          imageBank: index + 1,
-          zIndex: index,
-          scale: zoom * characterInstance.transform.scale,
-          rotation: characterInstance.transform.rotation,
-          transparentColor: 0,
-        };
+        return applyCameraToDrawable(
+          {
+            assetId: characterAsset?.assetId ?? `preview-character-placeholder:${characterInstance.instanceId}`,
+            assetName: characterAsset?.assetName ?? characterPlaceholder?.label ?? character?.characterName ?? characterInstance.characterId,
+            path: characterAsset === null ? "assets/placeholders/character-missing.png" : toProjectAssetPath(request.projectId, characterAsset.assetPath),
+            x: Math.round(request.width / 2 - 96 + characterInstance.transform.x + moveX + index * 24),
+            y: Math.round(request.height * 0.42 + characterInstance.transform.y + moveY),
+            width: 192,
+            height: 192,
+            imageBank: index + 1,
+            zIndex: index,
+            scale: characterInstance.transform.scale,
+            rotation: characterInstance.transform.rotation,
+            transparentColor: 0,
+          },
+          camera,
+          request.width,
+          request.height,
+        );
       }),
       textOverlays: buildTextOverlays({
         request,
@@ -140,6 +166,7 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
         }).map((characterInstance) => characterInstance.instanceId),
       }),
       effects,
+      camera: toPreviewCameraState(camera),
       activeActionTypes: evaluated.activeActions.map((action) => action.actionType),
     };
   }
@@ -151,7 +178,46 @@ type PreviewCharacterInstance = {
   transform: { x: number; y: number; scale: number; rotation: number };
 };
 
-function toPreviewEffect(action: import("../../../core/src").ActiveAction): PreviewEffectPayload | null {
+function resolveCameraState(activeActions: ActiveAction[]): CameraStateSnapshot {
+  return activeActions
+    .filter((action) => action.actionType === "camera_zoom" || action.actionType === "camera_move" || action.actionType === "camera_pan")
+    .reduce<CameraStateSnapshot>((camera, action) => {
+      const normalizedAction = action.actionType === "camera_pan" ? { ...action, actionType: "camera_move" } : action;
+      return interpolateCameraState({ base: camera, action: normalizedAction });
+    }, { x: 0, y: 0, zoom: 1 });
+}
+
+function toPreviewCameraState(camera: CameraStateSnapshot): PreviewCameraStatePayload {
+  return {
+    x: Number(camera.x.toFixed(6)),
+    y: Number(camera.y.toFixed(6)),
+    zoom: Number(camera.zoom.toFixed(6)),
+  };
+}
+
+function applyCameraToDrawable(
+  drawable: PreviewDrawablePayload,
+  camera: CameraStateSnapshot,
+  frameWidth: number,
+  frameHeight: number,
+): PreviewDrawablePayload {
+  const centerX = frameWidth / 2;
+  const centerY = frameHeight / 2;
+  const zoom = camera.zoom;
+  const nextX = centerX + (drawable.x - centerX - camera.x) * zoom;
+  const nextY = centerY + (drawable.y - centerY - camera.y) * zoom;
+
+  return {
+    ...drawable,
+    x: Math.round(nextX),
+    y: Math.round(nextY),
+    width: Math.round(drawable.width * zoom),
+    height: Math.round(drawable.height * zoom),
+    scale: (drawable.scale ?? 1) * zoom,
+  };
+}
+
+function toPreviewEffect(action: ActiveAction): PreviewEffectPayload | null {
   const effectType = resolveEffectType(action.actionType, action.payload.effectType ?? action.payload.kind ?? action.payload.type);
 
   if (effectType === null) {

@@ -125,8 +125,8 @@ function createActionDefaults(kind: CreateActionKind): ActionDefaults {
       return {
         actionType: "camera_zoom",
         duration: 1.5,
-        targetId: "camera-main",
-        payload: { zoom: 1.1 },
+        targetId: null,
+        payload: { fromZoom: 1, toZoom: 1.1, easing: "linear" },
       };
   }
 }

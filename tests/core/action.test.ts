@@ -7,7 +7,10 @@ import {
   ActionTargetId,
   ActionTimeRange,
   ActionType,
+  CameraMoveAction,
+  CameraZoomAction,
   DeterministicIdGenerator,
+  interpolateCameraState,
 } from "../../core/src";
 
 describe("Action Core", () => {
@@ -101,5 +104,57 @@ describe("Action Core", () => {
       targetId: "character-instance-1",
       payload: { nested: { text: "before" } },
     });
+  });
+});
+
+describe("Camera Action Core", () => {
+  it("creates zoom and move camera actions with normalized easing payloads", () => {
+    const zoom = CameraZoomAction.create({
+      actionId: "camera-zoom-1",
+      startTime: 0,
+      endTime: 2,
+      fromZoom: 1,
+      toZoom: 1.5,
+      easing: "ease_in_out",
+    });
+    const move = CameraMoveAction.create({
+      actionId: "camera-move-1",
+      startTime: 1,
+      endTime: 3,
+      fromX: 0,
+      fromY: 0,
+      toX: 120,
+      toY: -40,
+      easing: "ease_out",
+    });
+
+    expect(zoom.toSnapshot()).toMatchObject({
+      actionType: "camera_zoom",
+      targetId: null,
+      payload: { fromZoom: 1, toZoom: 1.5, easing: "ease_in_out" },
+    });
+    expect(move.toSnapshot()).toMatchObject({
+      actionType: "camera_move",
+      targetId: null,
+      payload: { fromX: 0, fromY: 0, toX: 120, toY: -40, easing: "ease_out" },
+    });
+  });
+
+  it("interpolates camera state independently from character and effect actions", () => {
+    const camera = interpolateCameraState({
+      base: { x: 0, y: 0, zoom: 1 },
+      action: {
+        actionId: "camera-zoom-1",
+        actionType: "camera_zoom",
+        startTime: 0,
+        endTime: 2,
+        targetId: null,
+        payload: { fromZoom: 1, toZoom: 2, easing: "linear" },
+        progress: 0.5,
+      },
+    });
+
+    expect(camera).toEqual({ x: 0, y: 0, zoom: 1.5 });
+    expect(ActionType.cameraPan().isBuiltIn()).toBe(true);
   });
 });

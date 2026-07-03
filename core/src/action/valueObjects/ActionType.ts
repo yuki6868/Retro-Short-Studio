@@ -10,6 +10,7 @@ const BUILT_IN_ACTION_TYPES = [
   "effect",
   "camera_move",
   "camera_zoom",
+  "camera_pan",
   "custom",
 ] as const;
 
@@ -32,6 +33,7 @@ export class ActionType {
   static flash(): ActionType { return ActionType.create("flash"); }
   static cameraMove(): ActionType { return ActionType.create("camera_move"); }
   static cameraZoom(): ActionType { return ActionType.create("camera_zoom"); }
+  static cameraPan(): ActionType { return ActionType.create("camera_pan"); }
   static custom(name = "custom"): ActionType { return ActionType.create(name); }
 
   isBuiltIn(): boolean {

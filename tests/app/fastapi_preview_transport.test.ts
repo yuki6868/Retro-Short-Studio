@@ -46,6 +46,7 @@ function createFrame(): PreviewRenderFramePayload {
     characters: [],
     textOverlays: [],
     effects: [],
+    camera: { x: 0, y: 0, zoom: 1 },
     activeActionTypes: [],
   };
 }
