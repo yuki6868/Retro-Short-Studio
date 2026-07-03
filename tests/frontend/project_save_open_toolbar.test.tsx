@@ -29,6 +29,7 @@ describe("Project save/open toolbar", () => {
     expect(html).toContain("Accounting Short");
     expect(html).toContain("Tax Short");
     expect(html).toContain(">Open Project</button>");
+    expect(html).toContain(">Open Pixel Editor</button>");
   });
 
   it("shows an empty saved-project picker state before the first save", () => {
@@ -70,6 +71,7 @@ function createWorkspaceProps(overrides: Partial<StudioWorkspaceProps> = {}): St
     onSaveProject: () => undefined,
     onSaveProjectAsNew: () => undefined,
     onOpenProject: () => undefined,
+    onOpenPixelEditor: () => undefined,
     ...overrides,
   };
 }

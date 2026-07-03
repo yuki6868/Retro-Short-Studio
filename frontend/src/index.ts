@@ -13,3 +13,5 @@ export * from "./react/BrowserProjectPersistence";
 export { shouldApplyAssetSelectionToSceneBackground } from "./react/StudioWorkspace";
 
 export * from "./character";
+
+export * from "./pixel";

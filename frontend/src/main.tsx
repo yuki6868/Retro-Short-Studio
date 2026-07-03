@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { PixelEditorWindow } from "./pixel";
 import { StudioApp } from "./react";
 
 const rootElement = document.getElementById("root");
@@ -11,6 +12,29 @@ if (rootElement === null) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <StudioApp />
+    <RootApp />
   </StrictMode>,
 );
+
+function RootApp() {
+  const pixelEditorParams = readPixelEditorParams();
+
+  if (pixelEditorParams !== null) {
+    return <PixelEditorWindow projectId={pixelEditorParams.projectId} projectName={pixelEditorParams.projectName} />;
+  }
+
+  return <StudioApp />;
+}
+
+function readPixelEditorParams(): { projectId: string; projectName: string } | null {
+  if (!window.location.hash.startsWith("#pixel-editor")) {
+    return null;
+  }
+
+  const query = window.location.hash.split("?")[1] ?? "";
+  const params = new URLSearchParams(query);
+  return {
+    projectId: params.get("projectId") ?? "project-local-preview",
+    projectName: params.get("projectName") ?? "Local Preview",
+  };
+}

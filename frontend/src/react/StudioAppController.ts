@@ -587,6 +587,14 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     return nextTimeline;
   };
 
+  const openPixelEditor = (): void => {
+    const snapshot = project.toSnapshot();
+    compositionRootRef.current?.editorLauncher.openPixelEditor({
+      projectId: snapshot.projectId,
+      projectName: snapshot.projectName,
+    });
+  };
+
   const layout = new StudioLayout({
     preview: new PreviewPanel({ duration: selectedSceneDuration, preview: previewUseCase }).render(),
     assetBrowser: new AssetBrowser({ assets: assetBrowserUseCase }).render(),
@@ -638,6 +646,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     onSaveProject: saveProjectFromToolbar,
     onSaveProjectAsNew: saveProjectAsNewFromToolbar,
     onOpenProject: openSavedProjectFromToolbar,
+    onOpenPixelEditor: openPixelEditor,
     onSetTimelinePlayhead: seekTimelineAndPreview,
     onSetTimelineScale: (timeScale) => timelineUseCase.setTimeScale({ timeScale }),
     onMoveTimelineItem: timelineUseCase.moveItem,

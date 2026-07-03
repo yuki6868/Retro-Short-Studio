@@ -64,6 +64,7 @@ export type StudioWorkspaceProps = {
   onSaveProjectAsNew?: (projectName: string) => void;
   onOpenProject?: (projectId: string) => void;
   onChooseProjectFolder?: () => Promise<void>;
+  onOpenPixelEditor?: () => void;
   projectFolderStatus?: string | null;
   projectPersistenceStatus?: string | null;
 };
@@ -120,6 +121,7 @@ export function StudioWorkspace({
   onSaveProjectAsNew,
   onOpenProject,
   onChooseProjectFolder,
+  onOpenPixelEditor,
   projectFolderStatus,
   projectPersistenceStatus,
 }: StudioWorkspaceProps): ReactElement {
@@ -257,6 +259,9 @@ export function StudioWorkspace({
           </button>
           <button disabled={onChooseProjectFolder === undefined} onClick={() => void onChooseProjectFolder?.()} type="button">
             Choose Project Folder
+          </button>
+          <button disabled={onOpenPixelEditor === undefined} onClick={() => onOpenPixelEditor?.()} type="button">
+            Open Pixel Editor
           </button>
           {projectFolderStatus !== null && projectFolderStatus !== undefined ? <output>{projectFolderStatus}</output> : null}
           {projectPersistenceStatus !== null ? <output>{projectPersistenceStatus}</output> : null}

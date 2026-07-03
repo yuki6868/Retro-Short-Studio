@@ -5,3 +5,5 @@ export * from "./project";
 export * from "./scene";
 export * from "./identity";
 export * from "./validation";
+
+export * from "./pixel";

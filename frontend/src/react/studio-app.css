@@ -265,3 +265,54 @@ input {
   color: #c7b8a6;
   font-size: 0.85rem;
 }
+
+.rss-pixel-editor-window {
+  min-height: 100vh;
+  padding: 24px;
+  background: #141219;
+  color: #f6edf8;
+  box-sizing: border-box;
+}
+
+.rss-pixel-editor-window__header,
+.rss-pixel-editor-window__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.rss-pixel-editor-window__status {
+  opacity: 0.72;
+}
+
+.rss-pixel-editor-window__workspace {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rss-pixel-canvas {
+  display: grid;
+  width: min(70vmin, 640px);
+  height: min(70vmin, 640px);
+  background: rgba(255, 255, 255, 0.08);
+  image-rendering: pixelated;
+}
+
+.rss-pixel-canvas__pixel {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+}
+
+.rss-pixel-canvas--grid .rss-pixel-canvas__pixel {
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}

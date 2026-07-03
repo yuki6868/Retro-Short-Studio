@@ -1,4 +1,5 @@
 import { HtmlAudioPreviewController } from "../preview";
+import { EditorLauncher } from "../pixel";
 import { HtmlVoicePreviewPlayer } from "../voice";
 import { BackendProjectFolderFileStore } from "./BackendProjectFolderFileStore";
 import { ProjectSession } from "./ProjectSession";
@@ -9,6 +10,7 @@ export type StudioCompositionRoot = {
   voicePreviewController: VoicePreviewController;
   previewAudioController: HtmlAudioPreviewController;
   projectFolderFileStore: BackendProjectFolderFileStore;
+  editorLauncher: EditorLauncher;
 };
 
 export function createStudioCompositionRoot(): StudioCompositionRoot {
@@ -23,6 +25,7 @@ export function createStudioCompositionRoot(): StudioCompositionRoot {
     projectSession,
     previewAudioController,
     projectFolderFileStore,
+    editorLauncher: new EditorLauncher(),
     voicePreviewController: new VoicePreviewController({
       generateVoiceUseCase: projectSession.useCases.generateVoice,
       player: new HtmlVoicePreviewPlayer(),
