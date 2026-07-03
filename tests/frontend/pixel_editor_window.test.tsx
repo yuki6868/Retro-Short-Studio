@@ -15,6 +15,10 @@ describe("Pixel Editor Window", () => {
     expect(html).toContain("Project linked: project-1");
     expect(html).toContain('aria-label="16 by 16 pixel canvas"');
     expect(html).toContain('aria-label="Pixel canvas size"');
+    expect(html).toContain('aria-label="Pixel tools"');
+    expect(html).toContain("Brush");
+    expect(html).toContain("Eraser");
+    expect(html).toContain('aria-label="Pixel palette"');
   });
 
   it("builds a dedicated browser window URL without coupling Studio to the editor UI", () => {

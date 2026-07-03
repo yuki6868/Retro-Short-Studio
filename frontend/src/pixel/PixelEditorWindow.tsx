@@ -1,6 +1,14 @@
 import { useMemo, useState, type ReactElement } from "react";
 
-import { PixelDocument, type PixelCanvasSize, type PixelDocumentSnapshot } from "../../../core/src";
+import {
+  Palette,
+  PixelDocument,
+  createPixelTool,
+  type PaletteSnapshot,
+  type PixelCanvasSize,
+  type PixelDocumentSnapshot,
+  type PixelToolId,
+} from "../../../core/src";
 import { PixelCanvas } from "./PixelCanvas";
 
 export type PixelEditorWindowProps = {
@@ -14,11 +22,21 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
     () => PixelDocument.create({ documentId: `pixel-${projectId}`, projectId, size: initialSize }).toSnapshot(),
     [initialSize, projectId],
   );
+
   const [document, setDocument] = useState<PixelDocumentSnapshot>(initialDocument);
   const [showGrid, setShowGrid] = useState(true);
+  const [toolId, setToolId] = useState<PixelToolId>("brush");
+  const [palette, setPalette] = useState<PaletteSnapshot>(() => Palette.createDefault().toSnapshot());
+
+  const tool = useMemo(() => createPixelTool(toolId), [toolId]);
 
   const changeCanvasSize = (size: PixelCanvasSize): void => {
     setDocument((current) => PixelDocument.restore(current).resize(size).toSnapshot());
+  };
+
+  const selectColor = (color: string): void => {
+    setPalette((current) => Palette.restore(current).selectColor(color).toSnapshot());
+    setToolId("brush");
   };
 
   return (
@@ -44,6 +62,30 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
             <option value={64}>64×64</option>
           </select>
         </label>
+
+        <div className="rss-pixel-editor-window__tool-group" role="group" aria-label="Pixel tools">
+          <button aria-pressed={toolId === "brush"} onClick={() => setToolId("brush")} type="button">
+            Brush
+          </button>
+          <button aria-pressed={toolId === "eraser"} onClick={() => setToolId("eraser")} type="button">
+            Eraser
+          </button>
+        </div>
+
+        <div className="rss-pixel-editor-window__palette" role="group" aria-label="Pixel palette">
+          {palette.colors.map((color) => (
+            <button
+              aria-label={`Select ${color}`}
+              aria-pressed={palette.selectedColor === color}
+              className="rss-pixel-editor-window__palette-color"
+              key={color}
+              onClick={() => selectColor(color)}
+              style={{ backgroundColor: color }}
+              type="button"
+            />
+          ))}
+        </div>
+
         <label>
           <input checked={showGrid} onChange={(event) => setShowGrid(event.currentTarget.checked)} type="checkbox" />
           Grid
@@ -51,7 +93,13 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
       </section>
 
       <section className="rss-pixel-editor-window__workspace" aria-label="Pixel editor workspace">
-        <PixelCanvas document={document} showGrid={showGrid} />
+        <PixelCanvas
+          document={document}
+          onDocumentChange={setDocument}
+          selectedColor={palette.selectedColor}
+          showGrid={showGrid}
+          tool={tool}
+        />
       </section>
     </main>
   );

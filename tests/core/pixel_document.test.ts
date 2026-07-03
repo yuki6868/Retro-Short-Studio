@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PixelDocument } from "../../core/src";
+import { Palette, PixelDocument, createPixelTool } from "../../core/src";
 
 describe("PixelDocument", () => {
   it("creates a project-linked square pixel document with a supported canvas size", () => {
@@ -42,5 +42,37 @@ describe("PixelDocument", () => {
     expect(() => PixelDocument.create({ documentId: "pixel-1", projectId: "project-1", size: 16 }).paintPixel(0, 0, "red")).toThrow(
       "PixelDocument pixel color must be transparent or a #RRGGBB value.",
     );
+  });
+
+  it("applies brush and eraser tools through the pixel tool framework", () => {
+    const document = PixelDocument.create({ documentId: "pixel-1", projectId: "project-1", size: 16 });
+    const brush = createPixelTool("brush");
+    const eraser = createPixelTool("eraser");
+
+    const painted = brush.apply({
+      document,
+      x: 2,
+      y: 3,
+      color: "#00e436",
+    });
+
+    const erased = eraser.apply({
+      document: painted,
+      x: 2,
+      y: 3,
+      color: "#00e436",
+    });
+
+    expect(painted.toSnapshot().pixels[3 * 16 + 2]).toBe("#00E436");
+    expect(erased.toSnapshot().pixels[3 * 16 + 2]).toBe("transparent");
+  });
+
+  it("selects colors from the palette", () => {
+    const palette = Palette.createDefault();
+
+    const selected = palette.selectColor("#29adff").toSnapshot();
+
+    expect(selected.selectedColor).toBe("#29ADFF");
+    expect(selected.colors).toContain("#29ADFF");
   });
 });

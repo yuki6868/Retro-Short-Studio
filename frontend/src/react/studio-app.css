@@ -316,3 +316,26 @@ input {
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
+
+.rss-pixel-editor-window__tool-group,
+.rss-pixel-editor-window__palette {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rss-pixel-editor-window__tool-group button[aria-pressed="true"] {
+  font-weight: 700;
+}
+
+.rss-pixel-editor-window__palette-color {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.rss-pixel-editor-window__palette-color[aria-pressed="true"] {
+  border-color: #ffffff;
+}
