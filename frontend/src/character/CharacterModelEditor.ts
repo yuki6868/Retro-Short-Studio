@@ -34,6 +34,7 @@ export type CharacterModelEditorCharacterViewState = {
   defaultMouth: string;
   defaultMotion: string;
   currentVariant: CharacterModelEditorState["characters"][number]["currentVariant"] | null;
+  previewVariant: { expression: string; eye: string; mouth: string };
   imageSlots: CharacterImageMapEditorSlotViewState[];
 };
 
@@ -113,6 +114,11 @@ function toCharacterViewState(character: CharacterModelEditorState["characters"]
     defaultMouth: character.defaultMouth,
     defaultMotion: character.defaultMotion,
     currentVariant: character.currentVariant ?? null,
+    previewVariant: character.currentVariant ?? {
+      expression: character.defaultExpression,
+      eye: character.defaultEye,
+      mouth: character.defaultMouth,
+    },
     imageSlots: [
       { key: "expression:neutral", kind: "expression", state: "neutral", label: "Default expression", assetId: character.imageMap.expression.neutral ?? null },
       { key: "mouth:closed", kind: "mouth", state: "closed", label: "Mouth closed", assetId: character.imageMap.mouth.closed ?? null },

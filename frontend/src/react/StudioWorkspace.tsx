@@ -15,6 +15,7 @@ import type {
   AddSceneInput,
   ImportableAssetType,
   AssignCharacterImageInput,
+  ChangeCharacterVariantSelectionInput,
   CharacterModelEditorState,
 } from "../../../app/src";
 import { TalkActionInspector, TimelineInteractionMapper, type BrowserProjectSummary, type StudioLayoutViewState, type TimelineItemViewState, type CharacterModelEditorViewState } from "../index";
@@ -37,6 +38,7 @@ export type StudioWorkspaceProps = {
   onSelectCharacterModel?(characterId: string): CharacterModelEditorState;
   onRenameCharacterModel?(input: { characterId: string; characterName: string }): CharacterModelEditorState;
   onChangeCharacterDefaults?(input: { characterId: string; defaultExpression?: string; defaultEye?: string; defaultMouth?: string; defaultMotion?: string }): CharacterModelEditorState;
+  onChangeCharacterVariantSelection?(input: ChangeCharacterVariantSelectionInput): CharacterModelEditorState;
   onAssignCharacterImage?(input: AssignCharacterImageInput): CharacterModelEditorState;
   onEditSceneName(sceneId: string, sceneName: string): InspectorState;
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
@@ -94,6 +96,7 @@ export function StudioWorkspace({
   onSelectCharacterModel,
   onRenameCharacterModel,
   onChangeCharacterDefaults,
+  onChangeCharacterVariantSelection,
   onAssignCharacterImage,
   onEditSceneName,
   onEditSceneDuration,
@@ -461,6 +464,71 @@ export function StudioWorkspace({
                       <option value="closed">closed</option>
                     </select>
                   </label>
+                  <section className="rss-character-editor__variant" aria-label="Character Variant Selection">
+                    <h3>Preview Variant</h3>
+                    <p>Switch the current Expression / Eye / Mouth used by Preview without changing the character defaults.</p>
+                    <label>
+                      Preview expression
+                      <select
+                        aria-label="Preview expression"
+                        onChange={(event) =>
+                          onChangeCharacterVariantSelection?.({
+                            characterId: characterModelEditor.selectedCharacter!.characterId,
+                            expression: event.currentTarget.value,
+                          })
+                        }
+                        value={
+                          characterModelEditor.selectedCharacter.currentVariant?.expression ??
+                          characterModelEditor.selectedCharacter.defaultExpression
+                        }
+                      >
+                        <option value="neutral">neutral</option>
+                        <option value="happy">happy</option>
+                        <option value="angry">angry</option>
+                        <option value="sad">sad</option>
+                        <option value="surprised">surprised</option>
+                      </select>
+                    </label>
+                    <label>
+                      Preview eye
+                      <select
+                        aria-label="Preview eye"
+                        onChange={(event) =>
+                          onChangeCharacterVariantSelection?.({
+                            characterId: characterModelEditor.selectedCharacter!.characterId,
+                            eye: event.currentTarget.value,
+                          })
+                        }
+                        value={
+                          characterModelEditor.selectedCharacter.currentVariant?.eye ??
+                          characterModelEditor.selectedCharacter.defaultEye
+                        }
+                      >
+                        <option value="open">open</option>
+                        <option value="closed">closed</option>
+                      </select>
+                    </label>
+                    <label>
+                      Preview mouth
+                      <select
+                        aria-label="Preview mouth"
+                        onChange={(event) =>
+                          onChangeCharacterVariantSelection?.({
+                            characterId: characterModelEditor.selectedCharacter!.characterId,
+                            mouth: event.currentTarget.value,
+                          })
+                        }
+                        value={
+                          characterModelEditor.selectedCharacter.currentVariant?.mouth ??
+                          characterModelEditor.selectedCharacter.defaultMouth
+                        }
+                      >
+                        <option value="closed">closed</option>
+                        <option value="half">half</option>
+                        <option value="open">open</option>
+                      </select>
+                    </label>
+                  </section>
                   {characterModelEditor.selectedCharacter.imageSlots.map((slot) => (
                     <div className="rss-character-editor__image-slot" key={slot.key}>
                       <label>

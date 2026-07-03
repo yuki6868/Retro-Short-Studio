@@ -651,6 +651,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     onSelectCharacterModel: characterModelEditorUseCase.selectCharacter,
     onRenameCharacterModel: characterModelEditorUseCase.renameCharacter,
     onChangeCharacterDefaults: characterModelEditorUseCase.changeDefaults,
+    onChangeCharacterVariantSelection: characterModelEditorUseCase.changeVariantSelection,
     onAssignCharacterImage: characterModelEditorUseCase.assignImage,
     onEditSceneName: (sceneId, sceneName) => inspectorUseCase.renameSelectedScene({ sceneId, sceneName }),
     onEditSceneDuration: (sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration }),

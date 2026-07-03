@@ -21,6 +21,41 @@ describe("CharacterModelEditor", () => {
     expect(view.selectedCharacter?.imageSlots.find((slot) => slot.key === "mouth:open")?.assetId).toBe("asset-mouth-open");
   });
 
+
+
+  it("renders the current preview variant separately from defaults", () => {
+    const editor = new CharacterModelEditor({ characters: createUseCase(createState({ currentVariant: { expression: "happy", eye: "closed", mouth: "open" } })) });
+
+    const view = editor.render();
+
+    expect(view.selectedCharacter?.defaultExpression).toBe("neutral");
+    expect(view.selectedCharacter?.previewVariant).toEqual({ expression: "happy", eye: "closed", mouth: "open" });
+  });
+
+  it("delegates preview variant selection changes to the use case", () => {
+    const changes: unknown[] = [];
+    const editor = new CharacterModelEditor({
+      characters: createUseCase(createState(), {
+        changeVariantSelection: (input) => {
+          changes.push(input);
+          return createState({ currentVariant: { expression: "angry", eye: "closed", mouth: "half" } });
+        },
+      }),
+    });
+
+    const view = editor.changeVariantSelection({
+      characterId: "character-zundamon",
+      expression: "angry",
+      eye: "closed",
+      mouth: "half",
+    });
+
+    expect(changes).toEqual([
+      { characterId: "character-zundamon", expression: "angry", eye: "closed", mouth: "half" },
+    ]);
+    expect(view.selectedCharacter?.previewVariant).toEqual({ expression: "angry", eye: "closed", mouth: "half" });
+  });
+
   it("delegates image map assignment to the use case", () => {
     const assignments: unknown[] = [];
     const editor = new CharacterModelEditor({
@@ -40,7 +75,7 @@ describe("CharacterModelEditor", () => {
   });
 });
 
-function createState(): CharacterModelEditorState {
+function createState(input: { currentVariant?: CharacterModelEditorState["characters"][number]["currentVariant"] } = {}): CharacterModelEditorState {
   return {
     selectedCharacterId: "character-zundamon",
     characterImageAssets: [
@@ -61,6 +96,7 @@ function createState(): CharacterModelEditorState {
           eye: {},
           motion: {},
         },
+        ...(input.currentVariant === undefined ? {} : { currentVariant: input.currentVariant }),
         selected: true,
       },
     ],
