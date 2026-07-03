@@ -13,6 +13,9 @@ describe("Pixel Editor Window", () => {
     expect(html).toContain("Pixel Character Editor");
     expect(html).toContain("Project: Accounting Short");
     expect(html).toContain("Project linked: project-1");
+    expect(html).toContain('aria-label="Pixel asset save"');
+    expect(html).toContain('aria-label="Pixel asset name"');
+    expect(html).toContain("Save To Project Assets");
     expect(html).toContain('aria-label="16 by 16 pixel canvas"');
     expect(html).toContain('aria-label="Pixel canvas size"');
     expect(html).toContain('aria-label="Pixel tools"');

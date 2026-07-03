@@ -13,13 +13,24 @@ import {
 } from "../../../core/src";
 import { PixelCanvas } from "./PixelCanvas";
 
+export type PixelEditorSaveInput = {
+  document: PixelDocumentSnapshot;
+  assetName: string;
+};
+
+export type PixelEditorSaveResult = {
+  assetName: string;
+  assetPath: string;
+};
+
 export type PixelEditorWindowProps = {
   projectId: string;
   projectName: string;
   initialSize?: PixelCanvasSize;
+  onSaveDocument?: (input: PixelEditorSaveInput) => Promise<PixelEditorSaveResult>;
 };
 
-export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: PixelEditorWindowProps): ReactElement {
+export function PixelEditorWindow({ projectId, projectName, initialSize = 32, onSaveDocument }: PixelEditorWindowProps): ReactElement {
   const initialDocument = useMemo(
     () => PixelDocument.create({ documentId: `pixel-${projectId}`, projectId, size: initialSize }).toSnapshot(),
     [initialSize, projectId],
@@ -30,6 +41,8 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
   const [showGrid, setShowGrid] = useState(true);
   const [toolId, setToolId] = useState<PixelToolId>("brush");
   const [palette, setPalette] = useState<PaletteSnapshot>(() => Palette.createDefault().toSnapshot());
+  const [assetName, setAssetName] = useState(`pixel-${projectId}`);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   const tool = useMemo(() => createPixelTool(toolId), [toolId]);
 
@@ -80,6 +93,22 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
     setToolId("brush");
   };
 
+  const saveToProject = async (): Promise<void> => {
+    if (onSaveDocument === undefined) {
+      setSaveStatus("Project save is not connected.");
+      return;
+    }
+
+    setSaveStatus("Saving pixel asset...");
+
+    try {
+      const result = await onSaveDocument({ document, assetName });
+      setSaveStatus(`Saved pixel asset: ${result.assetName} -> ${result.assetPath}`);
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : "Pixel asset save failed.");
+    }
+  };
+
   return (
     <main className="rss-pixel-editor-window" aria-label="Pixel Editor Window">
       <header className="rss-pixel-editor-window__header">
@@ -89,6 +118,22 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
         </div>
         <p className="rss-pixel-editor-window__status">Project linked: {projectId}</p>
       </header>
+
+      <section className="rss-pixel-editor-window__save" aria-label="Pixel asset save">
+        <label>
+          Asset name
+          <input
+            aria-label="Pixel asset name"
+            onChange={(event) => setAssetName(event.currentTarget.value)}
+            type="text"
+            value={assetName}
+          />
+        </label>
+        <button disabled={onSaveDocument === undefined} onClick={() => void saveToProject()} type="button">
+          Save To Project Assets
+        </button>
+        {saveStatus === null ? null : <p role="status">{saveStatus}</p>}
+      </section>
 
       <section className="rss-pixel-editor-window__toolbar" aria-label="Pixel editor toolbar">
         <label>

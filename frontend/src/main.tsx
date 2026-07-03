@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { PixelEditorWindow } from "./pixel";
+import { PixelEditorWindow, savePixelDocumentToProject } from "./pixel";
 import { StudioApp } from "./react";
 
 const rootElement = document.getElementById("root");
@@ -20,7 +20,13 @@ function RootApp() {
   const pixelEditorParams = readPixelEditorParams();
 
   if (pixelEditorParams !== null) {
-    return <PixelEditorWindow projectId={pixelEditorParams.projectId} projectName={pixelEditorParams.projectName} />;
+    return (
+      <PixelEditorWindow
+        projectId={pixelEditorParams.projectId}
+        projectName={pixelEditorParams.projectName}
+        onSaveDocument={(input) => savePixelDocumentToProject(pixelEditorParams, input)}
+      />
+    );
   }
 
   return <StudioApp />;

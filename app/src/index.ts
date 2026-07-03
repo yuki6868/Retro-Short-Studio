@@ -7,3 +7,4 @@ export * from "./previewTimelineSync";
 
 export * from "./scene";
 export * from "./timeline";
+export * from "./pixel";

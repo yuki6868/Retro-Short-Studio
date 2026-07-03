@@ -137,6 +137,24 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     config.onRequestWorkspaceReload?.();
   };
 
+  useEffect(() => {
+    const onPixelAssetSaved = (event: MessageEvent): void => {
+      if (!isPixelAssetSavedMessage(event.data)) {
+        return;
+      }
+
+      if (event.data.projectId !== project.toSnapshot().projectId) {
+        return;
+      }
+
+      setProjectPersistenceStatus("Pixel asset saved. Reloading project assets...");
+      config.onRequestWorkspaceReload?.();
+    };
+
+    window.addEventListener("message", onPixelAssetSaved);
+    return () => window.removeEventListener("message", onPixelAssetSaved);
+  }, [config, project]);
+
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
   const [characterModelState, setCharacterModelState] = useState<CharacterModelEditorState>(characterModelEditor.state);
@@ -662,6 +680,17 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   };
 }
 
+
+function isPixelAssetSavedMessage(value: unknown): value is { type: "retro-short-studio.pixel-asset-saved"; projectId: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    "projectId" in value &&
+    value.type === "retro-short-studio.pixel-asset-saved" &&
+    typeof value.projectId === "string"
+  );
+}
 
 function createInitialPreviewState(): PreviewState {
   return {
