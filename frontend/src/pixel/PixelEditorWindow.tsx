@@ -2,7 +2,9 @@ import { useMemo, useState, type ReactElement } from "react";
 
 import {
   Palette,
+  PixelCommand,
   PixelDocument,
+  PixelHistory,
   createPixelTool,
   type PaletteSnapshot,
   type PixelCanvasSize,
@@ -24,6 +26,7 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
   );
 
   const [document, setDocument] = useState<PixelDocumentSnapshot>(initialDocument);
+  const [history, setHistory] = useState(() => PixelHistory.empty());
   const [showGrid, setShowGrid] = useState(true);
   const [toolId, setToolId] = useState<PixelToolId>("brush");
   const [palette, setPalette] = useState<PaletteSnapshot>(() => Palette.createDefault().toSnapshot());
@@ -31,7 +34,45 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
   const tool = useMemo(() => createPixelTool(toolId), [toolId]);
 
   const changeCanvasSize = (size: PixelCanvasSize): void => {
-    setDocument((current) => PixelDocument.restore(current).resize(size).toSnapshot());
+    const nextDocument = PixelDocument.restore(document).resize(size).toSnapshot();
+    commitDocument(nextDocument, `Resize canvas to ${size}×${size}`);
+  };
+
+  const commitDocument = (nextDocument: PixelDocumentSnapshot, label: string): void => {
+    if (arePixelDocumentsEqual(document, nextDocument)) {
+      return;
+    }
+
+    const command = PixelCommand.create({
+      label,
+      before: document,
+      after: nextDocument,
+    });
+
+    setHistory((current) => current.commit(command));
+    setDocument(nextDocument);
+  };
+
+  const undo = (): void => {
+    const change = history.undo();
+
+    if (change === null) {
+      return;
+    }
+
+    setHistory(change.history);
+    setDocument(change.document);
+  };
+
+  const redo = (): void => {
+    const change = history.redo();
+
+    if (change === null) {
+      return;
+    }
+
+    setHistory(change.history);
+    setDocument(change.document);
   };
 
   const selectColor = (color: string): void => {
@@ -75,6 +116,15 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
           </button>
         </div>
 
+        <div className="rss-pixel-editor-window__history" role="group" aria-label="Pixel history">
+          <button disabled={!history.canUndo()} onClick={undo} type="button">
+            Undo
+          </button>
+          <button disabled={!history.canRedo()} onClick={redo} type="button">
+            Redo
+          </button>
+        </div>
+
         <div className="rss-pixel-editor-window__palette" role="group" aria-label="Pixel palette">
           {palette.colors.map((color) => (
             <button
@@ -98,7 +148,7 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
       <section className="rss-pixel-editor-window__workspace" aria-label="Pixel editor workspace">
         <PixelCanvas
           document={document}
-          onDocumentChange={setDocument}
+          onDocumentChange={(nextDocument) => commitDocument(nextDocument, `${tool.label} pixel edit`)}
           selectedColor={palette.selectedColor}
           showGrid={showGrid}
           tool={tool}
@@ -106,4 +156,12 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
       </section>
     </main>
   );
+}
+
+function arePixelDocumentsEqual(left: PixelDocumentSnapshot, right: PixelDocumentSnapshot): boolean {
+  if (left.documentId !== right.documentId || left.projectId !== right.projectId || left.width !== right.width || left.height !== right.height) {
+    return false;
+  }
+
+  return left.pixels.length === right.pixels.length && left.pixels.every((pixel, index) => pixel === right.pixels[index]);
 }

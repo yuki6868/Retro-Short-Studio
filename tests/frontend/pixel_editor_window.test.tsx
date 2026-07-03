@@ -19,6 +19,9 @@ describe("Pixel Editor Window", () => {
     expect(html).toContain("Brush");
     expect(html).toContain("Eraser");
     expect(html).toContain("Fill");
+    expect(html).toContain('aria-label="Pixel history"');
+    expect(html).toContain("Undo");
+    expect(html).toContain("Redo");
     expect(html).toContain('aria-label="Pixel palette"');
   });
 

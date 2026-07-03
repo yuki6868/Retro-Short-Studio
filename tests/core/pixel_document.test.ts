@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Palette, PixelDocument, createPixelTool } from "../../core/src";
+import { Palette, PixelCommand, PixelDocument, PixelHistory, createPixelTool } from "../../core/src";
 
 describe("PixelDocument", () => {
   it("creates a project-linked square pixel document with a supported canvas size", () => {
@@ -112,4 +112,45 @@ describe("PixelDocument", () => {
     expect(selected.selectedColor).toBe("#29ADFF");
     expect(selected.colors).toContain("#29ADFF");
   });
+
+  it("records pixel commands and supports undo and redo", () => {
+    const document = PixelDocument.create({ documentId: "pixel-1", projectId: "project-1", size: 16 }).toSnapshot();
+    const painted = PixelDocument.restore(document).paintPixel(4, 5, "#FF004D").toSnapshot();
+    const command = PixelCommand.create({
+      commandId: "command-1",
+      label: "Brush pixel edit",
+      before: document,
+      after: painted,
+    });
+
+    const history = PixelHistory.empty().commit(command);
+    const undone = history.undo();
+
+    expect(history.canUndo()).toBe(true);
+    expect(history.canRedo()).toBe(false);
+    expect(undone?.document.pixels[5 * 16 + 4]).toBe("transparent");
+    expect(undone?.history.canUndo()).toBe(false);
+    expect(undone?.history.canRedo()).toBe(true);
+
+    const redone = undone?.history.redo();
+
+    expect(redone?.document.pixels[5 * 16 + 4]).toBe("#FF004D");
+    expect(redone?.history.canUndo()).toBe(true);
+    expect(redone?.history.canRedo()).toBe(false);
+  });
+
+  it("clears redo history when a new command is committed after undo", () => {
+    const document = PixelDocument.create({ documentId: "pixel-1", projectId: "project-1", size: 16 }).toSnapshot();
+    const redPainted = PixelDocument.restore(document).paintPixel(0, 0, "#FF004D").toSnapshot();
+    const bluePainted = PixelDocument.restore(document).paintPixel(1, 0, "#29ADFF").toSnapshot();
+    const redCommand = PixelCommand.create({ commandId: "command-red", label: "Red", before: document, after: redPainted });
+    const blueCommand = PixelCommand.create({ commandId: "command-blue", label: "Blue", before: document, after: bluePainted });
+
+    const undone = PixelHistory.empty().commit(redCommand).undo();
+    const branched = undone?.history.commit(blueCommand);
+
+    expect(branched?.canUndo()).toBe(true);
+    expect(branched?.canRedo()).toBe(false);
+  });
+
 });
