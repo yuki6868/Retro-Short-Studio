@@ -24,6 +24,40 @@ describe("PyxelPreviewEngineClient", () => {
     expect(frame.activeActionTypes).toEqual([]);
     expect(JSON.stringify(frame)).not.toContain("<svg");
   });
+
+  it("resolves CharacterImageMap assets before falling back to the first character image asset", () => {
+    const request = createPreviewRequest(1);
+    request.assets = [
+      ...(request.assets ?? []),
+      {
+        assetId: "asset-character-map-neutral",
+        assetName: "Zundamon mapped neutral",
+        assetType: "character_image",
+        assetPath: "assets/characters/zunda/mapped-neutral.png",
+      },
+    ];
+    request.characters = [
+      {
+        characterId: "character-zundamon",
+        characterName: "Zundamon",
+        defaultExpression: "neutral",
+        defaultEye: "open",
+        defaultMouth: "closed",
+        defaultMotion: "idle",
+        imageMap: {
+          expression: { neutral: "asset-character-map-neutral" },
+          eye: {},
+          mouth: {},
+          motion: {},
+        },
+        imageMapId: "character-zundamon",
+      },
+    ];
+
+    const frame = new DefaultPreviewRenderFrameBuilder().build(request);
+
+    expect(frame.characters[0]?.path).toBe("projects/project-1/assets/characters/zunda/mapped-neutral.png");
+  });
 });
 
 class RecordingTransport implements PreviewFrameTransport {

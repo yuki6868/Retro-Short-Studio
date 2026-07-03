@@ -54,6 +54,7 @@ export class PreviewController {
     this.playbackSession += 1;
     this.config.audioController?.pause();
     const next = { ...this.latestState, playbackStatus: "paused" as const, error: null };
+    this.latestState = next;
     return this.config.applyPreviewState(next);
   }
 
@@ -103,6 +104,11 @@ export class PreviewController {
       characters: snapshot.characters.map((character) => ({
         characterId: character.characterId,
         characterName: character.characterName,
+        defaultExpression: character.defaultExpression,
+        defaultEye: character.defaultEye,
+        defaultMouth: character.defaultMouth,
+        defaultMotion: character.defaultMotion,
+        imageMap: character.imageMap ?? { expression: {}, eye: {}, mouth: {}, motion: {} },
         imageMapId: character.imageMap === undefined ? null : character.characterId,
       })),
       engineClient: new PyxelPreviewEngineClient(),
@@ -122,6 +128,7 @@ export class PreviewController {
 
     const previous = this.latestState;
     const normalized = { ...next, playbackStatus };
+    this.latestState = normalized;
     this.syncAudio(previous, normalized, renderMode);
     const timelineState =
       this.config.syncPreviewCurrentTime?.({ currentTime: normalized.currentTime }) ??

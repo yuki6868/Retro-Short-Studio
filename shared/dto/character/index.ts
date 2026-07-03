@@ -1,1 +1,1 @@
-export type { CharacterDto } from "./CharacterDto";
+export type { CharacterDto, CharacterImageMapDto } from "./CharacterDto";

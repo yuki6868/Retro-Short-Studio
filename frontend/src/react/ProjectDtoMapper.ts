@@ -42,7 +42,12 @@ export function projectSnapshotToProjectDto(snapshot: ProjectSnapshot): ProjectD
     characters: snapshot.characters.map((character) => ({
       characterId: character.characterId,
       characterName: character.characterName,
-      imageMapId: null,
+      defaultExpression: character.defaultExpression,
+      defaultEye: character.defaultEye,
+      defaultMouth: character.defaultMouth,
+      defaultMotion: character.defaultMotion,
+      imageMap: character.imageMap ?? { expression: {}, eye: {}, mouth: {}, motion: {} },
+      imageMapId: character.imageMap === undefined ? null : character.characterId,
     })),
     scenes: snapshot.scenes.map((scene) => ({
       sceneId: scene.sceneId,

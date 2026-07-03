@@ -13,6 +13,7 @@ import {
   AssetLibraryUseCase,
   GenerateVoiceUseCase,
   ImportAssetUseCase,
+  CharacterModelEditorUseCase,
   type AssetFileStore,
   InspectorUseCase,
   PyxelPreviewEngineClient,
@@ -40,6 +41,7 @@ export type StudioUseCases = {
   actionEditor: ActionEditorUseCase;
   generateVoice: GenerateVoiceUseCase;
   importAsset: ImportAssetUseCase;
+  characterModelEditor: CharacterModelEditorUseCase;
 };
 
 export type ProjectSessionConfig = {
@@ -77,6 +79,7 @@ export class ProjectSession {
         idGenerator,
         fileStore: assetFileStore,
       }),
+      characterModelEditor: new CharacterModelEditorUseCase({ project: this.project, idGenerator }),
     };
   }
 

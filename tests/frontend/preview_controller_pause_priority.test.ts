@@ -215,6 +215,56 @@ describe("PreviewController pause priority", () => {
   });
 
 
+
+  it("uses the applied seek state as the base for the next playing frame", async () => {
+    const project = createProject();
+    let latestPreviewState: PreviewState = { ...createInitialPreviewState(), playbackStatus: "playing", currentTime: 1 };
+    const timeline = new TimelineUseCase({ project, initialSceneId: "scene-1" });
+
+    const controller = new PreviewController({
+      getProject: () => project,
+      getSelectedSceneId: () => "scene-1",
+      getTimeline: () => timeline,
+      applyPreviewState(state: PreviewState): PreviewState {
+        latestPreviewState = state;
+        return state;
+      },
+      setTimelineState(): void {},
+      createInitialPreviewState,
+      createPreviewSceneUseCase: (config) => ({
+        play: async () => ({
+          ...createInitialPreviewState(),
+          currentTime: config.initialTime ?? 0,
+          playbackStatus: "playing",
+          framePath: `frame-${config.initialTime ?? 0}.png`,
+          width: config.width,
+          height: config.height,
+          fps: config.fps,
+        }),
+        seek: async (time: number) => ({
+          ...createInitialPreviewState(),
+          currentTime: time,
+          playbackStatus: latestPreviewState.playbackStatus,
+          framePath: `frame-${time}.png`,
+          width: config.width,
+          height: config.height,
+          fps: config.fps,
+        }),
+      }),
+    });
+
+    controller.setLatestState(latestPreviewState);
+
+    const seeked = await controller.seek(4);
+    expect(seeked.currentTime).toBe(4);
+
+    const session = controller.currentPlaybackSession;
+    const advanced = await controller.advancePlayingFrame(0.5, 8, session);
+
+    expect(advanced.currentTime).toBe(4.5);
+    expect(latestPreviewState.currentTime).toBe(4.5);
+  });
+
   it("does not restart the same voice on every playback frame", async () => {
     const project = createProject();
     let latestPreviewState: PreviewState = {

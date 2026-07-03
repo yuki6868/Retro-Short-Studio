@@ -67,6 +67,8 @@ export class PreviewPanel {
   private createViewState(state: PreviewState): PreviewPanelViewState {
     const isPlaying = state.playbackStatus === "playing";
     const isBusy = false;
+    const seekStep = createPreviewSeekControlStep(state.fps);
+    const seekDisplayTime = roundPreviewTimeForSeekControl(state.currentTime, state.fps, this.props.duration);
 
     return {
       title: this.props.title ?? "Preview",
@@ -81,10 +83,38 @@ export class PreviewPanel {
       },
       playButton: new PlayButton(isPlaying || isBusy).state,
       pauseButton: new PauseButton(!isPlaying || isBusy).state,
-      seekControl: new SeekControl(state.currentTime, this.props.duration, isBusy).state,
+      seekControl: new SeekControl(seekDisplayTime, this.props.duration, seekStep, isBusy).state,
       error: state.error,
     };
   }
+}
+
+export function createPreviewSeekControlStep(fps: number): number {
+  if (!Number.isFinite(fps) || fps <= 0) {
+    return 1 / 30;
+  }
+
+  return 1 / fps;
+}
+
+export function roundPreviewTimeForSeekControl(currentTime: number, fps: number, duration: number): number {
+  if (!Number.isFinite(currentTime)) {
+    throw new Error("Preview seek display time must be a finite number.");
+  }
+
+  if (!Number.isFinite(duration) || duration < 0) {
+    throw new Error("Preview seek display duration must be greater than or equal to 0.");
+  }
+
+  if (!Number.isFinite(fps) || fps <= 0) {
+    return clampPreviewTime(currentTime, duration);
+  }
+
+  return clampPreviewTime(Math.round(currentTime * fps) / fps, duration);
+}
+
+function clampPreviewTime(time: number, duration: number): number {
+  return Math.min(duration, Math.max(0, time));
 }
 
 function validatePreviewPanelProps(props: PreviewPanelProps): void {

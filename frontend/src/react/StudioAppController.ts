@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AssetBrowser,
+  CharacterModelEditor,
   Inspector,
   PreviewPanel,
   PreviewPlaybackLoop,
@@ -20,6 +21,7 @@ import {
   type ChangeSceneBackgroundInput,
   type ChangeSceneDurationInput,
   type ChangeActionTimeRangeInput,
+  type CharacterModelEditorState,
   type CreateActionKind,
   type InspectorState,
   type MoveSceneInput,
@@ -59,7 +61,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   const projectFolderFileStore = compositionRootRef.current.projectFolderFileStore;
   const voicePreviewController = compositionRootRef.current.voicePreviewController;
   const project = projectSession.project;
-  const { assetLibrary, importAsset, sceneFlow, inspector, timeline, actionEditor } = projectSession.useCases;
+  const { assetLibrary, importAsset, sceneFlow, inspector, timeline, actionEditor, characterModelEditor } = projectSession.useCases;
 
   projectSession.bootstrapSelection();
 
@@ -137,6 +139,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
 
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
+  const [characterModelState, setCharacterModelState] = useState<CharacterModelEditorState>(characterModelEditor.state);
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
   const [timelineState, setTimelineState] = useState<TimelineState>(timeline.state);
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
@@ -323,6 +326,53 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
       },
     }),
     [assetLibrary, assetState, importAsset, inspector, previewState.currentTime, previewUseCase, projectFolderFileStore, projectSession, sceneFlow],
+  );
+
+
+  const characterModelEditorUseCase = useMemo(
+    () => ({
+      get state() {
+        return characterModelState;
+      },
+      createCharacterModel(input: { characterName: string }): CharacterModelEditorState {
+        const next = characterModelEditor.createCharacterModel(input);
+        setCharacterModelState(next);
+        setInspectorState(inspector.selectCharacter(next.selectedCharacterId!));
+        void previewUseCase.seek(previewState.currentTime);
+        persistCurrentProject();
+        return next;
+      },
+      selectCharacter(characterId: string): CharacterModelEditorState {
+        const next = characterModelEditor.selectCharacter(characterId);
+        setCharacterModelState(next);
+        setInspectorState(inspector.selectCharacter(characterId));
+        return next;
+      },
+      renameCharacter(input: { characterId: string; characterName: string }): CharacterModelEditorState {
+        const next = characterModelEditor.renameCharacter(input);
+        setCharacterModelState(next);
+        setInspectorState(inspector.selectCharacter(input.characterId));
+        persistCurrentProject();
+        return next;
+      },
+      changeDefaults(input: { characterId: string; defaultExpression?: string; defaultEye?: string; defaultMouth?: string; defaultMotion?: string }): CharacterModelEditorState {
+        const next = characterModelEditor.changeDefaults(input);
+        setCharacterModelState(next);
+        setInspectorState(inspector.selectCharacter(input.characterId));
+        void previewUseCase.seek(previewState.currentTime);
+        persistCurrentProject();
+        return next;
+      },
+      assignImage(input: { characterId: string; kind: "expression" | "eye" | "mouth" | "motion"; state: string; assetId: string }): CharacterModelEditorState {
+        const next = characterModelEditor.assignImage(input);
+        setCharacterModelState(next);
+        setInspectorState(inspector.selectCharacter(input.characterId));
+        void previewUseCase.seek(previewState.currentTime);
+        persistCurrentProject();
+        return next;
+      },
+    }),
+    [characterModelEditor, characterModelState, inspector, previewState.currentTime, previewUseCase],
   );
 
   const sceneFlowUseCase = useMemo(
@@ -545,8 +595,11 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     timeline: new Timeline({ timeline: timelineUseCase }).render(),
   }).render();
 
+  const characterModelEditorView = new CharacterModelEditor({ characters: characterModelEditorUseCase }).render();
+
   return {
     view: layout,
+    characterModelEditor: characterModelEditorView,
     onAddAsset: assetBrowserUseCase.addAsset,
     onImportAsset: assetBrowserUseCase.importAsset,
     onAddScene: sceneFlowUseCase.addScene,
@@ -558,6 +611,11 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     onSelectAsset: assetBrowserUseCase.selectAsset,
     onDeleteAsset: (assetId) => assetBrowserUseCase.deleteAsset({ assetId }),
     onSelectScene: sceneFlowUseCase.selectScene,
+    onCreateCharacterModel: characterModelEditorUseCase.createCharacterModel,
+    onSelectCharacterModel: characterModelEditorUseCase.selectCharacter,
+    onRenameCharacterModel: characterModelEditorUseCase.renameCharacter,
+    onChangeCharacterDefaults: characterModelEditorUseCase.changeDefaults,
+    onAssignCharacterImage: characterModelEditorUseCase.assignImage,
     onEditSceneName: (sceneId, sceneName) => inspectorUseCase.renameSelectedScene({ sceneId, sceneName }),
     onEditSceneDuration: (sceneId, duration) => inspectorUseCase.changeSelectedSceneDuration({ sceneId, duration }),
     onEditSceneBackground: (sceneId, backgroundAssetId) =>

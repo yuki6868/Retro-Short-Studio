@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PreviewPanel, type PreviewPanelUseCase } from "../../frontend/src";
+import { PreviewPanel, createPreviewSeekControlStep, roundPreviewTimeForSeekControl, type PreviewPanelUseCase } from "../../frontend/src";
 import type { PreviewState } from "../../app/src";
 
 describe("PreviewPanel", () => {
@@ -22,7 +22,7 @@ describe("PreviewPanel", () => {
     });
     expect(view.playButton).toEqual({ label: "Play", disabled: false });
     expect(view.pauseButton).toEqual({ label: "Pause", disabled: true });
-    expect(view.seekControl).toEqual({ label: "Seek", value: 0, min: 0, max: 8, disabled: false });
+    expect(view.seekControl).toEqual({ label: "Seek", value: 0, min: 0, max: 8, step: 1 / 30, disabled: false });
   });
 
   it("delegates play to the preview use case and updates the panel state", async () => {
@@ -104,6 +104,45 @@ describe("PreviewPanel", () => {
     expect(view.currentTime).toBe(1.2);
     expect(view.seekControl.value).toBe(1.2);
     expect(view.surface.framePath).toBe("renders/preview-0036.png");
+  });
+
+  it("uses frame-rounded time for the seek bar while preserving the precise preview time", () => {
+    const panel = new PreviewPanel({
+      duration: 8,
+      preview: createPreviewUseCase({
+        ...initialState(),
+        currentTime: 1.049,
+        fps: 30,
+      }),
+    });
+
+    const view = panel.render();
+
+    expect(view.currentTime).toBe(1.049);
+    expect(view.seekControl.value).toBe(31 / 30);
+  });
+
+
+  it("uses the preview fps as the seek input step", () => {
+    const panel = new PreviewPanel({
+      duration: 8,
+      preview: createPreviewUseCase({
+        ...initialState(),
+        currentTime: 1.049,
+        fps: 24,
+      }),
+    });
+
+    const view = panel.render();
+
+    expect(view.seekControl.value).toBe(25 / 24);
+    expect(view.seekControl.step).toBe(1 / 24);
+    expect(createPreviewSeekControlStep(60)).toBe(1 / 60);
+  });
+
+  it("clamps frame-rounded seek bar time to the preview duration", () => {
+    expect(roundPreviewTimeForSeekControl(-0.01, 30, 8)).toBe(0);
+    expect(roundPreviewTimeForSeekControl(8.02, 30, 8)).toBe(8);
   });
 
   it("keeps engine errors visible as preview panel state", async () => {

@@ -59,7 +59,6 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
     const moveX = readNumber(moveAction?.payload.x, 0) * (moveAction?.progress ?? 0);
     const moveY = readNumber(moveAction?.payload.y, 0) * (moveAction?.progress ?? 0);
     const zoom = readNumber(zoomAction?.payload.zoom, 1);
-    const characterAsset = findFirstCharacterAsset(assets);
     const characterIds = request.scene.characterIds.length > 0 ? request.scene.characterIds : fallbackCharacterIds(characters, talkAction?.targetId ?? null);
 
     return {
@@ -81,18 +80,23 @@ export class DefaultPreviewRenderFrameBuilder implements PreviewRenderFrameBuild
               zIndex: -10_000,
             },
           }),
-      characters: characterIds.map((characterId, index) => ({
-        assetId: characterAsset?.assetId ?? characterId,
-        path: toProjectAssetPath(request.projectId, characterAsset?.assetPath ?? "assets/characters/placeholder.png"),
-        x: Math.round(request.width / 2 - 96 + moveX + index * 24),
-        y: Math.round(request.height * 0.42 + moveY),
-        width: 192,
-        height: 192,
-        imageBank: index + 1,
-        zIndex: index,
-        scale: zoom,
-        transparentColor: 0,
-      })),
+      characters: characterIds.map((characterId, index) => {
+        const character = characters.find((candidate) => candidate.characterId === characterId) ?? null;
+        const characterAsset = resolveCharacterAsset(assets, character) ?? findFirstCharacterAsset(assets);
+
+        return {
+          assetId: characterAsset?.assetId ?? characterId,
+          path: toProjectAssetPath(request.projectId, characterAsset?.assetPath ?? "assets/characters/placeholder.png"),
+          x: Math.round(request.width / 2 - 96 + moveX + index * 24),
+          y: Math.round(request.height * 0.42 + moveY),
+          width: 192,
+          height: 192,
+          imageBank: index + 1,
+          zIndex: index,
+          scale: zoom,
+          transparentColor: 0,
+        };
+      }),
       textOverlays: buildTextOverlays(request, characters, talkAction?.targetId ?? null, readString(talkAction?.payload.text, "")),
       activeActionTypes: evaluated.activeActions.map((action) => action.actionType),
     };
@@ -135,6 +139,28 @@ function findAsset(assets: AssetDto[], assetId: string | null): AssetDto | null 
   }
 
   return assets.find((asset) => asset.assetId === assetId) ?? null;
+}
+
+
+function resolveCharacterAsset(assets: AssetDto[], character: CharacterDto | null): AssetDto | null {
+  if (character === null) {
+    return null;
+  }
+
+  const imageMap = character.imageMap ?? { expression: {}, eye: {}, mouth: {}, motion: {} };
+  const defaultExpression = character.defaultExpression ?? "neutral";
+  const defaultMouth = character.defaultMouth ?? "closed";
+  const defaultEye = character.defaultEye ?? "open";
+  const expressionAssetId = imageMap.expression[defaultExpression] ?? imageMap.expression.neutral ?? null;
+  const mouthAssetId = imageMap.mouth[defaultMouth] ?? null;
+  const eyeAssetId = imageMap.eye[defaultEye] ?? null;
+  const assetId = expressionAssetId ?? mouthAssetId ?? eyeAssetId;
+
+  if (assetId === null) {
+    return null;
+  }
+
+  return assets.find((asset) => asset.assetId === assetId && asset.assetType === "character_image") ?? null;
 }
 
 function findFirstCharacterAsset(assets: AssetDto[]): AssetDto | null {

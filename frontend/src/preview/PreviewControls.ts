@@ -30,6 +30,7 @@ export type SeekControlState = {
   value: number;
   min: number;
   max: number;
+  step: number;
   disabled: boolean;
 };
 
@@ -37,6 +38,7 @@ export class SeekControl {
   constructor(
     private readonly currentTime: number,
     private readonly duration: number,
+    private readonly step: number,
     private readonly disabled: boolean = false,
   ) {
     if (!Number.isFinite(currentTime)) {
@@ -46,6 +48,10 @@ export class SeekControl {
     if (!Number.isFinite(duration) || duration < 0) {
       throw new Error("SeekControl duration must be greater than or equal to 0.");
     }
+
+    if (!Number.isFinite(step) || step <= 0) {
+      throw new Error("SeekControl step must be greater than 0.");
+    }
   }
 
   get state(): SeekControlState {
@@ -54,6 +60,7 @@ export class SeekControl {
       value: this.currentTime,
       min: 0,
       max: this.duration,
+      step: this.step,
       disabled: this.disabled,
     };
   }

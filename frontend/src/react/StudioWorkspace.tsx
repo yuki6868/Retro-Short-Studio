@@ -14,11 +14,14 @@ import type {
   AddAssetInput,
   AddSceneInput,
   ImportableAssetType,
+  AssignCharacterImageInput,
+  CharacterModelEditorState,
 } from "../../../app/src";
-import { TalkActionInspector, TimelineInteractionMapper, type BrowserProjectSummary, type StudioLayoutViewState, type TimelineItemViewState } from "../index";
+import { TalkActionInspector, TimelineInteractionMapper, type BrowserProjectSummary, type StudioLayoutViewState, type TimelineItemViewState, type CharacterModelEditorViewState } from "../index";
 
 export type StudioWorkspaceProps = {
   view: StudioLayoutViewState;
+  characterModelEditor?: CharacterModelEditorViewState;
   onAddAsset(input: AddAssetInput): AssetLibraryState;
   onImportAsset?(input: { assetType: ImportableAssetType; file: File }): Promise<AssetLibraryState>;
   onAddScene(input: AddSceneInput): SceneFlowState;
@@ -30,6 +33,11 @@ export type StudioWorkspaceProps = {
   onSelectAsset(assetId: string): AssetLibraryState;
   onDeleteAsset?(assetId: string): AssetLibraryState;
   onSelectScene(sceneId: string): SceneFlowState;
+  onCreateCharacterModel?(input: { characterName: string }): CharacterModelEditorState;
+  onSelectCharacterModel?(characterId: string): CharacterModelEditorState;
+  onRenameCharacterModel?(input: { characterId: string; characterName: string }): CharacterModelEditorState;
+  onChangeCharacterDefaults?(input: { characterId: string; defaultExpression?: string; defaultEye?: string; defaultMouth?: string; defaultMotion?: string }): CharacterModelEditorState;
+  onAssignCharacterImage?(input: AssignCharacterImageInput): CharacterModelEditorState;
   onEditSceneName(sceneId: string, sceneName: string): InspectorState;
   onEditSceneDuration(sceneId: string, duration: number): InspectorState;
   onEditSceneBackground?: (sceneId: string, backgroundAssetId: string | null) => InspectorState;
@@ -69,6 +77,7 @@ export function shouldApplyAssetSelectionToSceneBackground(input: {
 
 export function StudioWorkspace({
   view,
+  characterModelEditor,
   onAddAsset,
   onImportAsset,
   onAddScene,
@@ -80,6 +89,11 @@ export function StudioWorkspace({
   onSelectAsset,
   onDeleteAsset,
   onSelectScene,
+  onCreateCharacterModel,
+  onSelectCharacterModel,
+  onRenameCharacterModel,
+  onChangeCharacterDefaults,
+  onAssignCharacterImage,
   onEditSceneName,
   onEditSceneDuration,
   onEditSceneBackground,
@@ -351,6 +365,130 @@ export function StudioWorkspace({
             )}
           </section>
 
+
+
+          {characterModelEditor !== undefined ? (
+            <section className="rss-panel" aria-label={characterModelEditor.title}>
+              <h2>{characterModelEditor.title}</h2>
+              <button
+                disabled={characterModelEditor.createButton.disabled}
+                onClick={() =>
+                  onCreateCharacterModel?.({
+                    characterName: `Character ${characterModelEditor.characters.length + 1}`,
+                  })
+                }
+                type="button"
+              >
+                {characterModelEditor.createButton.label}
+              </button>
+              {characterModelEditor.characters.length === 0 ? <p>{characterModelEditor.emptyText}</p> : null}
+              <ul aria-label="Character model list">
+                {characterModelEditor.characters.map((character) => (
+                  <li key={character.characterId}>
+                    <button
+                      aria-pressed={character.selected}
+                      onClick={() => onSelectCharacterModel?.(character.characterId)}
+                      type="button"
+                    >
+                      {character.characterName}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {characterModelEditor.selectedCharacter !== null ? (
+                <div className="rss-character-editor" aria-label="CharacterImageMap Editor">
+                  <label>
+                    Character name
+                    <input
+                      aria-label="Character model name"
+                      defaultValue={characterModelEditor.selectedCharacter.characterName}
+                      onBlur={(event) =>
+                        onRenameCharacterModel?.({
+                          characterId: characterModelEditor.selectedCharacter!.characterId,
+                          characterName: event.currentTarget.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Default expression
+                    <input
+                      aria-label="Default expression"
+                      defaultValue={characterModelEditor.selectedCharacter.defaultExpression}
+                      onBlur={(event) =>
+                        onChangeCharacterDefaults?.({
+                          characterId: characterModelEditor.selectedCharacter!.characterId,
+                          defaultExpression: event.currentTarget.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Default mouth
+                    <select
+                      aria-label="Default mouth"
+                      onChange={(event) =>
+                        onChangeCharacterDefaults?.({
+                          characterId: characterModelEditor.selectedCharacter!.characterId,
+                          defaultMouth: event.currentTarget.value,
+                        })
+                      }
+                      value={characterModelEditor.selectedCharacter.defaultMouth}
+                    >
+                      <option value="closed">closed</option>
+                      <option value="half">half</option>
+                      <option value="open">open</option>
+                    </select>
+                  </label>
+                  <label>
+                    Default eye
+                    <select
+                      aria-label="Default eye"
+                      onChange={(event) =>
+                        onChangeCharacterDefaults?.({
+                          characterId: characterModelEditor.selectedCharacter!.characterId,
+                          defaultEye: event.currentTarget.value,
+                        })
+                      }
+                      value={characterModelEditor.selectedCharacter.defaultEye}
+                    >
+                      <option value="open">open</option>
+                      <option value="closed">closed</option>
+                    </select>
+                  </label>
+                  {characterModelEditor.selectedCharacter.imageSlots.map((slot) => (
+                    <label key={slot.key}>
+                      {slot.label}
+                      <select
+                        aria-label={slot.label}
+                        onChange={(event) => {
+                          if (event.currentTarget.value.length === 0) {
+                            return;
+                          }
+
+                          onAssignCharacterImage?.({
+                            characterId: characterModelEditor.selectedCharacter!.characterId,
+                            kind: slot.kind,
+                            state: slot.state,
+                            assetId: event.currentTarget.value,
+                          });
+                        }}
+                        value={slot.assetId ?? ""}
+                      >
+                        <option value="">No image</option>
+                        {characterModelEditor.characterImageAssets.map((asset) => (
+                          <option key={asset.assetId} value={asset.assetId}>
+                            {asset.assetName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
           <section className="rss-panel" aria-label={view.layout.left[1].title}>
             <h2>{view.layout.left[1].title}</h2>
             {sceneFlow === null ? (
@@ -447,12 +585,12 @@ export function StudioWorkspace({
                   setIsSeekEditing(false);
                   commitSeek(nextSeekValue);
                 }}
-                step={1 / 30}
+                step={preview.seekControl.step}
                 type="range"
                 value={seekValue}
               />
             </label>
-            <output>{preview.currentTime.toFixed(1)}s</output>
+            <output>{seekValue.toFixed(1)}s</output>
           </div>
         </section>
 
