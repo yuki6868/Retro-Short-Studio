@@ -23,3 +23,4 @@ export type {
 export { CURRENT_PROJECT_SCHEMA_VERSION } from "./project";
 export type { ProjectDto, ProjectSchemaVersionDto, ProjectSettingsDto } from "./project";
 export type { CharacterInstanceDto, SceneDto } from "./scene";
+export type { SceneTemplateDto } from "./template";

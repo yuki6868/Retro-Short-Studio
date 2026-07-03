@@ -1,6 +1,7 @@
 import { Asset } from "../asset";
 import { CharacterModel } from "../character";
 import { Scene } from "../scene";
+import { SceneTemplate } from "../template/SceneTemplate";
 import { ProjectCollections, type ProjectCollectionsSnapshot } from "./collections";
 import { ProjectId, ProjectName, ProjectSettings, type ProjectSettingsValues } from "./valueObjects";
 
@@ -42,6 +43,7 @@ export class Project {
         scenes: snapshot.scenes,
         assets: snapshot.assets,
         characters: snapshot.characters,
+        sceneTemplates: snapshot.sceneTemplates ?? [],
       }),
     );
   }
@@ -68,6 +70,14 @@ export class Project {
 
   updateScene(sceneId: string, updater: (scene: Scene) => void): void {
     this.collections = this.collections.updateScene(sceneId, updater);
+  }
+
+  addSceneTemplate(template: SceneTemplate): void {
+    this.collections = this.collections.addSceneTemplate(template);
+  }
+
+  removeSceneTemplate(templateId: string): void {
+    this.collections = this.collections.removeSceneTemplate(templateId);
   }
 
   addAsset(asset: Asset): void {

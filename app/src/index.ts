@@ -10,3 +10,4 @@ export * from "./timeline";
 export * from "./export";
 export * from "./pixel";
 export * from "./lipsync";
+export * from "./template";

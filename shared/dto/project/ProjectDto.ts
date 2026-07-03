@@ -1,6 +1,7 @@
 import type { AssetDto } from "../asset/AssetDto";
 import type { CharacterDto } from "../character/CharacterDto";
 import type { SceneDto } from "../scene/SceneDto";
+import type { SceneTemplateDto } from "../template/SceneTemplateDto";
 
 export type ProjectSettingsDto = {
   width: number;
@@ -20,4 +21,5 @@ export type ProjectDto = {
   assets: AssetDto[];
   characters: CharacterDto[];
   scenes: SceneDto[];
+  sceneTemplates?: SceneTemplateDto[];
 };

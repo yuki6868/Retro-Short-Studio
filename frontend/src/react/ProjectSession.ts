@@ -20,6 +20,7 @@ import {
   PyxelPreviewEngineClient,
   SceneCharacterPlacementUseCase,
   SceneFlowUseCase,
+  SceneTemplateUseCase,
   TimelineUseCase,
 } from "../../../app/src";
 import type { EngineClient } from "../../../shared";
@@ -38,6 +39,7 @@ import {
 export type StudioUseCases = {
   assetLibrary: AssetLibraryUseCase;
   sceneFlow: SceneFlowUseCase;
+  sceneTemplate: SceneTemplateUseCase;
   sceneCharacterPlacement: SceneCharacterPlacementUseCase;
   inspector: InspectorUseCase;
   timeline: TimelineUseCase;
@@ -69,6 +71,7 @@ export class ProjectSession {
     this.useCases = {
       assetLibrary: new AssetLibraryUseCase({ project: this.project, idGenerator }),
       sceneFlow: new SceneFlowUseCase({ project: this.project, idGenerator }),
+      sceneTemplate: new SceneTemplateUseCase({ project: this.project, idGenerator }),
       sceneCharacterPlacement: new SceneCharacterPlacementUseCase({ project: this.project, idGenerator }),
       inspector: new InspectorUseCase({ project: this.project }),
       timeline: new TimelineUseCase({ project: this.project }),

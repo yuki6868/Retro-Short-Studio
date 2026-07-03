@@ -10,6 +10,7 @@ import type {
   ResizeTimelineItemEndInput,
   ResizeTimelineItemStartInput,
   SceneFlowState,
+  SceneTemplateState,
   TimelineState,
   AddAssetInput,
   AddSceneInput,
@@ -30,6 +31,10 @@ export type StudioWorkspaceProps = {
   characterModelEditor?: CharacterModelEditorViewState;
   onAddAsset(input: AddAssetInput): AssetLibraryState;
   onImportAsset?(input: { assetType: ImportableAssetType; file: File }): Promise<AssetLibraryState>;
+  sceneTemplates?: SceneTemplateState;
+  onSaveSceneAsTemplate?(sceneId: string): SceneTemplateState;
+  onCreateSceneFromTemplate?(templateId: string): SceneFlowState;
+  onDeleteSceneTemplate?(templateId: string): SceneTemplateState;
   onAddScene(input: AddSceneInput): SceneFlowState;
   onDeleteScene(sceneId: string): SceneFlowState;
   onMoveScene(input: MoveSceneInput): SceneFlowState;
@@ -95,6 +100,10 @@ export function StudioWorkspace({
   characterModelEditor,
   onAddAsset,
   onImportAsset,
+  sceneTemplates,
+  onSaveSceneAsTemplate,
+  onCreateSceneFromTemplate,
+  onDeleteSceneTemplate,
   onAddScene,
   onDeleteScene,
   onMoveScene,
@@ -623,6 +632,27 @@ export function StudioWorkspace({
                   {sceneFlow.addButton.label}
                 </button>
                 {sceneFlow.scenes.length === 0 ? <p>{sceneFlow.emptyText}</p> : null}
+                {sceneTemplates !== undefined ? (
+                  <section className="rss-scene-templates" aria-label="Scene templates">
+                    <h3>Scene Templates</h3>
+                    {sceneTemplates.templates.length === 0 ? <p>No scene templates saved.</p> : null}
+                    <ul aria-label="Scene template list">
+                      {sceneTemplates.templates.map((template) => (
+                        <li key={template.templateId}>
+                          <span>
+                            {template.templateName} / {template.duration.toFixed(1)}s / {template.characterCount} chars / {template.actionCount} actions
+                          </span>
+                          <button onClick={() => onCreateSceneFromTemplate?.(template.templateId)} type="button">
+                            Create Scene
+                          </button>
+                          <button onClick={() => onDeleteSceneTemplate?.(template.templateId)} type="button">
+                            Delete Template
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
                 <ol aria-label="Scene list">
                   {sceneFlow.scenes.map((scene, index) => (
                     <li key={scene.sceneId}>
@@ -646,6 +676,9 @@ export function StudioWorkspace({
                         type="button"
                       >
                         Down
+                      </button>
+                      <button onClick={() => onSaveSceneAsTemplate?.(scene.sceneId)} type="button">
+                        Save as Template
                       </button>
                       <button onClick={() => onDeleteScene(scene.sceneId)} type="button">
                         Delete

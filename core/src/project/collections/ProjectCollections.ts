@@ -1,11 +1,13 @@
 import { Asset, type AssetSnapshot } from "../../asset";
 import { CharacterModel, type CharacterModelSnapshot } from "../../character";
 import { Scene, type SceneSnapshot } from "../../scene";
+import { SceneTemplate, type SceneTemplateSnapshot } from "../../template/SceneTemplate";
 
 export type ProjectCollectionsSnapshot = {
   scenes: SceneSnapshot[];
   assets: AssetSnapshot[];
   characters: CharacterModelSnapshot[];
+  sceneTemplates?: SceneTemplateSnapshot[];
 };
 
 export class ProjectCollections {
@@ -13,10 +15,11 @@ export class ProjectCollections {
     private readonly scenes: Scene[],
     private readonly assets: Asset[],
     private readonly characters: CharacterModel[],
+    private readonly sceneTemplates: SceneTemplate[],
   ) {}
 
   static empty(): ProjectCollections {
-    return new ProjectCollections([], [], []);
+    return new ProjectCollections([], [], [], []);
   }
 
   static fromSnapshot(snapshot: ProjectCollectionsSnapshot): ProjectCollections {
@@ -24,6 +27,7 @@ export class ProjectCollections {
       snapshot.scenes.map((scene) => Scene.restore(scene)),
       snapshot.assets.map((asset) => Asset.restore(asset)),
       snapshot.characters.map((character) => CharacterModel.restore(character)),
+      (snapshot.sceneTemplates ?? []).map((template) => SceneTemplate.restore(template)),
     );
   }
 
@@ -38,6 +42,7 @@ export class ProjectCollections {
       [...this.scenes, Scene.restore(scene.toSnapshot())],
       this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
       this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -53,6 +58,7 @@ export class ProjectCollections {
         .map((scene) => Scene.restore(scene.toSnapshot())),
       this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
       this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -75,6 +81,7 @@ export class ProjectCollections {
       nextScenes,
       this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
       this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -99,6 +106,7 @@ export class ProjectCollections {
       nextScenes,
       this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
       this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -113,6 +121,7 @@ export class ProjectCollections {
       this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
       [...this.assets, Asset.restore(asset.toSnapshot())],
       this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -135,6 +144,7 @@ export class ProjectCollections {
         .filter((asset) => asset.toSnapshot().assetId !== assetId)
         .map((asset) => Asset.restore(asset.toSnapshot())),
       this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -159,6 +169,7 @@ export class ProjectCollections {
       this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
       nextAssets,
       this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -173,6 +184,7 @@ export class ProjectCollections {
       this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
       this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
       [...this.characters, CharacterModel.restore(character.toSnapshot())],
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -197,6 +209,38 @@ export class ProjectCollections {
       this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
       this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
       nextCharacters,
+      this.sceneTemplates.map((template) => SceneTemplate.restore(template.toSnapshot())),
+    );
+  }
+
+
+  addSceneTemplate(template: SceneTemplate): ProjectCollections {
+    const templateId = template.toSnapshot().templateId;
+
+    if (this.sceneTemplates.some((currentTemplate) => currentTemplate.toSnapshot().templateId === templateId)) {
+      throw new Error(`SceneTemplate already exists: ${templateId}.`);
+    }
+
+    return new ProjectCollections(
+      this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
+      this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      [...this.sceneTemplates, SceneTemplate.restore(template.toSnapshot())],
+    );
+  }
+
+  removeSceneTemplate(templateId: string): ProjectCollections {
+    if (!this.sceneTemplates.some((template) => template.toSnapshot().templateId === templateId)) {
+      throw new Error(`SceneTemplate does not exist: ${templateId}.`);
+    }
+
+    return new ProjectCollections(
+      this.scenes.map((scene) => Scene.restore(scene.toSnapshot())),
+      this.assets.map((asset) => Asset.restore(asset.toSnapshot())),
+      this.characters.map((character) => CharacterModel.restore(character.toSnapshot())),
+      this.sceneTemplates
+        .filter((template) => template.toSnapshot().templateId !== templateId)
+        .map((template) => SceneTemplate.restore(template.toSnapshot())),
     );
   }
 
@@ -205,6 +249,7 @@ export class ProjectCollections {
       scenes: this.scenes.map((scene) => scene.toSnapshot()),
       assets: this.assets.map((asset) => asset.toSnapshot()),
       characters: this.characters.map((character) => character.toSnapshot()),
+      sceneTemplates: this.sceneTemplates.map((template) => template.toSnapshot()),
     };
   }
 }

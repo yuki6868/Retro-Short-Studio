@@ -13,6 +13,7 @@ describe("Project", () => {
       scenes: [],
       assets: [],
       characters: [],
+      sceneTemplates: [],
     });
   });
 
@@ -34,6 +35,7 @@ describe("Project", () => {
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
+      sceneTemplates: [],
     });
 
     expect(project.toSnapshot()).toEqual({
@@ -43,6 +45,7 @@ describe("Project", () => {
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
+      sceneTemplates: [],
     });
   });
 
@@ -147,6 +150,7 @@ describe("Project", () => {
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
+      sceneTemplates: [],
     });
 
     const snapshot = project.toSnapshot();
@@ -164,6 +168,7 @@ describe("ProjectCollections", () => {
       scenes: [],
       assets: [],
       characters: [],
+      sceneTemplates: [],
     });
   });
 
@@ -183,6 +188,7 @@ describe("ProjectCollections", () => {
       scenes: [{ sceneId: "s-1", sceneName: "Scene", duration: 3, backgroundAssetId: null, characters: [], actions: [] }],
       assets: [{ assetId: "a-1", assetName: "背景", assetType: "background", assetPath: "assets/bg.png" }],
       characters: [{ characterId: "c-1", characterName: "ずんだもん", defaultExpression: "neutral", defaultEye: "open", defaultMouth: "closed", defaultMotion: "idle", imageMap: { expression: {}, eye: {}, mouth: {}, motion: {} } }],
+      sceneTemplates: [],
     });
   });
 });

@@ -26,6 +26,26 @@ function assertProjectDto(value: unknown): asserts value is ProjectDto {
   assertAssetDtos(value.assets);
   assertCharacterDtos(value.characters);
   assertSceneDtos(value.scenes);
+  if (value.sceneTemplates !== undefined) {
+    assertSceneTemplateDtos(value.sceneTemplates);
+  }
+}
+
+function assertSceneTemplateDtos(value: unknown): void {
+  assertArray(value, "ProjectDto.sceneTemplates");
+
+  value.forEach((template, index) => {
+    const label = `ProjectDto.sceneTemplates[${index}]`;
+    assertPlainObject(template, label);
+    assertNonEmptyString(template.templateId, `${label}.templateId`);
+    assertNonEmptyString(template.templateName, `${label}.templateName`);
+    assertNonEmptyString(template.sourceSceneId, `${label}.sourceSceneId`);
+    assertPlainObject(template.scene, `${label}.scene`);
+    assertNonNegativeNumber(template.scene.duration, `${label}.scene.duration`);
+    assertNullableString(template.scene.backgroundAssetId, `${label}.scene.backgroundAssetId`);
+    assertCharacterInstanceDtos(template.scene.characters, `${label}.scene.characters`);
+    assertActionDtos(template.scene.actions, `${label}.scene.actions`);
+  });
 }
 
 function assertProjectSettingsDto(value: unknown): void {

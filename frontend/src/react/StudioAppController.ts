@@ -41,6 +41,7 @@ import {
   type RemoveCharacterInstanceInput,
   type SelectCharacterInstanceInput,
   type SceneFlowState,
+  type SceneTemplateState,
   type TimelineState,
   type UpdateAssetInput,
 } from "../../../app/src";
@@ -70,7 +71,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
   const projectFolderFileStore = compositionRootRef.current.projectFolderFileStore;
   const voicePreviewController = compositionRootRef.current.voicePreviewController;
   const project = projectSession.project;
-  const { assetLibrary, importAsset, sceneFlow, sceneCharacterPlacement, inspector, timeline, actionEditor, characterModelEditor } = projectSession.useCases;
+  const { assetLibrary, importAsset, sceneFlow, sceneTemplate, sceneCharacterPlacement, inspector, timeline, actionEditor, characterModelEditor } = projectSession.useCases;
 
   projectSession.bootstrapSelection();
 
@@ -166,6 +167,7 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
 
   const [assetState, setAssetState] = useState<AssetLibraryState>(assetLibrary.state);
   const [sceneState, setSceneState] = useState<SceneFlowState>(sceneFlow.state);
+  const [sceneTemplateState, setSceneTemplateState] = useState<SceneTemplateState>(sceneTemplate.state);
   const [characterModelState, setCharacterModelState] = useState<CharacterModelEditorState>(characterModelEditor.state);
   const [sceneCharacterState, setSceneCharacterState] = useState<SceneCharacterPlacementState>(sceneCharacterPlacement.state);
   const [inspectorState, setInspectorState] = useState<InspectorState>(inspector.state);
@@ -453,6 +455,44 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
       },
     }),
     [inspector, sceneCharacterPlacement, sceneFlow, sceneState, timeline],
+  );
+
+
+  const sceneTemplateUseCase = useMemo(
+    () => ({
+      get state() {
+        return sceneTemplateState;
+      },
+      saveSceneAsTemplate(sceneId: string): SceneTemplateState {
+        const scene = sceneFlow.state.scenes.find((candidate) => candidate.sceneId === sceneId);
+        const next = sceneTemplate.saveSceneAsTemplate({
+          sceneId,
+          templateName: scene === undefined ? `Template ${sceneTemplate.state.templates.length + 1}` : `${scene.sceneName} Template`,
+        });
+        setSceneTemplateState(next);
+        persistCurrentProject();
+        return next;
+      },
+      createSceneFromTemplate(templateId: string): SceneFlowState {
+        const result = sceneTemplate.createSceneFromTemplate({ templateId });
+        setSceneTemplateState(result.state);
+        const nextSceneState = sceneFlow.selectScene(result.sceneId);
+        setSceneState(nextSceneState);
+        setInspectorState(inspector.selectScene(result.sceneId));
+        setTimelineState(timeline.showScene(result.sceneId));
+        setSceneCharacterState(sceneCharacterPlacement.showScene(result.sceneId));
+        void previewUseCase.seek(0);
+        persistCurrentProject();
+        return nextSceneState;
+      },
+      deleteSceneTemplate(templateId: string): SceneTemplateState {
+        const next = sceneTemplate.deleteTemplate(templateId);
+        setSceneTemplateState(next);
+        persistCurrentProject();
+        return next;
+      },
+    }),
+    [inspector, previewUseCase, sceneCharacterPlacement, sceneFlow, sceneTemplate, sceneTemplateState, timeline],
   );
 
   const sceneCharacterPlacementUseCase = useMemo(
@@ -772,6 +812,10 @@ export function useStudioAppController(config: StudioAppControllerConfig = {}): 
     characterModelEditor: characterModelEditorView,
     onAddAsset: assetBrowserUseCase.addAsset,
     onImportAsset: assetBrowserUseCase.importAsset,
+    sceneTemplates: sceneTemplateUseCase.state,
+    onSaveSceneAsTemplate: sceneTemplateUseCase.saveSceneAsTemplate,
+    onCreateSceneFromTemplate: sceneTemplateUseCase.createSceneFromTemplate,
+    onDeleteSceneTemplate: sceneTemplateUseCase.deleteSceneTemplate,
     onAddScene: sceneFlowUseCase.addScene,
     onDeleteScene: sceneFlowUseCase.deleteScene,
     onMoveScene: sceneFlowUseCase.moveScene,

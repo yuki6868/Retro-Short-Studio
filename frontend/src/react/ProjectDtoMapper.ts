@@ -54,6 +54,24 @@ export function projectSnapshotToProjectDto(snapshot: ProjectSnapshot): ProjectD
       ...(character.currentVariant === undefined ? {} : { currentVariant: character.currentVariant }),
       imageMapId: character.imageMap === undefined ? null : character.characterId,
     })),
+    sceneTemplates: (snapshot.sceneTemplates ?? []).map((template) => ({
+      templateId: template.templateId,
+      templateName: template.templateName,
+      sourceSceneId: template.sourceSceneId,
+      scene: {
+        duration: template.scene.duration,
+        backgroundAssetId: template.scene.backgroundAssetId,
+        characters: template.scene.characters.map((character) => ({ ...character, transform: { ...character.transform } })),
+        actions: template.scene.actions.map((action): ActionDto => ({
+          actionId: action.actionId,
+          actionType: normalizeActionType(action.actionType),
+          startTime: action.startTime,
+          endTime: action.endTime,
+          targetId: action.targetId,
+          payload: action.payload,
+        })),
+      },
+    })),
     scenes: snapshot.scenes.map((scene) => ({
       sceneId: scene.sceneId,
       sceneName: scene.sceneName,
