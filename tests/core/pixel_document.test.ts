@@ -67,6 +67,43 @@ describe("PixelDocument", () => {
     expect(erased.toSnapshot().pixels[3 * 16 + 2]).toBe("transparent");
   });
 
+
+  it("flood fills contiguous pixels with the selected color", () => {
+    const document = Array.from({ length: 16 }, (_, y) => y).reduce(
+      (current, y) => current.paintPixel(1, y, "#111111"),
+      PixelDocument.create({ documentId: "pixel-1", projectId: "project-1", size: 16 }),
+    );
+    const fill = createPixelTool("fill");
+
+    const filled = fill.apply({
+      document,
+      x: 0,
+      y: 0,
+      color: "#29adff",
+    });
+
+    const pixels = filled.toSnapshot().pixels;
+    expect(pixels[0]).toBe("#29ADFF");
+    expect(pixels[16]).toBe("#29ADFF");
+    expect(pixels[2]).toBe("transparent");
+    expect(pixels[1]).toBe("#111111");
+    expect(pixels[15 * 16 + 1]).toBe("#111111");
+  });
+
+  it("does not repaint when flood fill target already has the selected color", () => {
+    const document = PixelDocument.create({ documentId: "pixel-1", projectId: "project-1", size: 16 }).paintPixel(0, 0, "#29ADFF");
+    const fill = createPixelTool("fill");
+
+    const filled = fill.apply({
+      document,
+      x: 0,
+      y: 0,
+      color: "#29adff",
+    });
+
+    expect(filled.toSnapshot()).toEqual(document.toSnapshot());
+  });
+
   it("selects colors from the palette", () => {
     const palette = Palette.createDefault();
 

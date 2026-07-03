@@ -70,6 +70,9 @@ export function PixelEditorWindow({ projectId, projectName, initialSize = 32 }: 
           <button aria-pressed={toolId === "eraser"} onClick={() => setToolId("eraser")} type="button">
             Eraser
           </button>
+          <button aria-pressed={toolId === "fill"} onClick={() => setToolId("fill")} type="button">
+            Fill
+          </button>
         </div>
 
         <div className="rss-pixel-editor-window__palette" role="group" aria-label="Pixel palette">

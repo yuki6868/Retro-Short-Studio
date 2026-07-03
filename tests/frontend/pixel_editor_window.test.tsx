@@ -18,6 +18,7 @@ describe("Pixel Editor Window", () => {
     expect(html).toContain('aria-label="Pixel tools"');
     expect(html).toContain("Brush");
     expect(html).toContain("Eraser");
+    expect(html).toContain("Fill");
     expect(html).toContain('aria-label="Pixel palette"');
   });
 
